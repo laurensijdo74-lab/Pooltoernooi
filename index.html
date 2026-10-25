@@ -1861,7 +1861,9 @@ function heroHtml() {
     '<div class="meta noprint">' + status + '</div></div></div><div class="rail"></div>';
 }
 function tabsVoorWeergave() {
-  return UI.viewer ? TABS.filter(t => ['overzicht', 'dag', 'standen', 'planning', 'regels'].indexOf(t[0]) >= 0) : TABS;
+  if (!UI.viewer) return TABS;
+  const openbaar = ['standen', 'dag'];
+  return openbaar.map(k => TABS.find(t => t[0] === k)).filter(Boolean);
 }
 function navHtml() {
   const open = alleDagen().filter(d => P.rondeGeloot(T, d.ronde) && dagStatus(d.ronde, d.poule).code === 'playoff').length;
@@ -2971,7 +2973,7 @@ async function start() {
     try {
       await window.POOL_ONLINE.ready;
       const remote = await window.POOL_ONLINE.loadTournament(publicId, { public: true });
-      if (remote) { T = remote; UI.viewer = true; UI.publicLink = location.href; publiekGeladen = true; }
+      if (remote) { T = remote; UI.viewer = true; UI.publicLink = location.href; UI.tab = 'standen'; publiekGeladen = true; }
     } catch (e) { }
   }
   if (!publiekGeladen) {
