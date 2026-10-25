@@ -1442,6 +1442,13 @@ const $ = (sel, el) => (el || document).querySelector(sel);
 const $$ = (sel, el) => Array.from((el || document).querySelectorAll(sel));
 function slug(s) { return String(s || 'toernooi').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, ''); }
 function nu() { return new Date(); }
+const PUBLIEKE_APP_URL = 'https://laurensijdo74-lab.github.io/Pooltoernooi/';
+function publiekeToernooiUrl(id) {
+  const basis = location.hostname.endsWith('github.io')
+    ? location.href.split('?')[0].replace(/[^/]*$/, '')
+    : PUBLIEKE_APP_URL;
+  return basis + '?tournament=' + encodeURIComponent(id);
+}
 function tijdTekst(iso) {
   if (!iso) return 'nog nooit';
   const d = new Date(iso), ms = Date.now() - d.getTime(), m = Math.round(ms / 60000);
@@ -2488,7 +2495,7 @@ function onlineHtml() {
   if (u) {
     const toegang = T.online && T.online.toegang || 'besloten';
     const sync = !T.online || T.online.synchroniseren !== false;
-    const publicUrl = location.href.split('?')[0] + '?tournament=' + encodeURIComponent(T.id);
+    const publicUrl = publiekeToernooiUrl(T.id);
     const publicBlock = toegang === 'openbaar'
       ? '<div class="note good small"><b>Publieke link:</b><br><input value="' + esc(publicUrl) + '" readonly style="width:100%;margin-top:6px"><button class="btn sec sm" data-act="copy-public-link" style="margin-top:6px">Link kopiëren</button></div>'
       : '<p class="small muted">Zet de toegang op openbaar om een kijklink zonder account te gebruiken.</p>';
@@ -2782,7 +2789,7 @@ const ACT = {
     } catch (e) { toast((e && e.message) || 'Online laden mislukt', true); render(); }
   },
   async 'copy-public-link'() {
-    const url = location.href.split('?')[0] + '?tournament=' + encodeURIComponent(T.id);
+    const url = publiekeToernooiUrl(T.id);
     try { await navigator.clipboard.writeText(url); toast('Publieke link gekopieerd'); }
     catch (e) { toast('Kopiëren lukt niet automatisch; selecteer de link handmatig.', true); }
   },
