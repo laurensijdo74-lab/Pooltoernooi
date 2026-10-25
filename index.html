@@ -2496,10 +2496,13 @@ function onlineHtml() {
     const toegang = T.online && T.online.toegang || 'besloten';
     const sync = !T.online || T.online.synchroniseren !== false;
     const publicUrl = publiekeToernooiUrl(T.id);
+    const toernooien = Array.isArray(s.tournaments) ? s.tournaments : [];
+    const wisselaar = '<div class="note small"><b>Online toernooi kiezen</b><br><span class="muted">Wissel tussen je opgeslagen toernooien zonder een bestand te openen.</span><div class="row" style="margin-top:8px"><select data-chg="online-kies-toernooi" style="flex:1;min-width:220px"><option value="">Kies een toernooi…</option>' + toernooien.map(x => '<option value="' + esc(x.id) + '"' + (x.id === T.id ? ' selected' : '') + '>' + esc(x.naam) + (x.locatieNaam ? ' · ' + esc(x.locatieNaam) : '') + '</option>').join('') + '</select><button class="btn sec sm" data-act="online-ververs-toernooien">Vernieuwen</button></div>' + (!toernooien.length ? '<div class="muted" style="margin-top:6px">Klik op Vernieuwen om de online toernooien op te halen.</div>' : '') + '</div>';
     const publicBlock = toegang === 'openbaar'
       ? '<div class="note good small"><b>Publieke link:</b><br><input value="' + esc(publicUrl) + '" readonly style="width:100%;margin-top:6px"><button class="btn sec sm" data-act="copy-public-link" style="margin-top:6px">Link kopiëren</button></div>'
       : '<p class="small muted">Zet de toegang op openbaar om een kijklink zonder account te gebruiken.</p>';
     return '<div class="sect"><header><h3>Online versie</h3><span class="chip ok">Online aangemeld</span></header><div class="body stack"><p class="small">Aangemeld als <b>' + esc(u.email || u.uid) + '</b>.</p>' +
+      wisselaar +
       '<label class="f"><span>Toegang van dit toernooi</span><select data-chg="online-toegang"><option value="besloten"' + (toegang === 'besloten' ? ' selected' : '') + '>Besloten – alleen bevoegde gebruikers</option><option value="openbaar"' + (toegang === 'openbaar' ? ' selected' : '') + '>Openbaar – iedereen mag bekijken</option></select></label>' +
       '<label class="row small"><input type="checkbox" data-chg="online-synchroniseren"' + (sync ? ' checked' : '') + '> Automatisch online synchroniseren</label>' +
       '<div class="row"><button class="btn" data-act="online-upload">Nu online bewaren</button><button class="btn sec" data-act="online-laden">Online laden</button><button class="btn sec" data-act="online-logout">Afmelden</button></div>' +
@@ -2779,6 +2782,11 @@ const ACT = {
     try { if (!(await synchroniseerOnlineNu())) throw new Error('Online bewaren kon niet worden voltooid'); toast('Toernooi online bewaard'); render(); }
     catch (e) { toast((e && e.message) || 'Online bewaren mislukt', true); render(); }
   },
+  async 'online-ververs-toernooien'() {
+    const o = window.POOL_ONLINE; if (!o || !o.listTournaments) return;
+    try { await o.listTournaments(); render(); toast('Online toernooien bijgewerkt'); }
+    catch (e) { toast((e && e.message) || 'Toernooien laden mislukt', true); render(); }
+  },
   async 'online-laden'() {
     const o = window.POOL_ONLINE; if (!o) return;
     try {
@@ -2895,6 +2903,22 @@ const CHG = {
   'inst-test'(el) { T.instellingen.testmodus = el.checked; commit(); },
   'online-toegang'(el) { T.online = T.online || {}; T.online.toegang = el.value === 'openbaar' ? 'openbaar' : 'besloten'; T.online.gepubliceerd = T.online.toegang === 'openbaar'; commit(); },
   'online-synchroniseren'(el) { T.online = T.online || {}; T.online.synchroniseren = !!el.checked; if (T.online.synchroniseren) startOnlineSynchronisatie(); else stopOnlineSynchronisatie(); commit(); },
+  async 'online-kies-toernooi'(el) {
+    const id = String(el.value || '').trim();
+    const o = window.POOL_ONLINE;
+    if (!id || !o || id === T.id) return;
+    try {
+      const remote = await o.loadTournament(id);
+      if (!remote) { toast('Dat online toernooi kon niet worden geladen.', true); render(); return; }
+      const naam = remote.naam || 'dit online toernooi';
+      if (!(await bevestig('“' + esc(naam) + '” wordt geopend. De huidige stand blijft online bewaard.', { titel: 'Ander toernooi openen?', ja: 'Openen' }))) { render(); return; }
+      stopOnlineSynchronisatie();
+      maakHerstelpunt('Voor wisselen van online toernooi');
+      T = remote; migreerNaLaden(); stopAnimatie(); UI.dag = null; UI.lotingKey = null; UI.tab = 'overzicht';
+      bewaarNu(); render(); startOnlineSynchronisatie();
+      toast('Online toernooi geladen');
+    } catch (e) { toast((e && e.message) || 'Toernooi wisselen mislukt', true); render(); }
+  },
   't-patroon'(el) { UI.testPatroon = el.value; },
   'loc-veld'(el) { const l = T.locaties.find(x => x.id === UI.locEdit); l[el.dataset.veld] = el.value.trim(); if (el.dataset.veld === 'naam' && !l.naam) l.naam = 'Locatie'; commit(); },
   'loc-kleur'(el) { const l = T.locaties.find(x => x.id === UI.locEdit); l.kleuren = l.kleuren || {}; l.kleuren[el.dataset.veld] = el.value; commit(); },
@@ -3033,7 +3057,7 @@ import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
 } from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js';
 import {
-  getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp
+  getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp, collection, getDocs
 } from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js';
 
 const cfg = window.POOL_ONLINE_CONFIG || {};
@@ -3051,6 +3075,7 @@ const state = {
   status: configured ? 'initialiseren' : 'lokaal',
   user: null,
   error: '',
+  tournaments: [],
   remoteId: null,
   lastRemoteWrite: null,
   lastRemoteRead: null
@@ -3083,6 +3108,7 @@ async function init() {
       state.user = user ? { uid: user.uid, email: user.email || '' } : null;
       state.status = user ? 'online' : 'niet-aangemeld';
       state.error = '';
+      if (user) listTournaments().catch(() => {});
       notify();
     });
     state.status = 'niet-aangemeld';
@@ -3188,6 +3214,32 @@ async function loadTournament(id, options) {
   } catch (e) { return fail('Online laden mislukt', e); }
 }
 
+async function listTournaments() {
+  await ready;
+  try {
+    assertOnline();
+    const snap = await getDocs(collection(db, 'tournaments'));
+    const lijst = [];
+    snap.forEach(item => {
+      const d = item.data() || {};
+      const t = d.state || {};
+      const locaties = Array.isArray(t.locaties) ? t.locaties : [];
+      const loc = locaties.find(x => x && x.id === t.locatieId) || locaties[0] || {};
+      lijst.push({
+        id: String(d.id || item.id),
+        naam: String(d.naam || t.naam || 'Pooltoernooi'),
+        locatieNaam: String(loc.naam || ''),
+        gewijzigd: d.gewijzigd || t.gewijzigd || ''
+      });
+    });
+    lijst.sort((a, b) => String(b.gewijzigd).localeCompare(String(a.gewijzigd)) || a.naam.localeCompare(b.naam, 'nl'));
+    state.tournaments = lijst;
+    state.error = '';
+    notify();
+    return lijst;
+  } catch (e) { return fail('Online toernooien laden mislukt', e); }
+}
+
 function subscribeTournament(id, onRemote) {
   if (!db || !currentUser) return () => {};
   if (unsubscribe) unsubscribe();
@@ -3213,6 +3265,7 @@ const api = {
   saveLocation,
   loadLocation,
   loadTournament,
+  listTournaments,
   subscribeTournament,
   get user() { return currentUser; }
 };
