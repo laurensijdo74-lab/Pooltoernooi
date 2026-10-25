@@ -2965,7 +2965,7 @@ function koppelEvents() {
   });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-act]'); if (!b || b.disabled || b.classList.contains('off')) return;
-    if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'stand-ronde', 'scorebord', 'scorebord-venster', 'scorebord-uit', 'print'].indexOf(b.dataset.act) < 0) return;
+    if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'dag-lijst', 'stand-ronde', 'scorebord', 'scorebord-venster', 'scorebord-uit', 'print'].indexOf(b.dataset.act) < 0) return;
     const f = ACT[b.dataset.act]; if (f) { e.preventDefault(); f(b, e); }
   });
   document.addEventListener('change', e => {
