@@ -1443,11 +1443,19 @@ const $$ = (sel, el) => Array.from((el || document).querySelectorAll(sel));
 function slug(s) { return String(s || 'toernooi').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, ''); }
 function nu() { return new Date(); }
 const PUBLIEKE_APP_URL = 'https://laurensijdo74-lab.github.io/Pooltoernooi/';
+const PUBLIEKE_ALIASES = { tmvdkmjd0h8pa1: 'vue' };
 function publiekeToernooiUrl(id) {
+  const alias = PUBLIEKE_ALIASES[String(id || '')];
+  if (alias) return PUBLIEKE_APP_URL + alias + '/';
   const basis = location.hostname.endsWith('github.io')
     ? location.href.split('?')[0].replace(/[^/]*$/, '')
     : PUBLIEKE_APP_URL;
   return basis + '?tournament=' + encodeURIComponent(id);
+}
+function publiekeToernooiNaam(id) {
+  if (String(id || '') === 'tmvdkmjd0h8pa1') return 'Pooltoernooi Vue';
+  if (T && T.id === id && /karroesel/i.test(T.naam || '')) return 'Pooltoernooi Karroesel';
+  return 'Publieke link';
 }
 function tijdTekst(iso) {
   if (!iso) return 'nog nooit';
@@ -2496,10 +2504,11 @@ function onlineHtml() {
     const toegang = T.online && T.online.toegang || 'besloten';
     const sync = !T.online || T.online.synchroniseren !== false;
     const publicUrl = publiekeToernooiUrl(T.id);
+    const publicName = publiekeToernooiNaam(T.id);
     const toernooien = Array.isArray(s.tournaments) ? s.tournaments : [];
     const wisselaar = '<div class="note small"><b>Online toernooi kiezen</b><br><span class="muted">Wissel tussen je opgeslagen toernooien zonder een bestand te openen.</span><div class="row" style="margin-top:8px"><select data-chg="online-kies-toernooi" style="flex:1;min-width:220px"><option value="">Kies een toernooi…</option>' + toernooien.map(x => '<option value="' + esc(x.id) + '"' + (x.id === T.id ? ' selected' : '') + '>' + esc(x.naam) + (x.locatieNaam ? ' · ' + esc(x.locatieNaam) : '') + '</option>').join('') + '</select><button class="btn sec sm" data-act="online-ververs-toernooien">Vernieuwen</button></div>' + (!toernooien.length ? '<div class="muted" style="margin-top:6px">Klik op Vernieuwen om de online toernooien op te halen.</div>' : '') + '</div>';
     const publicBlock = toegang === 'openbaar'
-      ? '<div class="note good small"><b>Publieke link:</b><br><input value="' + esc(publicUrl) + '" readonly style="width:100%;margin-top:6px"><button class="btn sec sm" data-act="copy-public-link" style="margin-top:6px">Link kopiëren</button></div>'
+      ? '<div class="note good small"><b>' + esc(publicName) + '</b><br><a href="' + esc(publicUrl) + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;word-break:break-all">' + esc(publicUrl) + '</a><br><button class="btn sec sm" data-act="copy-public-link" style="margin-top:6px">Korte link kopiëren</button></div>'
       : '<p class="small muted">Zet de toegang op openbaar om een kijklink zonder account te gebruiken.</p>';
     return '<div class="sect"><header><h3>Online versie</h3><span class="chip ok">Online aangemeld</span></header><div class="body stack"><p class="small">Aangemeld als <b>' + esc(u.email || u.uid) + '</b>.</p>' +
       wisselaar +
@@ -2956,7 +2965,7 @@ function koppelEvents() {
   });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-act]'); if (!b || b.disabled || b.classList.contains('off')) return;
-    if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'stand-ronde', 'scorebord', 'scorebord-venster', 'scorebord-uit', 'print'].indexOf(b.dataset.act) < 0) return;
+    if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'dag-lijst', 'stand-ronde', 'scorebord', 'scorebord-venster', 'scorebord-uit', 'print'].indexOf(b.dataset.act) < 0) return;
     const f = ACT[b.dataset.act]; if (f) { e.preventDefault(); f(b, e); }
   });
   document.addEventListener('change', e => {
@@ -2998,7 +3007,10 @@ function koppelEvents() {
 
 /* ---------- opstarten ---------- */
 async function start() {
-  const publicId = new URLSearchParams(location.search).get('tournament');
+  const queryPublicId = new URLSearchParams(location.search).get('tournament');
+  const pathPart = location.pathname.replace(/\/+$/, '').split('/').pop().toLowerCase();
+  const pathPublicIds = { vue: 'tmvdkmjd0h8pa1' };
+  const publicId = queryPublicId || pathPublicIds[pathPart] || '';
   let opgeslagen = null, publiekGeladen = false;
   if (publicId && window.POOL_ONLINE) {
     try {
