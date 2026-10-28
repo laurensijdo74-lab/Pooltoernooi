@@ -42,6 +42,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .hero h1 { font-size: clamp(1.4rem, 2.6vw, 2.15rem); }
 .hero .sub { opacity: .85; font-size: .95rem; margin-top: 2px; }
 .hero .meta { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.hero-public { width: calc(100% - 40px); margin: 0 auto; border-radius: 0 0 var(--radius) var(--radius); }
+.hero-public .hero-in { padding: 8px 12px 10px; gap: 10px; }
+.hero-public .logo { height: 42px; max-width: 110px; }
+.hero-public h1 { font-size: 1.2rem; }
+.hero-public .sub { font-size: .82rem; }
 .rail { height: 8px; background: var(--rail); box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
 
 /* ---------- Navigatie ---------- */
@@ -165,6 +170,11 @@ table.t select { max-width: 150px; }
 .game .pl.win .sc { color: var(--good); }
 .game .pl.loss { color: var(--muted); }
 .game .pl.loss .nm { text-decoration: line-through; text-decoration-thickness: 1px; }
+.game.viewer-game .pl,
+.game.viewer-game .pl.loss,
+.game.viewer-game .pl.win { color: var(--ink); background: transparent; }
+.game.viewer-game .pl.loss .nm { text-decoration: none; }
+.game.viewer-game .pl.win .sc { color: var(--good); }
 .game.actief { box-shadow: inset 5px 0 0 var(--accent); background: var(--accent-soft); }
 .game.actief .gnr { background: var(--accent); color: #fff; }
 .game.skip { opacity: .4; }
@@ -317,6 +327,9 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 .dagview .stack-l > .sect .ghead { width: 100%; max-width: none; min-width: 0; }
 .dagview .playoff-block .games { width: calc(100% + 32px); max-width: none; margin-left: -16px; }
 .public-dag-controls { gap: 6px; flex-wrap: nowrap; }
+.public-dag-controls .viewer-refresh { margin-left: 8px; padding: 4px 8px; min-width: 2.1em; font-size: 1.05rem; line-height: 1; }
+.public-dag-datum { font-size: 1.2rem; line-height: 1.15; font-weight: 800; }
+.public-dag-ronde { margin-top: 3px; color: var(--muted); font-size: .78rem; font-weight: 700; }
 @media (min-width: 1181px) {
   .dagview:not(.collapsed) .public-dag-kop { width: calc(55.5556% - 11.111px); }
 }
@@ -1912,9 +1925,9 @@ function heroHtml() {
   const logo = loc.logo ? '<img class="logo" alt="Logo ' + esc(loc.naam) + '" src="' + esc(loc.logo) + '">' : '<span class="logo-bal" aria-hidden="true">' + ((THEMAS[loc.thema] || {}).icoon || '🎱') + '</span>';
   const sub = loc.slogan ? esc(loc.slogan) : esc(T.naam);
   const st = backupStatus();
-  const status = UI.viewer ? '<span class="chip info">Publieke weergave</span>' : '<button id="statchip" class="chip ' + st.cls + '" data-act="ga-gegevens" title="Naar opslag en back-up">' + (UI.opslag.ok ? '✓ ' : '! ') + esc(st.tekst) + '</button>';
-  return '<div class="hero"><div class="hero-in">' + logo + '<div><h1>' + esc(loc.naam) + '</h1><div class="sub">' + (loc.slogan ? esc(T.naam) + ' · ' + sub : esc(T.naam)) + (loc.adres ? ' · ' + esc(loc.adres) : '') + '</div></div>' +
-    '<div class="meta noprint">' + status + '</div></div></div><div class="rail"></div>';
+  const status = UI.viewer ? '' : '<button id="statchip" class="chip ' + st.cls + '" data-act="ga-gegevens" title="Naar opslag en back-up">' + (UI.opslag.ok ? '✓ ' : '! ') + esc(st.tekst) + '</button>';
+  return '<div class="hero' + (UI.viewer ? ' hero-public' : '') + '"><div class="hero-in">' + logo + '<div><h1>' + esc(loc.naam) + '</h1><div class="sub">' + (loc.slogan ? esc(T.naam) + ' · ' + sub : esc(T.naam)) + (loc.adres ? ' · ' + esc(loc.adres) : '') + '</div></div>' +
+    (status ? '<div class="meta noprint">' + status + '</div>' : '') + '</div></div><div class="rail"></div>';
 }
 function tabsVoorWeergave() {
   if (!UI.viewer) return TABS;
@@ -2138,7 +2151,7 @@ function gameRijHtml(g, posFn, o) {
     if (UI.viewer) return '<div class="pl ' + cls(id) + '">' + inhoud + '</div>';
     return '<button class="pl ' + cls(id) + '"' + (o.locked ? ' disabled' : '') + ' data-act="' + o.act + '" ' + o.attrs + ' data-g="' + g.nr + '" data-w="' + id + '" aria-pressed="' + (g.w === id) + '" aria-label="' + esc(spelerNaam(id)) + ' wint wedstrijd ' + g.nr + '">' + inhoud + '</button>';
   };
-  return '<div class="game' + (o.actief ? ' actief' : '') + (o.skip ? ' skip' : '') + '"><div class="gnr">' + g.nr + '</div>' + knop(g.a, true) + '<div class="vs">vs</div>' + knop(g.b, false) + '' + '</div>';
+  return '<div class="game' + (UI.viewer ? ' viewer-game' : '') + (o.actief ? ' actief' : '') + (o.skip ? ' skip' : '') + '"><div class="gnr">' + g.nr + '</div>' + knop(g.a, true) + '<div class="vs">vs</div>' + knop(g.b, false) + '' + '</div>';
 }
 function gamesHtml(key, p) {
   const actief = P.eersteOpenGame(p), pauze = P.pauzeIndex(T, p), posFn = id => p.spelers.indexOf(id) + 1;
@@ -2356,12 +2369,12 @@ function dagDetailHtml(key, nr) {
   const wachtPh = p.spelers.some(P.isPh);
   const actief = actieveActie(key, p);
   const laatste = P.laatsteGame(p), kanHerstel = !!laatste || (p.pp && p.pp.stappen.some(x => x.games.some(g => g.w)));
-  const viewerRefresh = UI.viewer ? '<button class="btn accent viewer-refresh" data-act="viewer-refresh" title="Haal de actuele stand op">↻ Vernieuwen</button>' : '';
+  const viewerRefresh = UI.viewer ? '<button class="btn accent viewer-refresh" data-act="viewer-refresh" aria-label="Vernieuwen" title="Haal de actuele stand op">↻</button>' : '';
   const beheerKnoppen = '<button class="btn sec sm" data-act="scorebord">Scorebord</button><button class="btn sec sm" data-act="scorebord-venster" title="Opent het scorebord in een eigen venster, bijvoorbeeld voor een tweede scherm of tv">Scorebord in eigen venster</button><button class="btn sec sm" data-act="print">Afdrukken</button>';
-  const titel = UI.viewer ? rondeNaam(key) : rondePoule(key, nr);
   const ondertitel = UI.viewer ? P.datumLang(d.datum) : P.datumLang(d.datum) + ' · ' + locNaam(dagLocatie(key, nr));
   const navigatie = '<button class="btn sec sm" data-act="dag-nav" data-d="-1"' + (vorige ? '' : ' disabled') + '>← Vorige</button><button class="btn sec sm" data-act="dag-nav" data-d="1"' + (volgende ? '' : ' disabled') + '>Volgende →</button>' + (UI.viewer ? viewerRefresh : beheerKnoppen);
-  const kop = '<div class="sect ' + (UI.viewer ? 'public-dag-kop' : '') + '"><div class="body"><div class="row between"><div class="stack"><div class="row"><h2>' + esc(titel) + '</h2><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span></div><div class="muted">' + esc(ondertitel) + '</div></div>' +
+  const titelBlok = UI.viewer ? '<div class="stack"><div class="public-dag-datum">' + esc(P.datumLang(d.datum)) + '</div><div class="public-dag-ronde">' + esc(rondeNaam(key)) + ' · ' + esc(s.tekst) + '</div></div>' : '<div class="stack"><div class="row"><h2>' + esc(rondePoule(key, nr)) + '</h2><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span></div><div class="muted">' + esc(ondertitel) + '</div></div>';
+  const kop = '<div class="sect ' + (UI.viewer ? 'public-dag-kop' : '') + '"><div class="body"><div class="row between">' + titelBlok +
     '<div class="row noprint' + (UI.viewer ? ' public-dag-controls' : '') + '">' + navigatie + '</div></div></div></div>';
   const vast = P.vergrendeld(T, key, nr), ontgrendeldKlaar = !vast && p.ontgrendeld && P.pouleAfgerond(T, p);
   const slot = UI.viewer ? '' : (vast ? '<div class="note good row between"><span>🔒 <b>Deze speeldag is afgerond en vergrendeld.</b> Uitslagen kunnen niet per ongeluk worden gewijzigd.</span><button class="btn sec sm noprint" data-act="ontgrendel" data-key="' + key + '" data-nr="' + nr + '">Ontgrendelen…</button></div>' : (ontgrendeldKlaar ? '<div class="note warn row between"><span>🔓 <b>Ontgrendeld.</b> Je kunt uitslagen wijzigen.</span><button class="btn sm noprint" data-act="vergrendel" data-key="' + key + '" data-nr="' + nr + '">Weer vergrendelen</button></div>' : ''));
