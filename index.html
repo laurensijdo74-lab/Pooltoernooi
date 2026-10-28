@@ -271,6 +271,7 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 @media (max-width: 1180px) { .dagview .cols { grid-template-columns: 1fr; } }
 
 .stand .naam { white-space: nowrap; }
+.stand-datum { font-size: .98rem; font-weight: 800; color: var(--ink); white-space: nowrap; }
 :root[data-mode="dark"] .hero .chip.warn { color: #6b3f00; } :root[data-mode="dark"] .hero .chip.ok { color: #14653a; }
 
 .game .pl:disabled { cursor: default; } .game .pl:disabled:hover { background: transparent; } .game .pl.win:disabled:hover { background: var(--good-soft); }
@@ -309,6 +310,11 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 .game .brkrow { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 12px 7px 3.2rem; background: var(--surface2); border-top: 1px dashed var(--line); }
 .game .brkrow .chip { cursor: pointer; font: inherit; font-size: .78rem; font-weight: 700; } .game .brkrow .chip[disabled] { cursor: default; opacity: .6; }
 .game.actief .brkrow { background: transparent; }
+.dagview .stack-l > .sect,
+.dagview .stack-l > .sect .body,
+.dagview .stack-l > .sect .games,
+.dagview .stack-l > .sect .game,
+.dagview .stack-l > .sect .ghead { width: 100%; max-width: none; min-width: 0; }
 @media (min-width: 1181px) {
   .dagview .cols > .stack:last-child { position: sticky; top: 62px; align-self: start; max-height: calc(100vh - 78px); overflow-y: auto; }
 }
@@ -1574,6 +1580,7 @@ function pasThemaToe(loc) {
 const LS_KEY = 'pooltoernooi.v1.actief', LS_HP = 'pooltoernooi.v1.herstelpunten';
 let saveTimer = null, fileTimer = null, laatsteHerstelpunt = 0;
 let onlineSaveTimer = null, onlineUnsub = null, onlineApplying = false;
+let publiekeVerversingTimer = null, publiekeVerversingBezig = false;
 function laadOpgeslagen() {
   try {
     const s = localStorage.getItem(LS_KEY);
@@ -1847,6 +1854,25 @@ function standKeyVoorWeergave() {
   const stap = volgendeStap();
   if (stap && stap.key && P.planRonde(T, stap.key)) return stap.key;
   return T.plan.rondes.length ? T.plan.rondes[T.plan.rondes.length - 1].key : null;
+}
+function standRondesVoorWeergave() {
+  if (!UI.viewer) return T.plan.rondes.slice();
+  const zichtbaar = [];
+  for (let i = 0; i < T.plan.rondes.length; i++) {
+    if (i === 0 || P.reguliereKlaarRonde(T, T.plan.rondes[i - 1].key)) zichtbaar.push(T.plan.rondes[i]);
+    else break;
+  }
+  return zichtbaar;
+}
+function actueleSpeeldag() {
+  const d = volgendeSpeeldag();
+  if (d) return d;
+  const stap = volgendeStap();
+  if (stap && stap.key) {
+    const gepland = P.planDagen(T, stap.key);
+    if (gepland.length) return gepland[0];
+  }
+  return alleDagen()[0] || null;
 }
 /* Een speeldag mag pas worden bijgewerkt als alle eerdere speeldagen zijn afgerond. Een play-off die op de dag van de
    volgende ronde wordt gespeeld, blokkeert niet. */
@@ -2304,7 +2330,7 @@ function dagLijstHtml() {
 }
 function viewDag() {
   if (!T.plan.rondes.length) return '<div class="sect"><div class="body"><div class="note warn">Voeg eerst spelers toe en loot ronde 1.</div></div></div>';
-  if (!UI.dag || !P.planDag(T, UI.dag.key, UI.dag.nr)) { const v = volgendeSpeeldag() || alleDagen()[0]; UI.dag = { key: v.ronde, nr: v.poule }; }
+  if (!UI.dag || !P.planDag(T, UI.dag.key, UI.dag.nr)) { const v = actueleSpeeldag(); if (v) UI.dag = { key: v.ronde, nr: v.poule }; }
   if (UI.dagLijst === false) {
     const d = P.planDag(T, UI.dag.key, UI.dag.nr);
     return '<div class="dagview collapsed"><section><div class="row noprint" style="margin-bottom:14px"><button class="btn sec" data-act="dag-lijst" aria-expanded="false">☰ Alle speeldagen</button><span class="muted small">' + esc(rondePoule(UI.dag.key, UI.dag.nr)) + ' · ' + esc(P.datumKort(d.datum)) + '</span></div>' + dagDetailHtml(UI.dag.key, UI.dag.nr) + '</section></div>';
@@ -2320,10 +2346,11 @@ function dagDetailHtml(key, nr) {
   const wachtPh = p.spelers.some(P.isPh);
   const actief = actieveActie(key, p);
   const laatste = P.laatsteGame(p), kanHerstel = !!laatste || (p.pp && p.pp.stappen.some(x => x.games.some(g => g.w)));
-  const viewerRefresh = UI.viewer ? '<button class="btn sec sm" data-act="viewer-refresh">↻ Vernieuwen</button>' : '';
+  const viewerRefresh = UI.viewer ? '<button class="btn accent viewer-refresh" data-act="viewer-refresh" title="Haal de actuele stand op">↻ Vernieuwen</button>' : '';
+  const beheerKnoppen = '<button class="btn sec sm" data-act="scorebord">Scorebord</button><button class="btn sec sm" data-act="scorebord-venster" title="Opent het scorebord in een eigen venster, bijvoorbeeld voor een tweede scherm of tv">Scorebord in eigen venster</button><button class="btn sec sm" data-act="print">Afdrukken</button>';
   const kop = '<div class="sect"><div class="body"><div class="row between"><div class="stack"><div class="row"><h2>' + esc(rondePoule(key, nr)) + '</h2><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span></div><div class="muted">' + esc(P.datumLang(d.datum)) + ' · ' + esc(locNaam(dagLocatie(key, nr))) + '</div></div>' +
     '<div class="row noprint">' + viewerRefresh + '<button class="btn sec sm" data-act="dag-nav" data-d="-1"' + (vorige ? '' : ' disabled') + '>← Vorige</button><button class="btn sec sm" data-act="dag-nav" data-d="1"' + (volgende ? '' : ' disabled') + '>Volgende →</button>' +
-    '<button class="btn sec sm" data-act="scorebord">Scorebord</button><button class="btn sec sm" data-act="scorebord-venster" title="Opent het scorebord in een eigen venster, bijvoorbeeld voor een tweede scherm of tv">Scorebord in eigen venster</button><button class="btn sec sm" data-act="print">Afdrukken</button></div></div></div></div>';
+    (UI.viewer ? '' : beheerKnoppen) + '</div></div></div></div>';
   const vast = P.vergrendeld(T, key, nr), ontgrendeldKlaar = !vast && p.ontgrendeld && P.pouleAfgerond(T, p);
   const slot = UI.viewer ? '' : (vast ? '<div class="note good row between"><span>🔒 <b>Deze speeldag is afgerond en vergrendeld.</b> Uitslagen kunnen niet per ongeluk worden gewijzigd.</span><button class="btn sec sm noprint" data-act="ontgrendel" data-key="' + key + '" data-nr="' + nr + '">Ontgrendelen…</button></div>' : (ontgrendeldKlaar ? '<div class="note warn row between"><span>🔓 <b>Ontgrendeld.</b> Je kunt uitslagen wijzigen.</span><button class="btn sm noprint" data-act="vergrendel" data-key="' + key + '" data-nr="' + nr + '">Weer vergrendelen</button></div>' : ''));
   const waarschuw = slot + (vorigeOpen ? '<div class="note warn">De vorige speeldag (' + esc(rondePoule(vorige.ronde, vorige.poule).replace(/^Ronde /, 'R').replace(' · poule ', ' poule ')) + ', ' + esc(P.datumKort(vorige.datum)) + ') is nog niet afgerond.</div>' : '') +
@@ -2334,6 +2361,32 @@ function dagDetailHtml(key, nr) {
   const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p) + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + testHulpHtml(key, p) + '</div>';
   return '<div class="stack-l">' + kop + waarschuw + (wachtPh ? vorigePlayoffsHtml(key, p) : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols">' + links + rechts + '</div>' + ppBlokHtml(key, p) + derdePp + '</div>';
 }
+async function vernieuwPubliek(melding) {
+  if (!UI.viewer || !window.POOL_ONLINE || !T || !T.id || publiekeVerversingBezig) return;
+  publiekeVerversingBezig = true;
+  const huidigeTab = UI.tab;
+  const huidigeDag = UI.dag && { key: UI.dag.key, nr: UI.dag.nr };
+  const huidigeStand = UI.stand;
+  try {
+    const remote = await window.POOL_ONLINE.loadTournament(T.id, { public: true });
+    if (!remote) { if (melding) toast('De openbare versie kon niet worden vernieuwd.', true); return; }
+    T = remote; migreerNaLaden(); UI.viewer = true; UI.tab = huidigeTab;
+    UI.dag = huidigeDag && P.planDag(T, huidigeDag.key, huidigeDag.nr) ? huidigeDag : null;
+    UI.stand = huidigeStand && P.planRonde(T, huidigeStand) ? huidigeStand : null;
+    render();
+    if (melding) toast('Stand bijgewerkt');
+  } catch (e) { if (melding) toast('Vernieuwen mislukt.', true); }
+  finally { publiekeVerversingBezig = false; }
+}
+function startPubliekeVerversing() {
+  if (publiekeVerversingTimer) clearInterval(publiekeVerversingTimer);
+  publiekeVerversingTimer = null;
+  if (!UI.viewer) return;
+  publiekeVerversingTimer = setInterval(() => {
+    if (!document.hidden) vernieuwPubliek(false);
+  }, 30000);
+}
+
 function scorebordPlayoff(key, p, a) {
   if (!a || a.soort === 'reg') return null;
   const bk = a.pkey || key; let stap, titel;
@@ -2390,12 +2443,14 @@ function scorebordHtml(venster) {
 /* ---------- standen ---------- */
 function viewStanden() {
   if (!T.plan.rondes.length) return '<div class="sect"><div class="body"><div class="note warn">Nog geen toernooi: voeg spelers toe.</div></div></div>';
-  const key = UI.stand && P.planRonde(T, UI.stand) ? UI.stand : standKeyVoorWeergave(), r = P.planRonde(T, key);
-  const tabs = '<div class="tabs2">' + T.plan.rondes.map(x => '<button aria-pressed="' + (x.key === key) + '" data-act="stand-ronde" data-key="' + x.key + '">' + esc(x.naam) + '</button>').join('') + '</div>';
+  const rondes = UI.viewer ? standRondesVoorWeergave() : T.plan.rondes;
+  const gewenst = UI.stand && P.planRonde(T, UI.stand) ? UI.stand : standKeyVoorWeergave();
+  const key = rondes.some(x => x.key === gewenst) ? gewenst : rondes[rondes.length - 1].key, r = P.planRonde(T, key);
+  const tabs = '<div class="tabs2">' + rondes.map(x => '<button aria-pressed="' + (x.key === key) + '" data-act="stand-ronde" data-key="' + x.key + '">' + esc(x.naam) + '</button>').join('') + '</div>';
   if (!P.rondeGeloot(T, key)) return tabs + '<div class="sect"><div class="body"><div class="note">' + esc(r.naam) + ' is nog niet geloot.</div></div></div>';
   const rd = T.rondes[key];
   const kaarten = rd.poules.map(p => { const d = P.planDag(T, key, p.nr), s = dagStatus(key, p.nr);
-    return '<div class="sect"><header><h3>' + (enkelPoule(key) ? esc(rondeNaam(key)) : 'Poule ' + p.nr) + '</h3><span class="muted small">' + esc(P.datumKort(d.datum)) + '</span><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span><button class="btn sec sm noprint" data-act="open-dag" data-key="' + key + '" data-nr="' + p.nr + '">Open</button></header><div class="body">' + standHtml(key, p, true) + '</div></div>'; }).join('');
+    return '<div class="sect"><header><h3>' + (enkelPoule(key) ? esc(rondeNaam(key)) : 'Poule ' + p.nr) + '</h3><span class="stand-datum">' + esc(P.datumKort(d.datum)) + '</span>' + (s.code === 'open' ? '' : '<span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span>') + '<button class="btn sec sm noprint" data-act="open-dag" data-key="' + key + '" data-nr="' + p.nr + '">Open</button></header><div class="body">' + standHtml(key, p, true) + '</div></div>'; }).join('');
   let extra = '';
   const kw = P.kwalificatie(T, key);
   if (!P.volgendeKey(T, key)) {
@@ -2729,23 +2784,17 @@ async function kiesSpeler(id) {
 /* ---------- acties ---------- */
 const ACT = {
   'dag-lijst'() { UI.dagLijst = UI.dagLijst === false; render(); },
-  tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') UI.dagLijst = true; if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
+  tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
   'ga-gegevens'() { UI.tab = 'instellingen'; UI.inst = 'gegevens'; render(); },
   'naar-loting'(b) { UI.lotingKey = b.dataset.key; UI.tab = 'loting'; UI.resetScroll = true; render(); },
   'naar-ronde'(b) { const k = b.dataset.key; if (P.rondeGeloot(T, k)) { UI.stand = k; UI.tab = 'standen'; } else { UI.lotingKey = k; UI.tab = 'loting'; } UI.resetScroll = true; render(); },
   'open-dag'(b) { openDag(b.dataset.key, +b.dataset.nr); },
   'dag-nav'(b) { const a = alleDagen(), i = a.findIndex(x => x.ronde === UI.dag.key && x.poule === UI.dag.nr), n = a[i + (+b.dataset.d)]; if (n) openDag(n.ronde, n.poule); },
   async 'viewer-refresh'() {
-    if (!UI.viewer || !window.POOL_ONLINE || !T || !T.id) return;
-    const huidigeDag = UI.dag && { key: UI.dag.key, nr: UI.dag.nr };
-    try {
-      const remote = await window.POOL_ONLINE.loadTournament(T.id, { public: true });
-      if (!remote) { toast('De openbare versie kon niet worden vernieuwd.', true); return; }
-      T = remote; migreerNaLaden(); UI.viewer = true; UI.tab = 'dag'; UI.dag = huidigeDag; render(); toast('Stand bijgewerkt');
-    } catch (e) { toast('Vernieuwen mislukt.', true); }
+    await vernieuwPubliek(true);
   },
   'loting-ronde'(b) { UI.lotingKey = b.dataset.key; UI.manual = null; UI.modus = null; UI.sel = null; stopAnimatie(); render(); },
-  'stand-ronde'(b) { UI.stand = b.dataset.key; render(); },
+  'stand-ronde'(b) { if (UI.viewer && !standRondesVoorWeergave().some(x => x.key === b.dataset.key)) return; UI.stand = b.dataset.key; render(); },
   loot(b) { voerLotingUit(b.dataset.key); },
   'loot-volgorde'(b) { const r = indelenInVolgorde(b.dataset.key); if (!r.ok) { toast(r.fouten.join(' '), true); return; } maakHerstelpunt('Na indelen in lijstvolgorde'); commit(); toast('Ingedeeld in precies de volgorde van de lijst'); },
   'loot-manueel'(b) { const key = b.dataset.key, r = P.planRonde(T, key); UI.manual = { key, toewijzing: r.sizes.map(s => new Array(s).fill('')) }; render(); },
@@ -2969,7 +3018,7 @@ function koppelEvents() {
   });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-act]'); if (!b || b.disabled || b.classList.contains('off')) return;
-    if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'dag-lijst', 'viewer-refresh', 'stand-ronde', 'scorebord', 'scorebord-venster', 'scorebord-uit', 'print'].indexOf(b.dataset.act) < 0) return;
+    if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'dag-lijst', 'viewer-refresh', 'stand-ronde'].indexOf(b.dataset.act) < 0) return;
     const f = ACT[b.dataset.act]; if (f) { e.preventDefault(); f(b, e); }
   });
   document.addEventListener('change', e => {
@@ -3005,8 +3054,10 @@ function koppelEvents() {
   });
   window.addEventListener('beforeunload', () => { try { bewaarNu(); } catch (e) { } });
   window.addEventListener('pagehide', () => { try { bewaarNu(); } catch (e) { } });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && UI.viewer) vernieuwPubliek(false); });
   setInterval(updateStatusChip, 60000);
   setTimeout(() => { if (onlineActief()) startOnlineSynchronisatie(); }, 0);
+  startPubliekeVerversing();
 }
 
 /* ---------- opstarten ---------- */
