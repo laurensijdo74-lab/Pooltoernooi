@@ -316,6 +316,13 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 .dagview .stack-l > .sect .game,
 .dagview .stack-l > .sect .ghead { width: 100%; max-width: none; min-width: 0; }
 .dagview .playoff-block .games { width: calc(100% + 32px); max-width: none; margin-left: -16px; }
+.public-dag-controls { gap: 6px; flex-wrap: nowrap; }
+@media (min-width: 1181px) {
+  .dagview:not(.collapsed) .public-dag-kop { width: calc(55.5556% - 11.111px); }
+}
+@media (max-width: 1180px) {
+  .dagview .public-dag-kop { width: 100%; }
+}
 @media (min-width: 1181px) {
   .dagview .cols > .stack:last-child { position: sticky; top: 62px; align-self: start; max-height: calc(100vh - 78px); overflow-y: auto; }
 }
@@ -2334,13 +2341,15 @@ function viewDag() {
   if (!UI.dag || !P.planDag(T, UI.dag.key, UI.dag.nr)) { const v = actueleSpeeldag(); if (v) UI.dag = { key: v.ronde, nr: v.poule }; }
   if (UI.dagLijst === false) {
     const d = P.planDag(T, UI.dag.key, UI.dag.nr);
-    return '<div class="dagview collapsed"><section><div class="row noprint" style="margin-bottom:14px"><button class="btn sec" data-act="dag-lijst" aria-expanded="false">☰ Alle speeldagen</button><span class="muted small">' + esc(rondePoule(UI.dag.key, UI.dag.nr)) + ' · ' + esc(P.datumKort(d.datum)) + '</span></div>' + dagDetailHtml(UI.dag.key, UI.dag.nr) + '</section></div>';
+    const korteTitel = UI.viewer ? rondeNaam(UI.dag.key) : rondePoule(UI.dag.key, UI.dag.nr);
+    const lijstKnop = UI.viewer ? '' : '<button class="btn sec" data-act="dag-lijst" aria-expanded="false">☰ Alle speeldagen</button>';
+    return '<div class="dagview collapsed"><section><div class="row noprint" style="margin-bottom:14px">' + lijstKnop + '<span class="muted small">' + esc(korteTitel) + ' · ' + esc(P.datumKort(d.datum)) + '</span></div>' + dagDetailHtml(UI.dag.key, UI.dag.nr) + '</section></div>';
   }
   return '<div class="dagview"><aside class="noprint"><button class="btn sec sm" data-act="dag-lijst" aria-expanded="true" style="margin-bottom:10px">◀ Lijst inklappen</button>' + dagLijstHtml() + '</aside><section>' + dagDetailHtml(UI.dag.key, UI.dag.nr) + '</section></div>';
 }
 function dagDetailHtml(key, nr) {
   const d = P.planDag(T, key, nr), r = P.planRonde(T, key);
-  if (!P.rondeGeloot(T, key)) return '<div class="sect"><div class="body stack"><h2>' + esc(rondePoule(key, nr)) + '</h2><p>' + esc(P.datumLang(d.datum)) + '</p><div class="note warn">Deze ronde is nog niet geloot.</div><button class="btn" data-act="naar-loting" data-key="' + key + '">Naar de loting</button></div></div>';
+  if (!P.rondeGeloot(T, key)) return '<div class="sect ' + (UI.viewer ? 'public-dag-kop' : '') + '"><div class="body stack"><h2>' + esc(UI.viewer ? rondeNaam(key) : rondePoule(key, nr)) + '</h2><p>' + esc(P.datumLang(d.datum)) + '</p><div class="note warn">Deze ronde is nog niet geloot.</div><button class="btn" data-act="naar-loting" data-key="' + key + '">Naar de loting</button></div></div>';
   const p = P.zoekPoule(T, key, nr), s = dagStatus(key, nr);
   const alle = alleDagen(), ix = alle.findIndex(x => x.ronde === key && x.poule === nr), vorige = alle[ix - 1], volgende = alle[ix + 1];
   const vorigeOpen = vorige && P.rondeGeloot(T, vorige.ronde) && dagStatus(vorige.ronde, vorige.poule).code !== 'klaar';
@@ -2349,9 +2358,11 @@ function dagDetailHtml(key, nr) {
   const laatste = P.laatsteGame(p), kanHerstel = !!laatste || (p.pp && p.pp.stappen.some(x => x.games.some(g => g.w)));
   const viewerRefresh = UI.viewer ? '<button class="btn accent viewer-refresh" data-act="viewer-refresh" title="Haal de actuele stand op">↻ Vernieuwen</button>' : '';
   const beheerKnoppen = '<button class="btn sec sm" data-act="scorebord">Scorebord</button><button class="btn sec sm" data-act="scorebord-venster" title="Opent het scorebord in een eigen venster, bijvoorbeeld voor een tweede scherm of tv">Scorebord in eigen venster</button><button class="btn sec sm" data-act="print">Afdrukken</button>';
-  const kop = '<div class="sect"><div class="body"><div class="row between"><div class="stack"><div class="row"><h2>' + esc(rondePoule(key, nr)) + '</h2><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span></div><div class="muted">' + esc(P.datumLang(d.datum)) + ' · ' + esc(locNaam(dagLocatie(key, nr))) + '</div></div>' +
-    '<div class="row noprint">' + viewerRefresh + '<button class="btn sec sm" data-act="dag-nav" data-d="-1"' + (vorige ? '' : ' disabled') + '>← Vorige</button><button class="btn sec sm" data-act="dag-nav" data-d="1"' + (volgende ? '' : ' disabled') + '>Volgende →</button>' +
-    (UI.viewer ? '' : beheerKnoppen) + '</div></div></div></div>';
+  const titel = UI.viewer ? rondeNaam(key) : rondePoule(key, nr);
+  const ondertitel = UI.viewer ? P.datumLang(d.datum) : P.datumLang(d.datum) + ' · ' + locNaam(dagLocatie(key, nr));
+  const navigatie = '<button class="btn sec sm" data-act="dag-nav" data-d="-1"' + (vorige ? '' : ' disabled') + '>← Vorige</button><button class="btn sec sm" data-act="dag-nav" data-d="1"' + (volgende ? '' : ' disabled') + '>Volgende →</button>' + (UI.viewer ? viewerRefresh : beheerKnoppen);
+  const kop = '<div class="sect ' + (UI.viewer ? 'public-dag-kop' : '') + '"><div class="body"><div class="row between"><div class="stack"><div class="row"><h2>' + esc(titel) + '</h2><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span></div><div class="muted">' + esc(ondertitel) + '</div></div>' +
+    '<div class="row noprint' + (UI.viewer ? ' public-dag-controls' : '') + '">' + navigatie + '</div></div></div></div>';
   const vast = P.vergrendeld(T, key, nr), ontgrendeldKlaar = !vast && p.ontgrendeld && P.pouleAfgerond(T, p);
   const slot = UI.viewer ? '' : (vast ? '<div class="note good row between"><span>🔒 <b>Deze speeldag is afgerond en vergrendeld.</b> Uitslagen kunnen niet per ongeluk worden gewijzigd.</span><button class="btn sec sm noprint" data-act="ontgrendel" data-key="' + key + '" data-nr="' + nr + '">Ontgrendelen…</button></div>' : (ontgrendeldKlaar ? '<div class="note warn row between"><span>🔓 <b>Ontgrendeld.</b> Je kunt uitslagen wijzigen.</span><button class="btn sm noprint" data-act="vergrendel" data-key="' + key + '" data-nr="' + nr + '">Weer vergrendelen</button></div>' : ''));
   const waarschuw = slot + (vorigeOpen ? '<div class="note warn">De vorige speeldag (' + esc(rondePoule(vorige.ronde, vorige.poule).replace(/^Ronde /, 'R').replace(' · poule ', ' poule ')) + ', ' + esc(P.datumKort(vorige.datum)) + ') is nog niet afgerond.</div>' : '') +
