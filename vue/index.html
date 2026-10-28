@@ -47,6 +47,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .hero-public .logo { height: 42px; max-width: 110px; }
 .hero-public h1 { font-size: 1.2rem; }
 .hero-public .sub { font-size: .82rem; }
+.hero-title-row { display: flex; align-items: baseline; gap: 18px; flex-wrap: wrap; }
+.hero-tournament { font-family: var(--font-display); font-size: clamp(1.15rem, 2.3vw, 1.8rem); font-weight: 700; line-height: 1.2; }
+.hero-public .hero-title-row { gap: 10px; }
+.hero-public .hero-tournament { font-size: 1.05rem; }
 .rail { height: 8px; background: var(--rail); box-shadow: inset 0 -2px 0 rgba(0,0,0,.25); }
 
 /* ---------- Navigatie ---------- */
@@ -284,6 +288,7 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 
 .stand .naam { white-space: nowrap; }
 .stand-datum { font-size: .98rem; font-weight: 800; color: var(--ink); white-space: nowrap; }
+.stand-dag-titel { min-width: 0; white-space: normal; }
 :root[data-mode="dark"] .hero .chip.warn { color: #6b3f00; } :root[data-mode="dark"] .hero .chip.ok { color: #14653a; }
 
 .game .pl:disabled { cursor: default; } .game .pl:disabled:hover { background: transparent; } .game .pl.win:disabled:hover { background: var(--good-soft); }
@@ -1935,10 +1940,9 @@ function openDag(key, nr) { UI.dag = { key, nr }; UI.tab = 'dag'; if (mobielWeer
 function heroHtml() {
   const loc = locatieVoorWeergave();
   const logo = loc.logo ? '<img class="logo" alt="Logo ' + esc(loc.naam) + '" src="' + esc(loc.logo) + '">' : '<span class="logo-bal" aria-hidden="true">' + ((THEMAS[loc.thema] || {}).icoon || '🎱') + '</span>';
-  const sub = loc.slogan ? esc(loc.slogan) : esc(T.naam);
   const st = backupStatus();
   const status = UI.viewer ? '' : '<button id="statchip" class="chip ' + st.cls + '" data-act="ga-gegevens" title="Naar opslag en back-up">' + (UI.opslag.ok ? '✓ ' : '! ') + esc(st.tekst) + '</button>';
-  return '<div class="hero' + (UI.viewer ? ' hero-public' : '') + '"><div class="hero-in">' + logo + '<div><h1>' + esc(loc.naam) + '</h1><div class="sub">' + (loc.slogan ? esc(T.naam) + ' · ' + sub : esc(T.naam)) + (loc.adres ? ' · ' + esc(loc.adres) : '') + '</div></div>' +
+  return '<div class="hero' + (UI.viewer ? ' hero-public' : '') + '"><div class="hero-in">' + logo + '<div><div class="hero-title-row"><h1>' + esc(loc.naam) + '</h1><div class="hero-tournament">' + esc(T.naam) + '</div></div>' + (loc.adres ? '<div class="sub">' + esc(loc.adres) + '</div>' : '') + '</div>' +
     (status ? '<div class="meta noprint">' + status + '</div>' : '') + '</div></div><div class="rail"></div>';
 }
 function tabsVoorWeergave() {
@@ -2494,7 +2498,7 @@ function viewStanden() {
   if (!P.rondeGeloot(T, key)) return tabs + '<div class="sect"><div class="body"><div class="note">' + esc(r.naam) + ' is nog niet geloot.</div></div></div>';
   const rd = T.rondes[key];
   const kaarten = rd.poules.map(p => { const d = P.planDag(T, key, p.nr), s = dagStatus(key, p.nr);
-    return '<div class="sect"><header><h3>' + (enkelPoule(key) ? esc(rondeNaam(key)) : 'Poule ' + p.nr) + '</h3><span class="stand-datum">' + esc(P.datumKort(d.datum)) + '</span>' + (s.code === 'open' ? '' : '<span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span>') + '<button class="btn sec sm noprint" data-act="open-dag" data-key="' + key + '" data-nr="' + p.nr + '">Open</button></header><div class="body">' + standHtml(key, p, true) + '</div></div>'; }).join('');
+    return '<div class="sect"><header><h3 class="stand-dag-titel">' + esc(P.datumLang(d.datum)) + '</h3>' + (s.code === 'open' ? '' : '<span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span>') + '<button class="btn sec sm noprint" data-act="open-dag" data-key="' + key + '" data-nr="' + p.nr + '">Open</button></header><div class="body">' + standHtml(key, p, true) + '</div></div>'; }).join('');
   let extra = '';
   const kw = P.kwalificatie(T, key);
   if (!P.volgendeKey(T, key)) {
