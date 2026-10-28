@@ -2356,7 +2356,8 @@ function viewDag() {
     const d = P.planDag(T, UI.dag.key, UI.dag.nr);
     const korteTitel = UI.viewer ? rondeNaam(UI.dag.key) : rondePoule(UI.dag.key, UI.dag.nr);
     const lijstKnop = UI.viewer ? '' : '<button class="btn sec" data-act="dag-lijst" aria-expanded="false">☰ Alle speeldagen</button>';
-    return '<div class="dagview collapsed"><section><div class="row noprint" style="margin-bottom:14px">' + lijstKnop + '<span class="muted small">' + esc(korteTitel) + ' · ' + esc(P.datumKort(d.datum)) + '</span></div>' + dagDetailHtml(UI.dag.key, UI.dag.nr) + '</section></div>';
+    const boven = UI.viewer ? '' : '<div class="row noprint" style="margin-bottom:14px">' + lijstKnop + '<span class="muted small">' + esc(korteTitel) + ' · ' + esc(P.datumKort(d.datum)) + '</span></div>';
+    return '<div class="dagview collapsed"><section>' + boven + dagDetailHtml(UI.dag.key, UI.dag.nr) + '</section></div>';
   }
   return '<div class="dagview"><aside class="noprint"><button class="btn sec sm" data-act="dag-lijst" aria-expanded="true" style="margin-bottom:10px">◀ Lijst inklappen</button>' + dagLijstHtml() + '</aside><section>' + dagDetailHtml(UI.dag.key, UI.dag.nr) + '</section></div>';
 }
