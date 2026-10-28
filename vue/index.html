@@ -1471,6 +1471,7 @@ const $ = (sel, el) => (el || document).querySelector(sel);
 const $$ = (sel, el) => Array.from((el || document).querySelectorAll(sel));
 function slug(s) { return String(s || 'toernooi').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9]+/g, '_').replace(/^_|_$/g, ''); }
 function nu() { return new Date(); }
+function mobielWeergave() { return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 980px)').matches; }
 const PUBLIEKE_APP_URL = 'https://laurensijdo74-lab.github.io/Pooltoernooi/';
 const PUBLIEKE_ALIASES = { tmvdkmjd0h8pa1: 'vue' };
 function publiekeToernooiUrl(id) {
@@ -1919,7 +1920,7 @@ async function volgordeGeblokkeerd() {
   if (ga === 'ga') openDag(d.ronde, d.poule);
   return true;
 }
-function openDag(key, nr) { UI.dag = { key, nr }; UI.tab = 'dag'; if (!UI.viewer) UI.dagLijst = false; render(); window.scrollTo(0, 0); }
+function openDag(key, nr) { UI.dag = { key, nr }; UI.tab = 'dag'; if (mobielWeergave() || !UI.viewer) UI.dagLijst = false; render(); window.scrollTo(0, 0); }
 
 /* ---------- hero en navigatie ---------- */
 function heroHtml() {
@@ -2360,7 +2361,7 @@ function viewDag() {
   if (UI.dagLijst === false) {
     const d = P.planDag(T, UI.dag.key, UI.dag.nr);
     const korteTitel = UI.viewer ? rondeNaam(UI.dag.key) : rondePoule(UI.dag.key, UI.dag.nr);
-    const lijstKnop = UI.viewer ? '' : '<button class="btn sec" data-act="dag-lijst" aria-expanded="false">☰ Alle speeldagen</button>';
+    const lijstKnop = UI.viewer ? (mobielWeergave() ? '<button class="btn sec" data-act="dag-lijst" aria-expanded="false">☰ Overige speeldagen</button>' : '') : '<button class="btn sec" data-act="dag-lijst" aria-expanded="false">☰ Alle speeldagen</button>';
     const boven = UI.viewer ? '' : '<div class="row noprint" style="margin-bottom:14px">' + lijstKnop + '<span class="muted small">' + esc(korteTitel) + ' · ' + esc(P.datumKort(d.datum)) + '</span></div>';
     return '<div class="dagview collapsed"><section>' + boven + dagDetailHtml(UI.dag.key, UI.dag.nr) + '</section></div>';
   }
@@ -2815,7 +2816,7 @@ async function kiesSpeler(id) {
 /* ---------- acties ---------- */
 const ACT = {
   'dag-lijst'() { UI.dagLijst = UI.dagLijst === false; render(); },
-  tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
+  tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = mobielWeergave() ? false : true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
   'ga-gegevens'() { UI.tab = 'instellingen'; UI.inst = 'gegevens'; render(); },
   'naar-loting'(b) { UI.lotingKey = b.dataset.key; UI.tab = 'loting'; UI.resetScroll = true; render(); },
   'naar-ronde'(b) { const k = b.dataset.key; if (P.rondeGeloot(T, k)) { UI.stand = k; UI.tab = 'standen'; } else { UI.lotingKey = k; UI.tab = 'loting'; } UI.resetScroll = true; render(); },
