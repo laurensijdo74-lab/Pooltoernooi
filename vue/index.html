@@ -274,6 +274,8 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 .dagrow { grid-template-columns: 44px minmax(0, 1fr) auto; padding: 7px 10px; gap: 8px; }
 .dagrow b { white-space: nowrap; }
 .dagrow .chip { font-size: .72rem; padding: 0 7px; }
+.dagrow.planned { cursor: default; }
+.dagrow.planned:hover { border-color: var(--line); }
 .dagview .cols { grid-template-columns: minmax(0, 1.25fr) minmax(330px, 1fr); }
 .dagview .stand td, .dagview .stand th { padding: 6px 6px; }
 .dagview .stand .naam { font-size: .95rem; }
@@ -1917,7 +1919,7 @@ async function volgordeGeblokkeerd() {
   if (ga === 'ga') openDag(d.ronde, d.poule);
   return true;
 }
-function openDag(key, nr) { UI.dag = { key, nr }; UI.tab = 'dag'; UI.dagLijst = false; render(); window.scrollTo(0, 0); }
+function openDag(key, nr) { UI.dag = { key, nr }; UI.tab = 'dag'; if (!UI.viewer) UI.dagLijst = false; render(); window.scrollTo(0, 0); }
 
 /* ---------- hero en navigatie ---------- */
 function heroHtml() {
@@ -2345,7 +2347,10 @@ function dagLijstHtml() {
   dagen.forEach(d => {
     const s = dagStatus(d.ronde, d.poule), dd = P.isoNaarDatum(d.datum), cur = UI.dag && UI.dag.key === d.ronde && UI.dag.nr === d.poule;
     if (d.ronde !== vorigeRonde) { h += '<h4 style="margin:' + (vorigeRonde ? '16px' : '0') + ' 0 6px">' + esc(rondeNaam(d.ronde)) + '</h4>'; vorigeRonde = d.ronde; }
-    h += '<button class="dagrow' + (cur ? ' cur' : '') + '" data-act="open-dag" data-key="' + d.ronde + '" data-nr="' + d.poule + '"><div class="dd">' + dd.getDate() + '<small>' + esc(P.MAANDEN[dd.getMonth()].slice(0, 3)) + '</small></div><div><b>' + (enkelPoule(d.ronde) ? esc(rondeNaam(d.ronde)) : 'Poule ' + d.poule) + '</b><div class="muted small">' + esc(P.hoofd(P.dagNaam(d.datum))) + '</div></div><span class="chip ' + s.cls + '">' + esc(s.kort) + '</span></button>';
+    const rij = '<div class="dd">' + dd.getDate() + '<small>' + esc(P.MAANDEN[dd.getMonth()].slice(0, 3)) + '</small></div><div><b>' + (enkelPoule(d.ronde) ? esc(rondeNaam(d.ronde)) : 'Poule ' + d.poule) + '</b><div class="muted small">' + esc(P.hoofd(P.dagNaam(d.datum))) + '</div></div><span class="chip ' + s.cls + '">' + esc(s.kort) + '</span>';
+    h += P.rondeGeloot(T, d.ronde)
+      ? '<button class="dagrow' + (cur ? ' cur' : '') + '" data-act="open-dag" data-key="' + d.ronde + '" data-nr="' + d.poule + '">' + rij + '</button>'
+      : '<div class="dagrow planned" aria-disabled="true">' + rij + '</div>';
   });
   return '<div class="daglist">' + h + '</div>';
 }
