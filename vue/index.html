@@ -2372,6 +2372,9 @@ function dagDetailHtml(key, nr) {
   if (!P.rondeGeloot(T, key)) return '<div class="sect ' + (UI.viewer ? 'public-dag-kop' : '') + '"><div class="body stack"><h2>' + esc(UI.viewer ? rondeNaam(key) : rondePoule(key, nr)) + '</h2><p>' + esc(P.datumLang(d.datum)) + '</p><div class="note warn">Deze ronde is nog niet geloot.</div><button class="btn" data-act="naar-loting" data-key="' + key + '">Naar de loting</button></div></div>';
   const p = P.zoekPoule(T, key, nr), s = dagStatus(key, nr);
   const alle = alleDagen(), ix = alle.findIndex(x => x.ronde === key && x.poule === nr), vorige = alle[ix - 1], volgende = alle[ix + 1];
+  // Publieke kijkers mogen niet vooruit naar een ronde die nog niet geloot is.
+  // Binnen de huidige gelote ronde blijven de speeldagen wel normaal navigeerbaar.
+  const volgendeOpenbaar = volgende && (!UI.viewer || P.rondeGeloot(T, volgende.ronde));
   const vorigeOpen = vorige && P.rondeGeloot(T, vorige.ronde) && dagStatus(vorige.ronde, vorige.poule).code !== 'klaar';
   const wachtPh = p.spelers.some(P.isPh);
   const actief = actieveActie(key, p);
@@ -2379,7 +2382,7 @@ function dagDetailHtml(key, nr) {
   const viewerRefresh = UI.viewer ? '<button class="btn accent viewer-refresh" data-act="viewer-refresh" aria-label="Vernieuwen" title="Haal de actuele stand op">↻</button>' : '';
   const beheerKnoppen = '<button class="btn sec sm" data-act="scorebord">Scorebord</button><button class="btn sec sm" data-act="scorebord-venster" title="Opent het scorebord in een eigen venster, bijvoorbeeld voor een tweede scherm of tv">Scorebord in eigen venster</button><button class="btn sec sm" data-act="print">Afdrukken</button>';
   const ondertitel = UI.viewer ? P.datumLang(d.datum) : P.datumLang(d.datum) + ' · ' + locNaam(dagLocatie(key, nr));
-  const navigatie = '<button class="btn sec sm" data-act="dag-nav" data-d="-1"' + (vorige ? '' : ' disabled') + '>← Vorige</button><button class="btn sec sm" data-act="dag-nav" data-d="1"' + (volgende ? '' : ' disabled') + '>Volgende →</button>' + (UI.viewer ? viewerRefresh : beheerKnoppen);
+  const navigatie = '<button class="btn sec sm" data-act="dag-nav" data-d="-1"' + (vorige ? '' : ' disabled') + '>← Vorige</button><button class="btn sec sm" data-act="dag-nav" data-d="1"' + (volgendeOpenbaar ? '' : ' disabled') + '>Volgende →</button>' + (UI.viewer ? viewerRefresh : beheerKnoppen);
   const titelBlok = UI.viewer ? '<div class="stack"><div class="public-dag-datum">' + esc(P.datumLang(d.datum)) + '</div><div class="public-dag-ronde">' + esc(rondeNaam(key)) + ' · ' + esc(s.tekst) + '</div></div>' : '<div class="stack"><div class="row"><h2>' + esc(rondePoule(key, nr)) + '</h2><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span></div><div class="muted">' + esc(ondertitel) + '</div></div>';
   const kop = '<div class="sect ' + (UI.viewer ? 'public-dag-kop' : '') + '"><div class="body"><div class="row between">' + titelBlok +
     '<div class="row noprint' + (UI.viewer ? ' public-dag-controls' : '') + '">' + navigatie + '</div></div></div></div>';
@@ -2821,7 +2824,7 @@ const ACT = {
   'naar-loting'(b) { UI.lotingKey = b.dataset.key; UI.tab = 'loting'; UI.resetScroll = true; render(); },
   'naar-ronde'(b) { const k = b.dataset.key; if (P.rondeGeloot(T, k)) { UI.stand = k; UI.tab = 'standen'; } else { UI.lotingKey = k; UI.tab = 'loting'; } UI.resetScroll = true; render(); },
   'open-dag'(b) { openDag(b.dataset.key, +b.dataset.nr); },
-  'dag-nav'(b) { const a = alleDagen(), i = a.findIndex(x => x.ronde === UI.dag.key && x.poule === UI.dag.nr), n = a[i + (+b.dataset.d)]; if (n) openDag(n.ronde, n.poule); },
+  'dag-nav'(b) { const a = alleDagen(), i = a.findIndex(x => x.ronde === UI.dag.key && x.poule === UI.dag.nr), n = a[i + (+b.dataset.d)]; if (n && (!UI.viewer || P.rondeGeloot(T, n.ronde))) openDag(n.ronde, n.poule); },
   async 'viewer-refresh'() {
     await vernieuwPubliek(true);
   },
