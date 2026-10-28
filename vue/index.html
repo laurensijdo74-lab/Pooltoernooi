@@ -1841,6 +1841,13 @@ function volgendeSpeeldag() {
   }
   return null;
 }
+function standKeyVoorWeergave() {
+  const d = volgendeSpeeldag();
+  if (d && P.planRonde(T, d.ronde)) return d.ronde;
+  const stap = volgendeStap();
+  if (stap && stap.key && P.planRonde(T, stap.key)) return stap.key;
+  return T.plan.rondes.length ? T.plan.rondes[T.plan.rondes.length - 1].key : null;
+}
 /* Een speeldag mag pas worden bijgewerkt als alle eerdere speeldagen zijn afgerond. Een play-off die op de dag van de
    volgende ronde wordt gespeeld, blokkeert niet. */
 function blokkerendeDag(key, nr) {
@@ -2211,7 +2218,7 @@ function ppKetenHtml(key, p, pp, o) {
     const stand = s.groep.slice().sort((a, b) => wins[b] - wins[a]).map((id, ix) => '<span class="row gap-s">' + ball(ix + 1) + esc(spelerNaam(id)) + ' <b>' + wins[id] + '</b></span>').join('<span class="muted">·</span>');
     return '<div class="sect" id="' + ((si === pp.stappen.length - 1 && !o.afgesloten) ? 'ppblok' : 'ppblok' + (o.plek || '') + '_' + si) + '"><header><h3>' + (si === 0 ? (o.plek ? (o.extra ? 'Extra play-off om ' : 'Play-off om ') + plaatsTxt : (voorDerde ? derdeTitel : 'Play-off om de doorgaande plek' + (s.plekken > 1 ? 'en' : ''))) : 'Extra play-off' + (o.plek ? ' om ' + plaatsTxt : '')) + '</h3><span class="chip ' + (klaar ? 'ok' : 'warn') + '">' + (klaar ? 'Beslist' : (o.plek ? plaatsTxt + ' te bepalen' : plural(s.plekken, 'plek', 'plekken') + ' te winnen')) + '</span>' +
       '<button class="btn sec sm noprint" data-act="pp-reset" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast ? ' disabled' : '') + '>Opnieuw opzetten</button>' + '</header><div class="body stack">' +
-      '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + bSel + '</div><div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="pp-loot-breaks" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast || gestart ? ' disabled' : '') + ' title="Verdeelt wie er breekt eerlijk over het hele blok">🎲 Loot wie breekt</button><span class="muted">Breaks: ' + Object.keys(P.telBreaks(s.games)).map(id => esc(spelerNaam(id)) + ' ' + P.telBreaks(s.games)[id]).join(' · ') + '</span></div><div class="games">' + rijen + '</div><div class="row small" style="gap:10px">' + stand + '</div></div></div>';
+      '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + bSel + '</div><div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="pp-loot-breaks" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast || gestart ? ' disabled' : '') + ' title="Verdeelt wie er breekt eerlijk over het hele blok">🎲 Loot wie breekt</button><span class="muted">Breaks: ' + Object.keys(P.telBreaks(s.games)).map(id => esc(spelerNaam(id)) + ' ' + P.telBreaks(s.games)[id]).join(' · ') + '</span></div><div class="games"><div class="ghead"><span>#</span><span>Breekt</span><span></span><span>Tegenstander</span></div>' + rijen + '</div><div class="row small" style="gap:10px">' + stand + '</div></div></div>';
   }).join('');
 }
 function derdeBlokHtml(key, i) {
@@ -2223,7 +2230,7 @@ function derdeBlokHtml(key, i) {
   return '<div class="sect"><header><h3>Play-off beste nummer 3</h3><span class="chip ' + (po.winnaar ? 'ok' : 'warn') + '">' + (po.winnaar ? 'Beslist: ' + esc(spelerNaam(po.winnaar)) + ' gaat door' : 'Wacht op uitslag') + '</span></header><div class="body stack">' +
     '<p class="small">De nummers 3 van poule ' + (2 * i + 1) + ' en ' + (2 * i + 2) + ' hebben evenveel punten. De winnaar gaat door naar de volgende ronde.</p>' +
     '<div class="row" style="align-items:flex-end;gap:18px"><label class="f" style="min-width:160px"><span>Formaat</span><select data-chg="d-formaat" data-key="' + key + '" data-i="' + i + '"' + (gestart ? ' disabled' : '') + '>' + P.ppFormaten(2).map(f => '<option' + (f === po.formaat ? ' selected' : '') + '>' + esc(f) + '</option>').join('') + '</select></label>' + (vast ? '<button class="btn sec sm noprint" data-act="derde-ontgrendel" data-key="' + key + '" data-i="' + i + '">🔒 Ontgrendelen</button>' : '') + '</div>' +
-    '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="d-loot-breaks" data-key="' + key + '" data-i="' + i + '"' + (vast || gestart ? ' disabled' : '') + '>🎲 Loot wie breekt</button></div><div class="games">' + rijen + '</div><div class="row small" style="gap:12px"><span class="row gap-s">' + ball(posFn(po.a)) + esc(spelerNaam(po.a)) + ' <b>' + wins[po.a] + '</b></span><span class="muted">·</span><span class="row gap-s">' + ball(posFn(po.b)) + esc(spelerNaam(po.b)) + ' <b>' + wins[po.b] + '</b></span></div></div></div>';
+    '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="d-loot-breaks" data-key="' + key + '" data-i="' + i + '"' + (vast || gestart ? ' disabled' : '') + '>🎲 Loot wie breekt</button></div><div class="games"><div class="ghead"><span>#</span><span>Breekt</span><span></span><span>Tegenstander</span></div>' + rijen + '</div><div class="row small" style="gap:12px"><span class="row gap-s">' + ball(posFn(po.a)) + esc(spelerNaam(po.a)) + ' <b>' + wins[po.a] + '</b></span><span class="muted">·</span><span class="row gap-s">' + ball(posFn(po.b)) + esc(spelerNaam(po.b)) + ' <b>' + wins[po.b] + '</b></span></div></div></div>';
 }
 function bronnenPh(key, p) {
   const vk = P.vorigeKey(T, key), pool = {}, derde = {};
@@ -2245,6 +2252,9 @@ function vorigePlayoffsHtml(key, p) {
 }
 function derdeBlokkenVoorPoule(key, p) {
   const pr = P.planRonde(T, key); if (!pr || !pr.derden) return '';
+  // De play-off voor de beste nummer 3 hoort één keer onder de laatste
+  // speeldag van het weekend: poule 2, 4, 6, enzovoort.
+  if (p.nr % 2 !== 0) return '';
   const i = Math.floor((p.nr - 1) / 2); if (i >= Math.floor(T.rondes[key].poules.length / 2)) return '';
   return derdeBlokHtml(key, i);
 }
@@ -2380,7 +2390,7 @@ function scorebordHtml(venster) {
 /* ---------- standen ---------- */
 function viewStanden() {
   if (!T.plan.rondes.length) return '<div class="sect"><div class="body"><div class="note warn">Nog geen toernooi: voeg spelers toe.</div></div></div>';
-  const key = UI.stand && P.planRonde(T, UI.stand) ? UI.stand : lotingKey(), r = P.planRonde(T, key);
+  const key = UI.stand && P.planRonde(T, UI.stand) ? UI.stand : standKeyVoorWeergave(), r = P.planRonde(T, key);
   const tabs = '<div class="tabs2">' + T.plan.rondes.map(x => '<button aria-pressed="' + (x.key === key) + '" data-act="stand-ronde" data-key="' + x.key + '">' + esc(x.naam) + '</button>').join('') + '</div>';
   if (!P.rondeGeloot(T, key)) return tabs + '<div class="sect"><div class="body"><div class="note">' + esc(r.naam) + ' is nog niet geloot.</div></div></div>';
   const rd = T.rondes[key];
@@ -2390,13 +2400,8 @@ function viewStanden() {
   const kw = P.kwalificatie(T, key);
   if (!P.volgendeKey(T, key)) {
     if (kw.klaar) { const e = P.eindvolgorde(T, rd.poules[0]); extra = '<div class="sect big-winner"><div class="muted">Kampioen</div><div class="naam">🏆 ' + esc(spelerNaam(e[0])) + '</div><div class="row" style="justify-content:center;gap:18px;margin-top:10px">' + e.slice(0, 3).map((id, i) => '<span class="row gap-s">' + ball(i + 1) + esc(spelerNaam(id)) + '</span>').join('') + '</div></div>'; }
-  } else {
-    const lijst = kw.klaar ? '<div class="row" style="gap:8px">' + kw.ids.map(id => '<span class="chip ' + (P.isPh(id) ? 'warn' : 'ok') + '">' + esc(spelerNaam(id)) + '</span>').join('') + '</div>' : '<p class="muted">Zodra alle poules van deze ronde zijn afgerond, staat hier wie doorgaat.</p>';
-    extra = '<div class="sect"><header><h3>Wie gaat door naar ' + esc(rondeNaam(P.volgendeKey(T, key))) + '?</h3><span class="chip ' + (kw.klaar ? 'ok' : '') + '">' + (kw.klaar ? kw.ids.length + ' van ' + P.planRonde(T, P.volgendeKey(T, key)).M : 'nog bezig') + '</span></header><div class="body">' + lijst + '</div></div>';
   }
-  let derdePp = '';
-  if (r.derden) for (let i = 0; i < Math.floor(rd.poules.length / 2); i++) derdePp += derdeBlokHtml(key, i);
-  return '<div class="stack-l">' + tabs + extra + derdePp + '<div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(340px,1fr))">' + kaarten + '</div></div>';
+  return '<div class="stack-l">' + tabs + extra + '<div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(340px,1fr))">' + kaarten + '</div></div>';
 }
 
 /* ---------- planning ---------- */
@@ -2724,7 +2729,7 @@ async function kiesSpeler(id) {
 /* ---------- acties ---------- */
 const ACT = {
   'dag-lijst'() { UI.dagLijst = UI.dagLijst === false; render(); },
-  tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') UI.dagLijst = true; if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
+  tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') UI.dagLijst = true; if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
   'ga-gegevens'() { UI.tab = 'instellingen'; UI.inst = 'gegevens'; render(); },
   'naar-loting'(b) { UI.lotingKey = b.dataset.key; UI.tab = 'loting'; UI.resetScroll = true; render(); },
   'naar-ronde'(b) { const k = b.dataset.key; if (P.rondeGeloot(T, k)) { UI.stand = k; UI.tab = 'standen'; } else { UI.lotingKey = k; UI.tab = 'loting'; } UI.resetScroll = true; render(); },
