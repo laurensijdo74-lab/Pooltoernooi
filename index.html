@@ -44,7 +44,7 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .hero .meta { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .hero-public { width: calc(100% - 40px); margin: 0 auto; border-radius: 0 0 var(--radius) var(--radius); }
 .hero-public { overflow: hidden; }
-.hero-public::after { content: "8"; position: absolute; z-index: 1; top: 50%; left: -24px; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; color: #111; background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.7), rgba(255,255,255,0) 38%), #151515; box-shadow: inset -2px -2px 4px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.35); font: 800 9px/1 var(--font-body); pointer-events: none; opacity: 0; animation: viewer-ball-sweep 22s linear infinite; }
+.hero-public::after { content: "1"; position: absolute; z-index: 1; top: 50%; left: -24px; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; color: #111; background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.7), rgba(255,255,255,0) 38%), #f2bf00; box-shadow: inset -2px -2px 4px rgba(0,0,0,.35), 0 1px 2px rgba(0,0,0,.35); font: 800 9px/1 var(--font-body); pointer-events: none; opacity: 0; animation: viewer-ball-sweep 22s linear infinite; }
 @keyframes viewer-ball-sweep { 0%, 68% { transform: translateX(0) rotate(0deg); opacity: 0; } 72% { opacity: .72; } 90% { opacity: .72; } 100% { transform: translateX(calc(100vw + 60px)) rotate(360deg); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .hero-public::after { display: none; animation: none; } }
 .hero-public .hero-in { padding: 8px 12px 10px; gap: 10px; }
@@ -194,6 +194,8 @@ table.t select { max-width: 150px; }
 .game.viewer-game .pl.loss .nm { text-decoration: none; }
 .game.viewer-game .pl.win .sc { color: var(--good); }
 .game .ball, .playoff-block .games .ball, .playoff-block .games + .row .ball { display: none !important; }
+.game.viewer-game { grid-template-columns: minmax(0, 1fr) 2rem minmax(0, 1fr); }
+.ghead.viewer-ghead { grid-template-columns: minmax(0, 1fr) 2rem minmax(0, 1fr); }
 .game.actief { box-shadow: inset 5px 0 0 var(--accent); background: var(--accent-soft); }
 .game.actief .gnr { background: var(--accent); color: #fff; }
 .game.skip { opacity: .4; }
@@ -2182,8 +2184,10 @@ function gameRijHtml(g, posFn, o) {
     if (UI.viewer) return '<div class="pl ' + cls(id) + '">' + inhoud + '</div>';
     return '<button class="pl ' + cls(id) + '"' + (o.locked ? ' disabled' : '') + ' data-act="' + o.act + '" ' + o.attrs + ' data-g="' + g.nr + '" data-w="' + id + '" aria-pressed="' + (g.w === id) + '" aria-label="' + esc(spelerNaam(id)) + ' wint wedstrijd ' + g.nr + '">' + inhoud + '</button>';
   };
-  return '<div class="game' + (UI.viewer ? ' viewer-game' : '') + (o.actief ? ' actief' : '') + (o.skip ? ' skip' : '') + '"><div class="gnr">' + g.nr + '</div>' + knop(g.a, true) + '<div class="vs">vs</div>' + knop(g.b, false) + '' + '</div>';
+  const nummer = UI.viewer ? '' : '<div class="gnr">' + g.nr + '</div>';
+  return '<div class="game' + (UI.viewer ? ' viewer-game' : '') + (o.actief ? ' actief' : '') + (o.skip ? ' skip' : '') + '">' + nummer + knop(g.a, true) + '<div class="vs">vs</div>' + knop(g.b, false) + '' + '</div>';
 }
+function gameKopHtml() { return UI.viewer ? '<div class="ghead viewer-ghead"><span>Breekt</span><span></span><span>Tegenstander</span></div>' : '<div class="ghead"><span>#</span><span>Breekt</span><span></span><span>Tegenstander</span></div>'; }
 function gamesHtml(key, p) {
   const actief = P.eersteOpenGame(p), pauze = P.pauzeIndex(T, p), posFn = id => p.spelers.indexOf(id) + 1;
   let h = '';
@@ -2191,7 +2195,7 @@ function gamesHtml(key, p) {
     h += gameRijHtml(g, posFn, { act: 'win', attrs: 'data-key="' + key + '" data-nr="' + p.nr + '"', actief: actief && actief.nr === g.nr && !P.vergrendeld(T, key, p.nr), locked: P.vergrendeld(T, key, p.nr) });
     if (pauze && g.nr === pauze) h += '<div class="pauze">PAUZE</div>';
   });
-  return '<div class="games"><div class="ghead"><span>#</span><span>Breekt</span><span></span><span>Tegenstander</span></div>' + h + '</div>';
+  return '<div class="games">' + gameKopHtml() + h + '</div>';
 }
 
 /* ---------- stand ---------- */
@@ -2296,7 +2300,7 @@ function ppKetenHtml(key, p, pp, o) {
     const stand = s.groep.slice().sort((a, b) => wins[b] - wins[a]).map(id => '<span class="row gap-s">' + esc(spelerNaam(id)) + ' <b>' + wins[id] + '</b></span>').join('<span class="muted">·</span>');
     return '<div class="sect playoff-block" id="' + ((si === pp.stappen.length - 1 && !o.afgesloten) ? 'ppblok' : 'ppblok' + (o.plek || '') + '_' + si) + '"><header><h3>' + (si === 0 ? (o.plek ? (o.extra ? 'Extra play-off om ' : 'Play-off om ') + plaatsTxt : (voorDerde ? derdeTitel : 'Play-off om de doorgaande plek' + (s.plekken > 1 ? 'en' : ''))) : 'Extra play-off' + (o.plek ? ' om ' + plaatsTxt : '')) + '</h3><span class="chip ' + (klaar ? 'ok' : 'warn') + '">' + (klaar ? 'Beslist' : (o.plek ? plaatsTxt + ' te bepalen' : plural(s.plekken, 'plek', 'plekken') + ' te winnen')) + '</span>' +
       (UI.viewer ? '' : '<button class="btn sec sm noprint" data-act="pp-reset" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast ? ' disabled' : '') + '>Opnieuw opzetten</button>') + '</header><div class="body stack">' +
-      '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + bSel + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="pp-loot-breaks" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast || gestart ? ' disabled' : '') + ' title="Verdeelt wie er breekt eerlijk over het hele blok">🎲 Loot wie breekt</button><span class="muted">Breaks: ' + Object.keys(P.telBreaks(s.games)).map(id => esc(spelerNaam(id)) + ' ' + P.telBreaks(s.games)[id]).join(' · ') + '</span></div>') + '<div class="games"><div class="ghead"><span>#</span><span>Breekt</span><span></span><span>Tegenstander</span></div>' + rijen + '</div><div class="row small" style="gap:10px">' + stand + '</div></div></div>';
+      '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + bSel + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="pp-loot-breaks" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast || gestart ? ' disabled' : '') + ' title="Verdeelt wie er breekt eerlijk over het hele blok">🎲 Loot wie breekt</button><span class="muted">Breaks: ' + Object.keys(P.telBreaks(s.games)).map(id => esc(spelerNaam(id)) + ' ' + P.telBreaks(s.games)[id]).join(' · ') + '</span></div>') + '<div class="games">' + gameKopHtml() + rijen + '</div><div class="row small" style="gap:10px">' + stand + '</div></div></div>';
   }).join('');
 }
 function derdeBlokHtml(key, i) {
@@ -2308,7 +2312,7 @@ function derdeBlokHtml(key, i) {
   const fSel = UI.viewer ? '<div><span class="muted small">Formaat</span><br><b>' + esc(po.formaat) + '</b></div>' : '<label class="f" style="min-width:160px"><span>Formaat</span><select data-chg="d-formaat" data-key="' + key + '" data-i="' + i + '"' + (gestart ? ' disabled' : '') + '>' + P.ppFormaten(2).map(f => '<option' + (f === po.formaat ? ' selected' : '') + '>' + esc(f) + '</option>').join('') + '</select></label>';
   return '<div class="sect playoff-block"><header><h3>Play-off beste nummer 3</h3><span class="chip ' + (po.winnaar ? 'ok' : 'warn') + '">' + (po.winnaar ? 'Beslist: ' + esc(spelerNaam(po.winnaar)) + ' gaat door' : 'Wacht op uitslag') + '</span></header><div class="body stack">' +
     '<p class="small">De nummers 3 van poule ' + (2 * i + 1) + ' en ' + (2 * i + 2) + ' hebben evenveel punten. De winnaar gaat door naar de volgende ronde.</p>' +
-    '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + (UI.viewer ? '' : (vast ? '<button class="btn sec sm noprint" data-act="derde-ontgrendel" data-key="' + key + '" data-i="' + i + '">🔒 Ontgrendelen</button>' : '')) + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="d-loot-breaks" data-key="' + key + '" data-i="' + i + '"' + (vast || gestart ? ' disabled' : '') + '>🎲 Loot wie breekt</button></div>') + '<div class="games"><div class="ghead"><span>#</span><span>Breekt</span><span></span><span>Tegenstander</span></div>' + rijen + '</div><div class="row small" style="gap:12px"><span class="row gap-s">' + esc(spelerNaam(po.a)) + ' <b>' + wins[po.a] + '</b></span><span class="muted">·</span><span class="row gap-s">' + esc(spelerNaam(po.b)) + ' <b>' + wins[po.b] + '</b></span></div></div></div>';
+    '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + (UI.viewer ? '' : (vast ? '<button class="btn sec sm noprint" data-act="derde-ontgrendel" data-key="' + key + '" data-i="' + i + '">🔒 Ontgrendelen</button>' : '')) + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="d-loot-breaks" data-key="' + key + '" data-i="' + i + '"' + (vast || gestart ? ' disabled' : '') + '>🎲 Loot wie breekt</button></div>') + '<div class="games">' + gameKopHtml() + rijen + '</div><div class="row small" style="gap:12px"><span class="row gap-s">' + esc(spelerNaam(po.a)) + ' <b>' + wins[po.a] + '</b></span><span class="muted">·</span><span class="row gap-s">' + esc(spelerNaam(po.b)) + ' <b>' + wins[po.b] + '</b></span></div></div></div>';
 }
 function bronnenPh(key, p) {
   const vk = P.vorigeKey(T, key), pool = {}, derde = {};
