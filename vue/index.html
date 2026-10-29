@@ -359,6 +359,13 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 @media (max-width: 1180px) {
   .dagview .stack-l > .sect.playoff-block .games { width: calc(100% + 32px); margin-left: -16px; }
 }
+@media (max-width: 980px) {
+  /* De openbare kop volgt exact de inhoudsbreedte van .wrap en daarmee de wedstrijdkolom. */
+  .hero-public { width: calc(100% - 40px) !important; margin-left: 20px; margin-right: 20px; }
+  /* Ook wanneer het playoffblok niet rechtstreeks onder .stack-l staat, blijft het volledig breed. */
+  .dagview .playoff-block { width: 100% !important; max-width: none !important; align-self: stretch; }
+  .dagview .playoff-block .games { width: calc(100% + 32px) !important; max-width: none !important; margin-left: -16px !important; }
+}
 .public-dag-controls { gap: 6px; flex-wrap: nowrap; }
 .public-dag-controls .viewer-refresh { margin-left: 8px; padding: 4px 8px; min-width: 2.1em; font-size: 1.05rem; line-height: 1; }
 .public-dag-datum { font-size: 1.2rem; line-height: 1.15; font-weight: 800; }
