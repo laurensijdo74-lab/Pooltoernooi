@@ -43,6 +43,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .hero .sub { opacity: .85; font-size: .95rem; margin-top: 2px; }
 .hero .meta { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .hero-public { width: calc(100% - 40px); margin: 0 auto; border-radius: 0 0 var(--radius) var(--radius); }
+.hero-public { overflow: hidden; }
+.hero-public::after { content: "8"; position: absolute; z-index: 1; top: 50%; left: -24px; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; color: #111; background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.7), rgba(255,255,255,0) 38%), #151515; box-shadow: inset -2px -2px 4px rgba(0,0,0,.45), 0 1px 2px rgba(0,0,0,.35); font: 800 9px/1 var(--font-body); pointer-events: none; opacity: 0; animation: viewer-ball-sweep 22s linear infinite; }
+@keyframes viewer-ball-sweep { 0%, 68% { transform: translateX(0) rotate(0deg); opacity: 0; } 72% { opacity: .72; } 90% { opacity: .72; } 100% { transform: translateX(calc(100vw + 60px)) rotate(360deg); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .hero-public::after { display: none; animation: none; } }
 .hero-public .hero-in { padding: 8px 12px 10px; gap: 10px; }
 .hero-public .logo { height: 42px; max-width: 110px; }
 .hero-public h1 { font-size: 1.2rem; }
