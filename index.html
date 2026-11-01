@@ -1821,7 +1821,7 @@ function pasThemaToe(loc) {
 const LS_KEY = 'pooltoernooi.v1.actief', LS_HP = 'pooltoernooi.v1.herstelpunten';
 let saveTimer = null, fileTimer = null, laatsteHerstelpunt = 0;
 let onlineSaveTimer = null, onlineUnsub = null, onlineApplying = false;
-let publiekeVerversingTimer = null, publiekeVerversingBezig = false;
+let publiekeVerversingTimer = null, publiekeVerversingBezig = false, publiekeFirestoreUnsub = null;
 function laadOpgeslagen() {
   try {
     const s = localStorage.getItem(LS_KEY);
@@ -2651,30 +2651,43 @@ function dagDetailHtml(key, nr) {
   const playoffs = ppBlokHtml(key, p) + derdePp;
   return '<div class="stack-l dag-detail-stack">' + kop + waarschuw + (wachtPh ? vorigePlayoffsHtml(key, p) : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + '</div>';
 }
-async function vernieuwPubliek(melding) {
-  if (!UI.viewer || !window.POOL_ONLINE || !T || !T.id || publiekeVerversingBezig) return;
-  publiekeVerversingBezig = true;
+function pasPubliekeStandToe(remote, melding) {
+  if (!remote || !remote.id || !T || remote.id !== T.id) return false;
   const huidigeTab = UI.tab;
   const huidigeDag = UI.dag && { key: UI.dag.key, nr: UI.dag.nr };
   const huidigeStand = UI.stand;
+  T = remote; migreerNaLaden(); UI.viewer = true; UI.tab = huidigeTab;
+  UI.dag = huidigeDag && P.planDag(T, huidigeDag.key, huidigeDag.nr) ? huidigeDag : null;
+  UI.stand = huidigeStand && P.planRonde(T, huidigeStand) ? huidigeStand : null;
+  render();
+  if (melding) toast('Stand bijgewerkt');
+  return true;
+}
+async function vernieuwPubliek(melding) {
+  if (!UI.viewer || !window.POOL_ONLINE || !T || !T.id || publiekeVerversingBezig) return;
+  publiekeVerversingBezig = true;
   try {
     const remote = await window.POOL_ONLINE.loadTournament(T.id, { public: true });
     if (!remote) { if (melding) toast('De openbare versie kon niet worden vernieuwd.', true); return; }
-    T = remote; migreerNaLaden(); UI.viewer = true; UI.tab = huidigeTab;
-    UI.dag = huidigeDag && P.planDag(T, huidigeDag.key, huidigeDag.nr) ? huidigeDag : null;
-    UI.stand = huidigeStand && P.planRonde(T, huidigeStand) ? huidigeStand : null;
-    render();
-    if (melding) toast('Stand bijgewerkt');
+    pasPubliekeStandToe(remote, melding);
   } catch (e) { if (melding) toast('Vernieuwen mislukt.', true); }
   finally { publiekeVerversingBezig = false; }
 }
 function startPubliekeVerversing() {
   if (publiekeVerversingTimer) clearInterval(publiekeVerversingTimer);
+  if (publiekeFirestoreUnsub) { publiekeFirestoreUnsub(); publiekeFirestoreUnsub = null; }
   publiekeVerversingTimer = null;
   if (!UI.viewer) return;
+  const o = window.POOL_ONLINE;
+  if (o && o.subscribePublicTournament && T && T.id) {
+    Promise.resolve(o.ready).then(() => {
+      if (UI.viewer && T && T.id) publiekeFirestoreUnsub = o.subscribePublicTournament(T.id, remote => pasPubliekeStandToe(remote, false));
+    }).catch(() => {});
+  }
+  // Veilig vangnet voor browsers waarin realtime luisteren niet beschikbaar is.
   publiekeVerversingTimer = setInterval(() => {
     if (!document.hidden) vernieuwPubliek(false);
-  }, 30000);
+  }, 120000);
 }
 
 function scorebordPlayoff(key, p, a) {
@@ -3464,7 +3477,7 @@ const firebaseConfig = cfg.firebase || {};
 const required = ['apiKey', 'authDomain', 'projectId', 'appId'];
 const configured = cfg.enabled === true && required.every(k => String(firebaseConfig[k] || '').trim());
 
-let app = null, auth = null, db = null, unsubscribe = null;
+let app = null, auth = null, db = null, unsubscribe = null, publicUnsubscribe = null;
 let currentUser = null;
 let readyResolve;
 const ready = new Promise(resolve => { readyResolve = resolve; });
@@ -3654,6 +3667,28 @@ function subscribeTournament(id, onRemote) {
   return () => { if (unsubscribe) unsubscribe(); unsubscribe = null; };
 }
 
+// Publieke kijkers mogen realtime meeluisteren zonder in te loggen.
+// Als Firestore luisteren door browser- of regelinstellingen niet lukt,
+// blijft de periodieke controle in de hoofdapp als vangnet actief.
+function subscribePublicTournament(id, onRemote) {
+  if (!db) return () => {};
+  if (publicUnsubscribe) publicUnsubscribe();
+  publicUnsubscribe = onSnapshot(doc(db, 'tournaments', String(id)), snap => {
+    if (!snap.exists()) return;
+    const data = snap.data() || {};
+    if (data.toegang !== 'openbaar' || !data.state) return;
+    state.remoteId = String(id);
+    state.lastRemoteRead = Date.now();
+    if (typeof onRemote === 'function') onRemote(data.state);
+  }, () => {
+    // Stil falen: de periodieke publieke refresh blijft beschikbaar.
+  });
+  return () => {
+    if (publicUnsubscribe) publicUnsubscribe();
+    publicUnsubscribe = null;
+  };
+}
+
 const api = {
   state,
   ready,
@@ -3666,6 +3701,7 @@ const api = {
   loadTournament,
   listTournaments,
   subscribeTournament,
+  subscribePublicTournament,
   get user() { return currentUser; }
 };
 window.POOL_ONLINE = api;
