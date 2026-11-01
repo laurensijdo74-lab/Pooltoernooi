@@ -1684,7 +1684,7 @@ const UI = {
   tab: 'overzicht', dag: null, dagLijst: true, lotingKey: null, anim: null, modus: null, sel: null, manual: null,
   alleRondes: false, inst: 'toernooi', scorebord: false, opslag: { ok: true, fout: '', laatst: 0 },
   fh: null, fhNaam: '', fhPending: null, fhFout: '', bevestigd: {}, testPatroon: '1', stand: null, locEdit: null,
-  viewer: false, publicLink: ''
+  viewer: false, publicLink: '', verslagVariant: 0
 };
 
 /* ---------- hulpjes ---------- */
@@ -2505,6 +2505,90 @@ function pouleSamenvatting(key, p) {
   return '<div class="note good"><b>Doorgegaan:</b> ' + top2 + '.<br>Nummer 3 (' + naamD + ') wacht op de andere poule van dit weekend.</div>';
 }
 
+/* ---------- deelbare verslagen ---------- */
+function verslagNamen(ids) { return (ids || []).filter(Boolean).map(spelerNaam); }
+function verslagOpsomming(ids) {
+  const namen = verslagNamen(ids);
+  if (!namen.length) return '';
+  if (namen.length === 1) return namen[0];
+  if (namen.length === 2) return namen[0] + ' en ' + namen[1];
+  return namen.slice(0, -1).join(', ') + ' en ' + namen[namen.length - 1];
+}
+function verslagPouleTekst(key, nr, variant) {
+  const p = P.zoekPoule(T, key, nr), d = P.planDag(T, key, nr);
+  if (!p || !d || !P.reguliereKlaar(p)) return '';
+  const rows = P.standPoule(T, p), pr = P.planRonde(T, key), klaar = P.pouleAfgerond(T, p);
+  const gespeeld = p.schema.filter(g => g.w).length, totaal = p.schema.length;
+  const eerste = rows[0], tweede = rows[1], gelijk = rows.filter(r => r.punten === eerste.punten);
+  const plaats = rondePoule(key, nr), datum = P.datumLang(d.datum), loc = locNaam(dagLocatie(key, nr));
+  const openings = [
+    datum + ' zit erop: de deelnemers van ' + plaats.toLowerCase() + ' hebben de keu flink laten spreken.',
+    'Er werd vandaag volop gestreden in ' + plaats.toLowerCase() + '. Na ' + gespeeld + ' partijen is de balans opgemaakt.',
+    'De wedstrijden van ' + plaats.toLowerCase() + ' zijn achter de rug. Tijd om de tussenstand eens rustig te bekijken.'
+  ];
+  let tekst = openings[(Number(variant) || 0) % openings.length];
+  if (loc) tekst += ' Dat gebeurde bij ' + loc + '.';
+
+  if (!klaar && p.pp && p.pp.stappen && p.pp.stappen[0]) {
+    const groep = p.pp.stappen[0].groep || [];
+    tekst += '\n\n' + (gelijk.length > 1
+      ? 'Bovenin bleef het bijzonder spannend: ' + verslagOpsomming(groep) + ' eindigden met ' + eerste.punten + ' punten gelijk.'
+      : 'De reguliere wedstrijden zijn beslist, maar de eindvolgorde ligt nog niet helemaal vast.');
+    tekst += ' De play-off om ' + plaatsTekst(p.pp.start, p.pp.eind) + ' moet de knoop doorhakken.';
+    tekst += '\n\n' + 'De spanning blijft er dus nog even in voordat de doorgangers definitief bekend zijn.';
+    return tekst;
+  }
+
+  const eind = P.eindvolgorde(T, p), winnaar = eind[0], doorgangers = eind.slice(0, Math.min(P.DOORGAAN, eind.length));
+  if (gelijk.length > 1) {
+    tekst += '\n\n' + 'De top was niet zonder spanning: ' + verslagOpsomming(gelijk.map(r => r.id)) + ' kwamen uit op ' + eerste.punten + ' punten.';
+  } else if (eerste.punten === eerste.gespeeld && eerste.gespeeld > 0) {
+    tekst += '\n\n' + spelerNaam(eerste.id) + ' liet weinig ruimte voor twijfel en bleef deze poule ongeslagen met ' + eerste.punten + ' punten.';
+  } else if (tweede && eerste.punten - tweede.punten <= 1) {
+    tekst += '\n\n' + 'Het bleef spannend tot het einde: ' + spelerNaam(eerste.id) + ' eindigde met ' + eerste.punten + ' punten, vlak voor ' + spelerNaam(tweede.id) + ' met ' + tweede.punten + '.';
+  } else if (rows[rows.length - 1] && rows[rows.length - 1].punten === 0) {
+    tekst += '\n\n' + spelerNaam(eerste.id) + ' pakte overtuigend de leiding met ' + eerste.punten + ' punten. Onderaan bleef het voor ' + spelerNaam(rows[rows.length - 1].id) + ' helaas een lastige dag.';
+  } else {
+    tekst += '\n\n' + spelerNaam(eerste.id) + ' kwam als sterkste uit de bus met ' + eerste.punten + ' punten. De concurrentie bleef daarachter goed in het spoor.';
+  }
+
+  if (!P.volgendeKey(T, key)) {
+    tekst += '\n\n' + 'Daarmee is ' + spelerNaam(winnaar) + ' de winnaar van het toernooi. ' + (eind[1] ? spelerNaam(eind[1]) + ' eindigde als tweede' + (eind[2] ? ' en ' + spelerNaam(eind[2]) + ' werd derde.' : '.') : 'De eindstand is compleet.');
+  } else {
+    tekst += '\n\n' + 'Naar de volgende ronde gaan ' + verslagOpsomming(doorgangers) + '.';
+    if (pr && pr.derden && eind[2]) tekst += ' De nummer 3 blijft bovendien in beeld voor de strijd om de beste nummer 3 van het weekend.';
+  }
+  return tekst;
+}
+function verslagWeekendTekst(key, nr, variant) {
+  const r = T.rondes[key], p = P.zoekPoule(T, key, nr);
+  if (!r || !p || r.poules.length < 2) return '';
+  const groepNr = Math.floor((p.nr - 1) / 2), poules = r.poules.filter(x => Math.floor((x.nr - 1) / 2) === groepNr);
+  if (poules.length < 2 || p.nr !== Math.max.apply(null, poules.map(x => x.nr)) || !poules.every(x => P.reguliereKlaar(x))) return '';
+  const d = P.planDag(T, key, nr), label = rondeNaam(key), opening = [
+    'Het weekendverslag van ' + label.toLowerCase() + ': twee poules, veel partijen en genoeg stof voor de nabespreking.',
+    'De balans van dit speelweekend is opgemaakt. In beide poules werd er stevig gestreden om de doorgangsplekken.',
+    'Tijd voor een terugblik op ' + label.toLowerCase() + '. De uitslagen van de twee poules leveren een mooi verschillend verhaal op.'
+  ][(Number(variant) || 0) % 3];
+  const regels = poules.map(x => {
+    const rows = P.standPoule(T, x), top = rows.slice(0, Math.min(P.DOORGAAN, rows.length));
+    return 'In poule ' + x.nr + ' eindigden ' + verslagOpsomming(top.map(y => y.id)) + ' bovenaan met respectievelijk ' + top.map(y => y.punten + ' punten').join(' en ') + '.';
+  });
+  const open = poules.filter(x => x.pp && !x.pp.voltooid);
+  let tekst = opening + (d ? ' De laatste wedstrijden werden gespeeld op ' + P.datumLang(d.datum) + '.' : '');
+  tekst += '\n\n' + regels.join(' ');
+  if (open.length) tekst += '\n\n' + 'De strijd om ' + (open.length === 1 ? 'een plek' : 'enkele plekken') + ' is nog niet helemaal beslist: ' + open.map(x => 'poule ' + x.nr).join(' en ') + ' heeft nog een play-off nodig.';
+  else tekst += '\n\n' + 'De doorgangers zijn daarmee bekend en kunnen zich opmaken voor de volgende ronde.';
+  return tekst;
+}
+function verslagBlokHtml(soort, key, nr) {
+  if (UI.viewer) return '';
+  const tekst = soort === 'weekend' ? verslagWeekendTekst(key, nr, UI.verslagVariant) : verslagPouleTekst(key, nr, UI.verslagVariant);
+  if (!tekst) return '';
+  const titel = soort === 'weekend' ? 'Verslag van het speelweekend' : 'Verslag van deze poule';
+  return '<div class="sect verslagblok"><header><h3>' + titel + '</h3><span class="chip ok">Klaar om te delen</span></header><div class="body stack"><p class="small muted">Automatisch samengesteld uit de ingevoerde uitslagen. Controleer de tekst eventueel nog even voordat je hem deelt.</p><textarea class="verslag-tekst" readonly rows="9" aria-label="Verslag">' + esc(tekst) + '</textarea><div class="row"><button class="btn" data-act="verslag-kopieer">Kopieer verslag</button><button class="btn sec" data-act="verslag-anders">Andere invalshoek</button></div></div></div>';
+}
+
 /* ---------- play-offs ---------- */
 function ppBlokHtml(key, p) {
   if (P.isFinale(T, p)) return p.fin ? p.fin.plaatsen.map(pl => ppKetenHtml(key, p, pl.pp, { plek: pl.plek, eind: pl.eind, extra: pl.extra, afgesloten: pl.pp !== p.pp })).join('') : '';
@@ -2654,7 +2738,8 @@ function dagDetailHtml(key, nr) {
   const derdePp = derdeBlokkenVoorPoule(key, p);
   const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p) + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + testHulpHtml(key, p) + '</div>';
   const playoffs = ppBlokHtml(key, p) + derdePp;
-  return '<div class="stack-l dag-detail-stack">' + kop + waarschuw + (wachtPh ? vorigePlayoffsHtml(key, p) : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + '</div>';
+  const verslagen = verslagBlokHtml('poule', key, nr) + verslagBlokHtml('weekend', key, nr);
+  return '<div class="stack-l dag-detail-stack">' + kop + waarschuw + (wachtPh ? vorigePlayoffsHtml(key, p) : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + verslagen + '</div>';
 }
 function pasPubliekeStandToe(remote, melding) {
   if (!remote || !remote.id || !T || remote.id !== T.id) return false;
@@ -3203,6 +3288,19 @@ const ACT = {
     const url = publiekeToernooiUrl(T.id);
     try { await navigator.clipboard.writeText(url); toast('Publieke link gekopieerd'); }
     catch (e) { toast('Kopiëren lukt niet automatisch; selecteer de link handmatig.', true); }
+  },
+  'verslag-anders'() { UI.verslagVariant = (Number(UI.verslagVariant) + 1) % 3; render(); },
+  async 'verslag-kopieer'(b) {
+    const blok = b.closest('.verslagblok'), veld = blok && $('.verslag-tekst', blok);
+    if (!veld) return;
+    try {
+      await navigator.clipboard.writeText(veld.value);
+      toast('Verslag gekopieerd');
+    } catch (e) {
+      veld.focus(); veld.select();
+      try { document.execCommand('copy'); toast('Verslag gekopieerd'); }
+      catch (err) { toast('Kopiëren lukt niet automatisch; selecteer de tekst handmatig.', true); }
+    }
   },
   'inst-tab'(b) { UI.inst = b.dataset.inst; render(); },
   'week-toe'() { const v = $('#weekDatum').value; if (!v) { toast('Kies eerst een datum.', true); return; } const l = T.instellingen.overslaan; if (l.indexOf(v) < 0) l.push(v); l.sort(); planOpnieuw(); commit(); },
