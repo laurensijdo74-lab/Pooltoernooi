@@ -2514,49 +2514,100 @@ function verslagOpsomming(ids) {
   if (namen.length === 2) return namen[0] + ' en ' + namen[1];
   return namen.slice(0, -1).join(', ') + ' en ' + namen[namen.length - 1];
 }
+function verslagVerloop(p) {
+  const games = p.schema.filter(g => g.w), totaal = p.schema.length;
+  if (!games.length) return '';
+  const winst = {}, reeks = {}, leiders = [];
+  let koploper = '', wissels = 0, huidigeReeks = '', besteReeks = { id: '', n: 0 };
+  games.forEach(g => {
+    const id = g.w; winst[id] = (winst[id] || 0) + 1;
+    if (huidigeReeks === id) reeks[id] = (reeks[id] || 1) + 1; else { huidigeReeks = id; reeks[id] = 1; }
+    if (reeks[id] > besteReeks.n) besteReeks = { id, n: reeks[id] };
+    const max = Math.max.apply(null, Object.keys(winst).map(x => winst[x]));
+    const bovenaan = Object.keys(winst).filter(x => winst[x] === max);
+    if (bovenaan.length === 1) {
+      if (koploper && koploper !== bovenaan[0]) wissels++;
+      koploper = bovenaan[0];
+      leiders.push(koploper);
+    }
+  });
+  const delen = ['Er werd fanatiek gestreden: ' + games.length + ' van de ' + totaal + ' wedstrijden zijn gespeeld.'];
+  if (wissels > 0) delen.push('De koppositie wisselde ' + wissels + (wissels === 1 ? ' keer' : ' keer') + ', waardoor het tot het einde spannend bleef.');
+  else if (besteReeks.n >= 3) delen.push(spelerNaam(besteReeks.id) + ' zette de toon met een reeks van ' + besteReeks.n + ' overwinningen achter elkaar.');
+  else if (leiders.length) delen.push(spelerNaam(leiders[leiders.length - 1]) + ' stond na de laatste reguliere wedstrijd bovenaan.');
+  const laatste = games[games.length - 1];
+  if (laatste && laatste.w) delen.push('De laatste reguliere wedstrijd werd gewonnen door ' + spelerNaam(laatste.w) + '.');
+  return delen.join(' ');
+}
+function verslagRanglijst(key, nr, voorlopig) {
+  const p = P.zoekPoule(T, key, nr); if (!p) return '';
+  const rows = P.standPoule(T, p), perId = {}; rows.forEach(r => { perId[r.id] = r; });
+  const ids = !voorlopig && P.pouleAfgerond(T, p) ? P.eindvolgorde(T, p) : rows.map(r => r.id);
+  const ppGroep = p.pp && p.pp.stappen && p.pp.stappen[0] ? p.pp.stappen[0].groep : [];
+  const pr = P.planRonde(T, key), regels = [];
+  function suffix(n) { return n + (n === 1 ? 'e' : 'e'); }
+  function extra(id, pos) {
+    const r = perId[id]; if (!r) return '';
+    if (pos === 2 && pr && pr.derden) {
+      const st = P.derdeStatus(T, key, Math.floor((nr - 1) / 2));
+      if (st.status === 'playoff') return ' – ' + r.punten + ' punten en nog kans op beste derde! 🤞';
+      if (st.status === 'beslist' && st.winnaar === id) return ' – ' + r.punten + ' punten en door als beste derde! 🤞';
+      return ' – ' + r.punten + ' punten';
+    }
+    return '';
+  }
+  let i = 0;
+  while (i < ids.length) {
+    const id = ids[i], r = perId[id], zelfdePunten = [];
+    while (i + zelfdePunten.length < ids.length) {
+      const kandidaat = perId[ids[i + zelfdePunten.length]];
+      if (!kandidaat || kandidaat.punten !== r.punten) break;
+      zelfdePunten.push(ids[i + zelfdePunten.length]);
+    }
+    const gedeeld = zelfdePunten.length > 1 && !zelfdePunten.some(x => ppGroep.indexOf(x) >= 0);
+    if (gedeeld) {
+      regels.push('🎱 Gedeelde ' + suffix(i + 1) + ' plaats:');
+      zelfdePunten.forEach(x => regels.push(spelerNaam(x)));
+    } else {
+      zelfdePunten.forEach((x, j) => {
+        const pos = i + j, icoon = pos === 0 ? '🥇' : (pos === 1 ? '🥈' : (pos === 2 ? '🥉' : '🎱'));
+        regels.push(icoon + ' ' + (pos + 1) + '. ' + spelerNaam(x) + extra(x, pos));
+      });
+    }
+    i += zelfdePunten.length;
+  }
+  return regels.join('\n');
+}
 function verslagPouleTekst(key, nr, variant) {
   const p = P.zoekPoule(T, key, nr), d = P.planDag(T, key, nr);
   if (!p || !d || !P.reguliereKlaar(p)) return '';
   const rows = P.standPoule(T, p), pr = P.planRonde(T, key), klaar = P.pouleAfgerond(T, p);
-  const gespeeld = p.schema.filter(g => g.w).length, totaal = p.schema.length;
-  const eerste = rows[0], tweede = rows[1], gelijk = rows.filter(r => r.punten === eerste.punten);
-  const plaats = rondePoule(key, nr), datum = P.datumLang(d.datum), loc = locNaam(dagLocatie(key, nr));
+  const eerste = rows[0], datum = P.datumLang(d.datum), loc = locNaam(dagLocatie(key, nr));
   const openings = [
-    datum + ' zit erop: de deelnemers van ' + plaats.toLowerCase() + ' hebben de keu flink laten spreken.',
-    'Er werd vandaag volop gestreden in ' + plaats.toLowerCase() + '. Na ' + gespeeld + ' partijen is de balans opgemaakt.',
-    'De wedstrijden van ' + plaats.toLowerCase() + ' zijn achter de rug. Tijd om de tussenstand eens rustig te bekijken.'
+    '🎱 De uitslag van ' + datum + ': 🎉🍻',
+    '🎱 We hebben er weer een gezellige poolmiddag op zitten! 🎉🍻',
+    '🎱 Wat een middag vol spanning en mooie partijen! 🎉🍻'
   ];
   let tekst = openings[(Number(variant) || 0) % openings.length];
-  if (loc) tekst += ' Dat gebeurde bij ' + loc + '.';
-
+  if (loc) tekst += '\n📍 ' + loc;
+  const verloop = verslagVerloop(p); if (verloop) tekst += '\n\n' + verloop + ' 💪';
+  tekst += '\n\n' + (klaar ? 'De eindstand:' : 'De voorlopige stand:') + '\n' + verslagRanglijst(key, nr, !klaar);
   if (!klaar && p.pp && p.pp.stappen && p.pp.stappen[0]) {
-    const groep = p.pp.stappen[0].groep || [];
-    tekst += '\n\n' + (gelijk.length > 1
-      ? 'Bovenin bleef het bijzonder spannend: ' + verslagOpsomming(groep) + ' eindigden met ' + eerste.punten + ' punten gelijk.'
-      : 'De reguliere wedstrijden zijn beslist, maar de eindvolgorde ligt nog niet helemaal vast.');
-    tekst += ' De play-off om ' + plaatsTekst(p.pp.start, p.pp.eind) + ' moet de knoop doorhakken.';
-    tekst += '\n\n' + 'De spanning blijft er dus nog even in voordat de doorgangers definitief bekend zijn.';
-    return tekst;
-  }
-
-  const eind = P.eindvolgorde(T, p), winnaar = eind[0], doorgangers = eind.slice(0, Math.min(P.DOORGAAN, eind.length));
-  if (gelijk.length > 1) {
-    tekst += '\n\n' + 'De top was niet zonder spanning: ' + verslagOpsomming(gelijk.map(r => r.id)) + ' kwamen uit op ' + eerste.punten + ' punten.';
-  } else if (eerste.punten === eerste.gespeeld && eerste.gespeeld > 0) {
-    tekst += '\n\n' + spelerNaam(eerste.id) + ' liet weinig ruimte voor twijfel en bleef deze poule ongeslagen met ' + eerste.punten + ' punten.';
-  } else if (tweede && eerste.punten - tweede.punten <= 1) {
-    tekst += '\n\n' + 'Het bleef spannend tot het einde: ' + spelerNaam(eerste.id) + ' eindigde met ' + eerste.punten + ' punten, vlak voor ' + spelerNaam(tweede.id) + ' met ' + tweede.punten + '.';
-  } else if (rows[rows.length - 1] && rows[rows.length - 1].punten === 0) {
-    tekst += '\n\n' + spelerNaam(eerste.id) + ' pakte overtuigend de leiding met ' + eerste.punten + ' punten. Onderaan bleef het voor ' + spelerNaam(rows[rows.length - 1].id) + ' helaas een lastige dag.';
+    const groep = p.pp.stappen[0].groep || [], plek = p.pp.start === 3 && p.pp.k === 3 ? 'de beste derde van het weekend' : plaatsTekst(p.pp.start, p.pp.eind);
+    tekst += '\n\n🔥 En we zijn nog niet klaar! ' + verslagOpsomming(groep) + ' eindigden gelijk. Er volgt nog een beslissende play-off om ' + plek + '!';
   } else {
-    tekst += '\n\n' + spelerNaam(eerste.id) + ' kwam als sterkste uit de bus met ' + eerste.punten + ' punten. De concurrentie bleef daarachter goed in het spoor.';
-  }
-
-  if (!P.volgendeKey(T, key)) {
-    tekst += '\n\n' + 'Daarmee is ' + spelerNaam(winnaar) + ' de winnaar van het toernooi. ' + (eind[1] ? spelerNaam(eind[1]) + ' eindigde als tweede' + (eind[2] ? ' en ' + spelerNaam(eind[2]) + ' werd derde.' : '.') : 'De eindstand is compleet.');
-  } else {
-    tekst += '\n\n' + 'Naar de volgende ronde gaan ' + verslagOpsomming(doorgangers) + '.';
-    if (pr && pr.derden && eind[2]) tekst += ' De nummer 3 blijft bovendien in beeld voor de strijd om de beste nummer 3 van het weekend.';
+    if (klaar && p.pp && p.pp.voltooid && p.pp.stappen && p.pp.stappen[0]) {
+      const eind = P.eindvolgorde(T, p), plek = p.pp.start === 3 && p.pp.k === 3 ? 'de derde plaats' : plaatsTekst(p.pp.start, p.pp.eind);
+      tekst += '\n\n🔥 Na een spannende play-off is ook ' + plek + ' bepaald: ' + spelerNaam(eind[p.pp.start - 1]) + ' trok aan het langste eind!';
+    }
+    if (!P.volgendeKey(T, key)) {
+    const eind = P.eindvolgorde(T, p);
+    tekst += '\n\n🎉 Gefeliciteerd allemaal! ' + spelerNaam(eind[0]) + ' wint het toernooi. Op naar de volgende uitdaging! 🍻🎱';
+    } else {
+    const eind = P.eindvolgorde(T, p), doorgangers = eind.slice(0, Math.min(P.DOORGAAN, eind.length));
+    tekst += '\n\n🎉 ' + verslagOpsomming(doorgangers) + ' gaat door naar de volgende ronde. Gefeliciteerd allemaal en op naar de volgende ronde! 🍻🎱';
+    if (pr && pr.derden && eind[2]) tekst += '\nDe nummer 3 blijft bovendien in beeld voor de strijd om de beste derde. 🤞';
+    }
   }
   return tekst;
 }
@@ -2570,15 +2621,12 @@ function verslagWeekendTekst(key, nr, variant) {
     'De balans van dit speelweekend is opgemaakt. In beide poules werd er stevig gestreden om de doorgangsplekken.',
     'Tijd voor een terugblik op ' + label.toLowerCase() + '. De uitslagen van de twee poules leveren een mooi verschillend verhaal op.'
   ][(Number(variant) || 0) % 3];
-  const regels = poules.map(x => {
-    const rows = P.standPoule(T, x), top = rows.slice(0, Math.min(P.DOORGAAN, rows.length));
-    return 'In poule ' + x.nr + ' eindigden ' + verslagOpsomming(top.map(y => y.id)) + ' bovenaan met respectievelijk ' + top.map(y => y.punten + ' punten').join(' en ') + '.';
-  });
+  const regels = poules.map(x => 'Poule ' + x.nr + ':\n' + verslagRanglijst(key, x.nr, !P.pouleAfgerond(T, x))).join('\n\n');
   const open = poules.filter(x => x.pp && !x.pp.voltooid);
   let tekst = opening + (d ? ' De laatste wedstrijden werden gespeeld op ' + P.datumLang(d.datum) + '.' : '');
-  tekst += '\n\n' + regels.join(' ');
-  if (open.length) tekst += '\n\n' + 'De strijd om ' + (open.length === 1 ? 'een plek' : 'enkele plekken') + ' is nog niet helemaal beslist: ' + open.map(x => 'poule ' + x.nr).join(' en ') + ' heeft nog een play-off nodig.';
-  else tekst += '\n\n' + 'De doorgangers zijn daarmee bekend en kunnen zich opmaken voor de volgende ronde.';
+  tekst += '\n\n' + regels;
+  if (open.length) tekst += '\n\n🔥 De strijd om ' + (open.length === 1 ? 'een plek' : 'enkele plekken') + ' is nog niet helemaal beslist: ' + open.map(x => 'poule ' + x.nr).join(' en ') + ' heeft nog een play-off nodig.';
+  else tekst += '\n\n🎉 De doorgangers zijn bekend. Gefeliciteerd allemaal en op naar de volgende ronde! 🍻🎱';
   return tekst;
 }
 function verslagBlokHtml(soort, key, nr) {
