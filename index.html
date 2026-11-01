@@ -2509,8 +2509,8 @@ function verslagOpsomming(ids) {
   if (namen.length === 2) return namen[0] + ' en ' + namen[1];
   return namen.slice(0, -1).join(', ') + ' en ' + namen[namen.length - 1];
 }
-function verslagVerloop(p) {
-  const games = p.schema.filter(g => g.w), totaal = p.schema.length;
+function verslagVerloop(p, variant) {
+  const games = p.schema.filter(g => g.w), totaal = p.schema.length, pauze = P.pauzeIndex(T, p);
   if (!games.length) return '';
   const winst = {}, reeks = {}, leiders = [];
   let koploper = '', wissels = 0, huidigeReeks = '', besteReeks = { id: '', n: 0 };
@@ -2522,17 +2522,40 @@ function verslagVerloop(p) {
     const bovenaan = Object.keys(winst).filter(x => winst[x] === max);
     if (bovenaan.length === 1) {
       if (koploper && koploper !== bovenaan[0]) wissels++;
-      koploper = bovenaan[0];
-      leiders.push(koploper);
+      koploper = bovenaan[0]; leiders.push(koploper);
     }
   });
-  const delen = ['Er werd fanatiek gestreden: ' + games.length + ' van de ' + totaal + ' wedstrijden zijn gespeeld.'];
-  if (wissels > 0) delen.push('De koppositie wisselde ' + wissels + (wissels === 1 ? ' keer' : ' keer') + ', waardoor het tot het einde spannend bleef.');
-  else if (besteReeks.n >= 3) delen.push(spelerNaam(besteReeks.id) + ' zette de toon met een reeks van ' + besteReeks.n + ' overwinningen achter elkaar.');
-  else if (leiders.length) delen.push(spelerNaam(leiders[leiders.length - 1]) + ' stond na de laatste reguliere wedstrijd bovenaan.');
+  const voor = pauze ? games.filter(g => g.nr <= pauze) : [], na = pauze ? games.filter(g => g.nr > pauze) : [];
+  const tel = (lijst, id) => lijst.filter(g => g.w === id).length;
+  const rows = P.standPoule(T, p), eindLeider = rows[0] && rows[0].id;
+  const startId = games[0] && games[0].w;
+  let startReeks = 0; for (const g of games) { if (g.w !== startId) break; startReeks++; }
+  const preWinners = {};
+  voor.forEach(g => { preWinners[g.w] = (preWinners[g.w] || 0) + 1; });
+  const preLeider = Object.keys(preWinners).sort((a, b) => preWinners[b] - preWinners[a])[0];
+  const variantNum = (Number(variant) || 0) % 3;
+  if (voor.length && na.length && startReeks >= Math.min(4, voor.length) && tel(na, startId) < na.length) {
+    const teksten = [
+      spelerNaam(startId) + ' schoot uit de startblokken met ' + startReeks + ' zeges op rij, maar liet na de pauze punten liggen. Daardoor bleef de spanning tot het einde voelbaar.',
+      'Voor de pauze leek ' + spelerNaam(startId) + ' niet te stoppen: ' + startReeks + ' uit ' + startReeks + '. In de tweede helft werd het lastiger en kwam de concurrentie terug.',
+      'Een vliegende start voor ' + spelerNaam(startId) + ' met ' + startReeks + ' overwinningen achter elkaar. Na de pauze werden de punten eerlijker verdeeld en werd het alsnog spannend.'
+    ];
+    return teksten[variantNum];
+  }
+  if (voor.length && na.length && preLeider && eindLeider && preLeider !== eindLeider && tel(na, eindLeider) > tel(voor, eindLeider)) {
+    const teksten = [
+      spelerNaam(preLeider) + ' stond bij de pauze nog bovenaan, maar ' + spelerNaam(eindLeider) + ' kwam in de tweede helft sterk terug en pakte uiteindelijk de leiding.',
+      'Na de pauze kantelde de wedstrijd volledig: ' + spelerNaam(eindLeider) + ' maakte de achterstand goed en eindigde als koploper.',
+      'De echte comeback kwam na de pauze. ' + spelerNaam(eindLeider) + ' schakelde een tandje bij en troefde de eerdere koploper af.'
+    ];
+    return teksten[variantNum];
+  }
+  if (besteReeks.n >= 4) return spelerNaam(besteReeks.id) + ' zette een indrukwekkende reeks neer met ' + besteReeks.n + ' overwinningen achter elkaar. 💪';
+  if (wissels >= 2) return 'De koppositie ging meerdere keren van hand tot hand. Geen moment was duidelijk wie er met de winst vandoor zou gaan.';
+  if (rows[0] && rows[1] && rows[0].punten - rows[1].punten <= 1) return 'De verschillen waren klein en iedere partij telde zwaar mee. De eindstand werd pas in de slotfase echt duidelijk.';
   const laatste = games[games.length - 1];
-  if (laatste && laatste.w) delen.push('De laatste reguliere wedstrijd werd gewonnen door ' + spelerNaam(laatste.w) + '.');
-  return delen.join(' ');
+  if (laatste && laatste.w === eindLeider) return spelerNaam(eindLeider) + ' sloot de reguliere wedstrijden sterk af en won ook de laatste partij.';
+  return 'Er werd fanatiek gestreden en de punten werden over de hele middag stevig bevochten.';
 }
 function verslagRanglijst(key, nr, voorlopig) {
   const p = P.zoekPoule(T, key, nr); if (!p) return '';
@@ -2545,9 +2568,8 @@ function verslagRanglijst(key, nr, voorlopig) {
     const r = perId[id]; if (!r) return '';
     if (pos === 2 && pr && pr.derden) {
       const st = P.derdeStatus(T, key, Math.floor((nr - 1) / 2));
-      if (st.status === 'playoff') return ' – ' + r.punten + ' punten en nog kans op beste derde! 🤞';
-      if (st.status === 'beslist' && st.winnaar === id) return ' – ' + r.punten + ' punten en door als beste derde! 🤞';
-      return ' – ' + r.punten + ' punten';
+      if (st.status === 'playoff') return ' en nog kans op beste derde! 🤞';
+      if (st.status === 'beslist' && st.winnaar === id) return ' en door als beste derde! 🤞';
     }
     return '';
   }
@@ -2562,11 +2584,11 @@ function verslagRanglijst(key, nr, voorlopig) {
     const gedeeld = zelfdePunten.length > 1 && !zelfdePunten.some(x => ppGroep.indexOf(x) >= 0);
     if (gedeeld) {
       regels.push('🎱 Gedeelde ' + suffix(i + 1) + ' plaats:');
-      zelfdePunten.forEach(x => regels.push(spelerNaam(x)));
+      zelfdePunten.forEach(x => regels.push(spelerNaam(x) + ' – ' + perId[x].punten + ' punten'));
     } else {
       zelfdePunten.forEach((x, j) => {
         const pos = i + j, icoon = pos === 0 ? '🥇' : (pos === 1 ? '🥈' : (pos === 2 ? '🥉' : '🎱'));
-        regels.push(icoon + ' ' + (pos + 1) + '. ' + spelerNaam(x) + extra(x, pos));
+        regels.push(icoon + ' ' + (pos + 1) + '. ' + spelerNaam(x) + ' – ' + perId[x].punten + ' punten' + extra(x, pos));
       });
     }
     i += zelfdePunten.length;
@@ -2585,8 +2607,8 @@ function verslagPouleTekst(key, nr, variant) {
   ];
   let tekst = openings[(Number(variant) || 0) % openings.length];
   if (loc) tekst += '\n📍 ' + loc;
-  const verloop = verslagVerloop(p); if (verloop) tekst += '\n\n' + verloop + ' 💪';
-  tekst += '\n\n' + (klaar ? 'De eindstand:' : 'De voorlopige stand:') + '\n' + verslagRanglijst(key, nr, !klaar);
+  const verloop = verslagVerloop(p, variant); if (verloop) tekst += '\n\n' + verloop + ' 💪';
+  tekst += '\n\n' + (klaar ? '🏁 Einduitslag:' : '📋 Voorlopige stand:') + '\n' + verslagRanglijst(key, nr, !klaar);
   if (!klaar && p.pp && p.pp.stappen && p.pp.stappen[0]) {
     const groep = p.pp.stappen[0].groep || [], plek = p.pp.start === 3 && p.pp.k === 3 ? 'de beste derde van het weekend' : plaatsTekst(p.pp.start, p.pp.eind);
     tekst += '\n\n🔥 En we zijn nog niet klaar! ' + verslagOpsomming(groep) + ' eindigden gelijk. Er volgt nog een beslissende play-off om ' + plek + '!';
@@ -2629,7 +2651,7 @@ function verslagBlokHtml(soort, key, nr) {
   const tekst = soort === 'weekend' ? verslagWeekendTekst(key, nr, UI.verslagVariant) : verslagPouleTekst(key, nr, UI.verslagVariant);
   if (!tekst) return '';
   const titel = soort === 'weekend' ? 'Verslag van het speelweekend' : 'Verslag van deze poule';
-  return '<div class="sect verslagblok"><header><h3>' + titel + '</h3><span class="chip ok">Klaar om te delen</span></header><div class="body stack"><p class="small muted">Automatisch samengesteld uit de ingevoerde uitslagen. Controleer de tekst eventueel nog even voordat je hem deelt.</p><textarea class="verslag-tekst" readonly rows="9" aria-label="Verslag">' + esc(tekst) + '</textarea><div class="row"><button class="btn" data-act="verslag-kopieer">Kopieer verslag</button><button class="btn sec" data-act="verslag-anders">Andere invalshoek</button></div></div></div>';
+  return '<div class="sect verslagblok"><header><h3>' + titel + '</h3><span class="chip ok">Klaar om te delen</span></header><div class="body stack"><p class="small muted">Automatisch samengesteld uit de ingevoerde uitslagen. Je kunt de tekst vóór het delen nog aanpassen.</p><textarea class="verslag-tekst" rows="9" spellcheck="true" aria-label="Verslag">' + esc(tekst) + '</textarea><div class="row"><button class="btn" data-act="verslag-kopieer">Kopieer verslag</button><button class="btn sec" data-act="verslag-anders">Andere invalshoek</button></div></div></div>';
 }
 
 /* ---------- play-offs ---------- */
