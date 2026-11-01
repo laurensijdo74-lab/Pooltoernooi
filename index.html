@@ -1927,6 +1927,10 @@ function standRondesVoorWeergave() {
   return zichtbaar;
 }
 function actueleSpeeldag() {
+  if (UI.viewer) {
+    const publiek = publiekeActueleSpeeldag();
+    if (publiek) return publiek;
+  }
   const d = volgendeSpeeldag();
   if (d) return d;
   const stap = volgendeStap();
@@ -1935,6 +1939,18 @@ function actueleSpeeldag() {
     if (gepland.length) return gepland[0];
   }
   return alleDagen()[0] || null;
+}
+/*
+ * Openbare startkeuze: kijk naar de kalender, niet alleen naar het aantal
+ * ingevoerde uitslagen. Op de wedstrijddatum blijft die dag tot 23:59 de
+ * eerste dag; vanaf morgen schuift de keuze door naar de eerstvolgende
+ * toekomstige gelote speeldag.
+ */
+function publiekeActueleSpeeldag() {
+  const dagen = alleDagen().filter(d => P.rondeGeloot(T, d.ronde));
+  if (!dagen.length) return null;
+  const vandaag = P.vandaagIso();
+  return dagen.find(d => d.datum >= vandaag) || dagen[dagen.length - 1];
 }
 /* Een speeldag mag pas worden bijgewerkt als alle eerdere speeldagen zijn afgerond. Een play-off die op de dag van de
    volgende ronde wordt gespeeld, blokkeert niet. */
@@ -3145,7 +3161,16 @@ async function start() {
     try {
       await window.POOL_ONLINE.ready;
       const remote = await window.POOL_ONLINE.loadTournament(publicId, { public: true });
-      if (remote) { T = remote; UI.viewer = true; UI.publicLink = location.href; UI.tab = 'standen'; publiekGeladen = true; }
+      if (remote) {
+        T = remote;
+        UI.viewer = true;
+        UI.publicLink = location.href;
+        UI.tab = 'dag';
+        UI.dagLijst = mobielWeergave() ? false : true;
+        const startDag = publiekeActueleSpeeldag();
+        if (startDag) UI.dag = { key: startDag.ronde, nr: startDag.poule };
+        publiekGeladen = true;
+      }
     } catch (e) { }
   }
   if (!publiekGeladen) {
