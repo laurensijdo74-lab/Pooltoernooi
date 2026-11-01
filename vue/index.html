@@ -2165,7 +2165,9 @@ function heroHtml() {
   const loc = locatieVoorWeergave();
   const logo = loc.logo ? '<img class="logo" alt="Logo ' + esc(loc.naam) + '" src="' + esc(loc.logo) + '">' : '<span class="logo-bal" aria-hidden="true">' + ((THEMAS[loc.thema] || {}).icoon || '🎱') + '</span>';
   const st = backupStatus();
-  const status = UI.viewer ? '' : '<button id="statchip" class="chip ' + st.cls + '" data-act="ga-gegevens" title="Naar opslag en back-up">' + (UI.opslag.ok ? '✓ ' : '! ') + esc(st.tekst) + '</button>';
+  const o = window.POOL_ONLINE, os = o && o.state || {};
+  const onlineChip = UI.viewer || !o ? '' : '<button class="chip ' + (os.user ? 'ok' : (os.status === 'fout' ? 'bad' : 'warn')) + '" data-act="ga-gegevens" title="Naar Instellingen → Online versie">' + (os.user ? '✓ Online aangemeld' : (os.status === 'initialiseren' ? 'Online laden…' : 'Niet aangemeld')) + '</button>';
+  const status = UI.viewer ? '' : '<div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-end">' + onlineChip + '<button id="statchip" class="chip ' + st.cls + '" data-act="ga-gegevens" title="Naar opslag en back-up">' + (UI.opslag.ok ? '✓ ' : '! ') + esc(st.tekst) + '</button></div>';
   return '<div class="hero' + (UI.viewer ? ' hero-public' : '') + '"><div class="hero-in">' + logo + '<div><div class="hero-title-row"><h1>' + esc(loc.naam) + '</h1><div class="hero-tournament">' + esc(T.naam) + '</div></div>' + (loc.adres ? '<div class="sub">' + esc(loc.adres) + '</div>' : '') + '</div>' +
     (status ? '<div class="meta noprint">' + status + '</div>' : '') + '</div></div><div class="rail"></div>';
 }
@@ -3340,7 +3342,7 @@ function koppelEvents() {
   window.addEventListener('pool-online-status', e => {
     if (e.detail && e.detail.user && T && T.online && T.online.synchroniseren) startOnlineSynchronisatie();
     if (e.detail && !e.detail.user) stopOnlineSynchronisatie();
-    if (UI.tab === 'instellingen' && UI.inst === 'gegevens') render();
+    if (!UI.viewer) render();
   });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-act]'); if (!b || b.disabled || b.classList.contains('off')) return;
