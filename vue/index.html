@@ -780,21 +780,57 @@ function kiesVoorSlot(T, key, ids, toegewezen, dag, datum, type) {
 function berekenLoting(T, key, ids) {
   const r = planRonde(T, key);
   const dagen = planDagen(T, key);
-  const poules = r.sizes.map((size, i) => ({ nr: i + 1, size, spelers: [] }));
+  const poules = r.sizes.map((size, i) => ({ nr: i + 1, size, spelers: new Array(size).fill(null) }));
   const toegewezen = new Set(), stappen = [];
   const maxPos = Math.max.apply(null, r.sizes);
+
+  /*
+   * Plaatshouders uit nog openstaande play-offs worden eerst verdeeld.
+   * Per kalenderdatum mag maximaal één placeholder terechtkomen. Daarna
+   * worden de bekende spelers op de overige plaatsen geloot. Zo kan één
+   * speeldag altijd met de reguliere wedstrijden beginnen.
+   */
+  const slotsPerDatum = {};
+  poules.forEach(p => {
+    const d = planDag(T, key, p.nr);
+    if (!d) return;
+    slotsPerDatum[d.datum] = slotsPerDatum[d.datum] || [];
+    for (let pos = 1; pos <= p.size; pos++) slotsPerDatum[d.datum].push({ nr: p.nr, positie: pos });
+  });
+  const placeholders = ids.filter(isPh), datums = shuffle(Object.keys(slotsPerDatum));
+  if (placeholders.length > datums.length) {
+    return { poules, stappen, fouten: ['Er zijn ' + placeholders.length + ' openstaande play-offplaatsen, maar slechts ' + datums.length + ' speeldagen. Maximaal één play-offplek per dag kan daarom niet worden toegepast.'] };
+  }
+  placeholders.forEach((id, i) => {
+    const datum = datums[i], opties = slotsPerDatum[datum].filter(s => !poules[s.nr - 1].spelers[s.positie - 1]);
+    const slot = opties[Math.floor(rng() * opties.length)];
+    if (!slot) return;
+    poules[slot.nr - 1].spelers[slot.positie - 1] = id;
+    toegewezen.add(id);
+    stappen.push({ poule: slot.nr, positie: slot.positie, id });
+  });
+
+  const bekendeIds = ids.filter(id => !isPh(id));
   for (let pos = 1; pos <= maxPos; pos++) {
-    const volgorde = shuffle(poules.filter(p => p.size >= pos).map(p => p.nr));
+    const volgorde = shuffle(poules.filter(p => p.size >= pos && !p.spelers[pos - 1]).map(p => p.nr));
     for (const nr of volgorde) {
       const d = planDag(T, key, nr);
       let gekozen = null;
-      for (let type = 1; type <= 5 && gekozen === null; type++) gekozen = kiesVoorSlot(T, key, ids, toegewezen, d.dag, d.datum, type);
-      if (gekozen === null) continue;
+      for (let type = 1; type <= 5 && gekozen === null; type++) gekozen = kiesVoorSlot(T, key, bekendeIds, toegewezen, d.dag, d.datum, type);
+      if (gekozen === null) return { poules, stappen, fouten: ['De loting kon niet alle reguliere plaatsen vullen.'] };
       toegewezen.add(gekozen);
-      poules[nr - 1].spelers.push(gekozen);
+      poules[nr - 1].spelers[pos - 1] = gekozen;
       stappen.push({ poule: nr, positie: pos, id: gekozen });
     }
   }
+  if (poules.some(p => p.spelers.some(id => !id))) return { poules, stappen, fouten: ['De loting is niet volledig gevuld.'] };
+  const phPerDatum = {};
+  poules.forEach(p => {
+    const d = planDag(T, key, p.nr);
+    p.spelers.forEach(id => { if (isPh(id)) phPerDatum[d.datum] = (phPerDatum[d.datum] || 0) + 1; });
+  });
+  const dubbeleDagen = Object.keys(phPerDatum).filter(datum => phPerDatum[datum] > 1);
+  if (dubbeleDagen.length) return { poules, stappen, fouten: ['De loting is afgebroken: er zouden meerdere play-offplaatsen op dezelfde speeldag komen (' + dubbeleDagen.map(datumKort).join(', ') + ').'] };
   return { poules, stappen };
 }
 function opmerkingenBijLoting(T, key, poules) {
@@ -847,6 +883,7 @@ function loot(T, key, opts) {
   const cap = capaciteitCheck(T, key, ids);
   if (!cap.ok && !opts.negeerCapaciteit) return { ok: false, capaciteit: cap, fouten: [] };
   const res = berekenLoting(T, key, ids);
+  if (res.fouten && res.fouten.length) return { ok: false, fouten: res.fouten };
   pasLotingToe(T, key, res.poules, false);
   return { ok: true, stappen: res.stappen, opmerkingen: T.rondes[key].opmerkingen };
 }
@@ -946,15 +983,18 @@ function ppDoel(stap) { return stap.groep.length === 2 ? Math.floor(stap.games.l
 function ppWins(stap) {
   const w = {}; stap.groep.forEach(id => { w[id] = 0; });
   stap.games.forEach(g => { if (g.w && w[g.w] !== undefined) w[g.w]++; });
+  if (stap.forfait && w[stap.forfait.winnaar] !== undefined) w[stap.forfait.winnaar] = ppDoel(stap);
   return w;
 }
 function ppGameNodig(stap, g) {
+  if (stap.forfait) return !!g.w;
   if (stap.groep.length !== 2) return true;
   const w = ppWins(stap), doel = ppDoel(stap);
   if (w[stap.groep[0]] >= doel || w[stap.groep[1]] >= doel) return !!g.w;
   return true;
 }
 function ppStapKlaar(stap) {
+  if (stap.forfait) return true;
   if (stap.groep.length === 2) { const w = ppWins(stap), d = ppDoel(stap); return w[stap.groep[0]] >= d || w[stap.groep[1]] >= d; }
   return stap.games.every(g => g.w);
 }
@@ -1143,6 +1183,7 @@ function zetUitslag(T, key, nr, gameNr, w) {
 function zetPpUitslag(T, key, nr, stapIdx, gameNr, w) {
   const p = zoekPoule(T, key, nr); if (p) synchroniseerPoule(T, p); if (!p || !p.pp) return { ok: false };
   const s = p.pp.stappen[stapIdx]; if (!s) return { ok: false };
+  if (s.forfait) return { ok: false, tekst: 'Deze play-off is beslist via een walk-over wegens verhindering.' };
   const g = s.games.find(x => x.nr === gameNr); if (!g) return { ok: false };
   if (!p.ontgrendeld && pouleAfgerond(T, p)) return { ok: false, vergrendeld: true, tekst: 'Deze speeldag is afgerond en vergrendeld. Ontgrendel hem eerst als je iets wilt wijzigen.' };
   g.w = w || null; g.t = w ? Date.now() : 0;
@@ -1150,6 +1191,55 @@ function zetPpUitslag(T, key, nr, stapIdx, gameNr, w) {
   synchroniseerPoule(T, p); if (!pouleAfgerond(T, p)) p.ontgrendeld = false;
   T.gewijzigd = new Date().toISOString();
   verwerkDerden(T, key);
+  return { ok: true };
+}
+function walkoverLink(T, key, soort, nrOrI) {
+  const nextKey = volgendeKey(T, key), ph = T.ph || {};
+  let token = null, h = null;
+  Object.keys(ph).some(tok => {
+    const x = ph[tok];
+    if (x && x.key === key && x.soort === soort && (soort === 'pool' ? x.poule === nrOrI : x.i === nrOrI)) { token = tok; h = Object.assign({}, x); return true; }
+    return false;
+  });
+  return { nextKey, token, ph: h };
+}
+function herstelWalkoverLink(T, f) {
+  if (!f || !f.token || !f.nextKey || !rondeGeloot(T, f.nextKey)) return { ok: true };
+  const r = T.rondes[f.nextKey];
+  const tokenAanwezig = r.poules.some(p => p.spelers.indexOf(f.token) >= 0);
+  if (tokenAanwezig) return { ok: true };
+  const doel = [];
+  r.poules.forEach(p => { if (p.spelers.indexOf(f.winnaar) >= 0) doel.push(p); });
+  if (!doel.length) return { ok: true };
+  if (doel.some(p => heeftScores(p))) return { ok: false, tekst: 'De volgende ronde bevat al uitslagen. Zet die poule eerst opnieuw op voordat je deze walk-over ongedaan maakt.' };
+  vervangId(T, f.nextKey, f.winnaar, f.token);
+  T.ph = T.ph || {};
+  if (!T.ph[f.token] && f.ph) T.ph[f.token] = Object.assign({}, f.ph);
+  return { ok: true };
+}
+function zetPpWalkover(T, key, nr, stapIdx, afwezigId) {
+  const p = zoekPoule(T, key, nr); if (p) synchroniseerPoule(T, p); if (!p || !p.pp) return { ok: false, tekst: 'Play-off niet gevonden.' };
+  const s = p.pp.stappen[stapIdx]; if (!s || s.groep.length !== 2) return { ok: false, tekst: 'Walk-over kan alleen bij een play-off tussen twee partijen.' };
+  if (!s.groep.includes(afwezigId)) return { ok: false, tekst: 'Ongeldige verhinderde partij.' };
+  if (!p.ontgrendeld && pouleAfgerond(T, p)) return { ok: false, vergrendeld: true, tekst: 'Deze speeldag is afgerond en vergrendeld. Ontgrendel hem eerst.' };
+  const winnaar = s.groep.find(id => id !== afwezigId);
+  const link = walkoverLink(T, key, 'pool', nr);
+  s.games.forEach(g => { g.w = null; g.t = 0; });
+  s.forfait = { afwezig: afwezigId, winnaar, reden: 'verhinderd', t: Date.now(), token: link.token, ph: link.ph, nextKey: link.nextKey };
+  p.pp.stappen.length = stapIdx + 1;
+  synchroniseerPoule(T, p); if (!pouleAfgerond(T, p)) p.ontgrendeld = false;
+  T.gewijzigd = new Date().toISOString();
+  verwerkDerden(T, key);
+  return { ok: true, winnaar, afwezig: afwezigId };
+}
+function resetPpWalkover(T, key, nr, stapIdx) {
+  const p = zoekPoule(T, key, nr); if (p) synchroniseerPoule(T, p); if (!p || !p.pp) return { ok: false, tekst: 'Play-off niet gevonden.' };
+  const s = p.pp.stappen[stapIdx]; if (!s || !s.forfait) return { ok: false, tekst: 'Er is geen walk-over om ongedaan te maken.' };
+  const her = herstelWalkoverLink(T, s.forfait); if (!her.ok) return her;
+  if (s.forfait) s.forfait = null;
+  s.games = bouwPpGames(s.groep, s.formaat, s.eersteBreak);
+  p.pp.stappen.length = stapIdx + 1;
+  synchroniseerPoule(T, p); verwerkDerden(T, key);
   return { ok: true };
 }
 function lootBreaksPp(T, key, nr, stapIdx) {
@@ -1189,6 +1279,7 @@ function resetPp(T, key, nr, stapIdx) {
   const p = zoekPoule(T, key, nr); if (p) synchroniseerPoule(T, p); if (!p || !p.pp) return { ok: false };
   if (!p.ontgrendeld && pouleAfgerond(T, p)) return { ok: false, vergrendeld: true, tekst: 'Deze speeldag is afgerond en vergrendeld. Ontgrendel hem eerst als je iets wilt wijzigen.' };
   const s = p.pp.stappen[stapIdx];
+  s.forfait = null;
   s.games = bouwPpGames(s.groep, s.formaat, s.eersteBreak);
   p.pp.stappen.length = stapIdx + 1;
   synchroniseerPoule(T, p);
@@ -1264,6 +1355,7 @@ function derdeStatus(T, key, i) {
     po = { a, b, formaat: 'Best of 3', eersteBreak: eb, games: bouwPpGames([a, b], 'Best of 3', eb), winnaar: null };
     T.derden[key][i] = po;
   }
+  if (po.forfait && po.winnaar) return { status: 'beslist', winnaar: po.winnaar, a, b, playoff: po };
   const w = ppWins({ groep: [a, b], games: po.games }), doel = Math.floor(po.games.length / 2) + 1;
   if (w[a] >= doel) po.winnaar = a; else if (w[b] >= doel) po.winnaar = b; else po.winnaar = null;
   if (po.winnaar) return { status: 'beslist', winnaar: po.winnaar, a, b, playoff: po };
@@ -1272,6 +1364,7 @@ function derdeStatus(T, key, i) {
 function zetDerdeUitslag(T, key, i, gameNr, w) {
   derdeStatus(T, key, i);
   const po = T.derden[key] && T.derden[key][i]; if (!po) return { ok: false };
+  if (po.forfait) return { ok: false, tekst: 'Deze play-off is beslist via een walk-over wegens verhindering.' };
   const g = po.games.find(x => x.nr === gameNr); if (!g) return { ok: false };
   if (po.winnaar && !po.ontgrendeld) return { ok: false, vergrendeld: true, tekst: 'Deze play-off is beslist en vergrendeld. Ontgrendel hem eerst als je iets wilt wijzigen.' };
   g.w = w || null; g.t = w ? Date.now() : 0;
@@ -1279,8 +1372,30 @@ function zetDerdeUitslag(T, key, i, gameNr, w) {
   if (!po.winnaar) po.ontgrendeld = false;
   return { ok: true };
 }
+function zetDerdeWalkover(T, key, i, afwezigId) {
+  derdeStatus(T, key, i);
+  const po = T.derden[key] && T.derden[key][i]; if (!po) return { ok: false, tekst: 'Play-off niet gevonden.' };
+  if (![po.a, po.b].includes(afwezigId)) return { ok: false, tekst: 'Ongeldige verhinderde partij.' };
+  if (po.winnaar && !po.ontgrendeld) return { ok: false, vergrendeld: true, tekst: 'Deze play-off is beslist en vergrendeld. Ontgrendel hem eerst.' };
+  const winnaar = po.a === afwezigId ? po.b : po.a;
+  const link = walkoverLink(T, key, 'derde', i);
+  po.games.forEach(g => { g.w = null; g.t = 0; });
+  po.forfait = { afwezig: afwezigId, winnaar, reden: 'verhinderd', t: Date.now(), token: link.token, ph: link.ph, nextKey: link.nextKey };
+  po.winnaar = winnaar;
+  verwerkDerden(T, key); derdeStatus(T, key, i);
+  return { ok: true, winnaar, afwezig: afwezigId };
+}
+function resetDerdeWalkover(T, key, i) {
+  derdeStatus(T, key, i);
+  const po = T.derden[key] && T.derden[key][i]; if (!po || !po.forfait) return { ok: false, tekst: 'Er is geen walk-over om ongedaan te maken.' };
+  const her = herstelWalkoverLink(T, po.forfait); if (!her.ok) return her;
+  po.forfait = null; po.winnaar = null; po.games = bouwPpGames([po.a, po.b], po.formaat, po.eersteBreak);
+  verwerkDerden(T, key); derdeStatus(T, key, i);
+  return { ok: true };
+}
 function zetDerdeFormaat(T, key, i, formaat) {
   const po = T.derden[key] && T.derden[key][i]; if (!po) return { ok: false };
+  if (po.forfait) return { ok: false, tekst: 'Deze play-off is beslist via een walk-over.' };
   if (po.games.some(g => g.w)) return { ok: false, tekst: 'Er zijn al uitslagen ingevoerd.' };
   po.formaat = formaat; po.games = bouwPpGames([po.a, po.b], formaat, po.eersteBreak);
   return { ok: true };
@@ -1405,8 +1520,37 @@ function markeerVervangen(T, key, uit, in_) {
   if (key === T.plan.rondes[0].key) { if (s) s.reserve = true; if (n) n.reserve = false; }
   else { T.uitgestapt[key] = T.uitgestapt[key] || {}; T.uitgestapt[key][uit] = true; }
 }
+function oorspronkelijkWeekend(T, id) {
+  const eerste = T.plan.rondes[0];
+  if (!eerste || !T.rondes[eerste.key] || !T.rondes[eerste.key].geloot) return null;
+  const p = T.rondes[eerste.key].poules.find(x => x.spelers.indexOf(id) >= 0);
+  if (!p) return null;
+  const d = planDag(T, eerste.key, p.nr);
+  return d ? { key: eerste.key, poule: p.nr, weekend: d.weekend, datum: d.datum } : null;
+}
+function historischeWeekendKandidaten(T, key, uitId, actieveIds) {
+  const bron = oorspronkelijkWeekend(T, uitId);
+  if (!bron) return { bron: null, items: [] };
+  const geblokkeerd = new Set(actieveIds);
+  geblokkeerd.add(uitId);
+  Object.keys((T.uitgestapt && T.uitgestapt[key]) || {}).forEach(id => geblokkeerd.add(id));
+  const items = [];
+  planDagen(T, bron.key).filter(d => d.weekend === bron.weekend).forEach(d => {
+    const p = zoekPoule(T, bron.key, d.poule);
+    if (!p) return;
+    standPoule(T, p).forEach(row => {
+      const s = spelerById(T, row.id);
+      if (!s || s.reserve || isPh(row.id) || geblokkeerd.has(row.id)) return;
+      items.push({ id: row.id, punten: row.punten, gespeeld: row.gespeeld, rang: row.rang, poule: p.nr, datum: d.datum, weekend: d.weekend });
+    });
+  });
+  const uniek = [], gezien = new Set();
+  items.sort((a, b) => b.punten - a.punten || b.gespeeld - a.gespeeld || a.rang - b.rang || a.poule - b.poule);
+  items.forEach(x => { if (!gezien.has(x.id)) { gezien.add(x.id); uniek.push(x); } });
+  return { bron, items: uniek };
+}
 function vervangKandidaten(T, key, uitId) {
-  const res = { derde: [], bron: [], overig: [] };
+  const res = { weekend: [], voorstel: null, derde: [], bron: [], overig: [] };
   const actieveIds = new Set();
   T.rondes[key].poules.forEach(p => p.spelers.forEach(id => actieveIds.add(id)));
   const i = rondeIndex(T, key);
@@ -1422,6 +1566,9 @@ function vervangKandidaten(T, key, uitId) {
     // eerstvolgende uit de oorspronkelijke poule
     const bp = vr.poules.find(p => p.spelers.indexOf(uitId) >= 0);
     if (bp) eindvolgorde(T, bp).slice(2).forEach(id => { if (!actieveIds.has(id) && id !== uitId) res.bron.push({ id, poule: bp.nr }); });
+    const historisch = historischeWeekendKandidaten(T, key, uitId, actieveIds);
+    res.weekend = historisch.items;
+    res.voorstel = res.weekend[0] || null;
   }
   T.spelers.forEach(s => { if (s.naam && !actieveIds.has(s.id) && s.id !== uitId) res.overig.push({ id: s.id, reserve: s.reserve }); });
   return res;
@@ -1511,8 +1658,8 @@ const API = {
   berekenLoting, loot, lootHandmatig, controleerLoting, resetRonde, opmerkingenBijLoting,
   standPoule, reguliereKlaar, grensGroep, ppFormaten, ppStandaardFormaat, ppWins, ppDoel, ppGameNodig, ppStapKlaar, ppTieNodig,
   synchroniseerPoule, eindvolgorde, pouleAfgerond, rondeAfgerond, rondeGespeeldAantal, zoekPoule,
-  zetUitslag, zetPpUitslag, lootBreaksPp, lootBreaksDerde, telBreaks, zetPpFormaat, zetPpEersteBreak, resetPp, herstelVorige, eersteOpenGame, wisPouleUitslagen, laatsteGame,
-  derdeZeker, isFinale, finaleTussenstand, herstelReferenties, vergrendeld, zetOntgrendeld, derdeVergrendeld, derdeStatus, zetDerdeUitslag, zetDerdeFormaat, verwerkDerden, kwalificatie, spelerRondeStatus,
+  zetUitslag, zetPpUitslag, zetPpWalkover, resetPpWalkover, lootBreaksPp, lootBreaksDerde, telBreaks, zetPpFormaat, zetPpEersteBreak, resetPp, herstelVorige, eersteOpenGame, wisPouleUitslagen, laatsteGame,
+  derdeZeker, isFinale, finaleTussenstand, herstelReferenties, vergrendeld, zetOntgrendeld, derdeVergrendeld, derdeStatus, zetDerdeUitslag, zetDerdeWalkover, resetDerdeWalkover, zetDerdeFormaat, verwerkDerden, kwalificatie, spelerRondeStatus,
   wissel, vervangKandidaten, markeerVervangen, positieVan, bouwOpnieuw, log,
   bouwUitslagenVoorPatroon, vulPouleMetPatroon, speelPouleWillekeurig, speelPlayoffsWillekeurig, speelDerdenWillekeurig,
   valideer, samenvatting, DOORGAAN, phLabel, reguliereKlaarRonde, herbouwSchemaBehoudUitslag, migreerSchemas, schemaMigratieNodig
@@ -2158,7 +2305,7 @@ function pouleKaartHtml(key, p, anim) {
   }).join('');
   const loc = dagLocatie(key, p.nr);
   return '<div class="card"><div class="ch"><h4>' + (enkelPoule(key) ? esc(rondeNaam(key)) : 'Poule ' + p.nr) + '</h4><span class="chip">' + esc(P.datumKort(d.datum)) + '</span></div><div class="rows">' + rijen + '</div>' +
-    '<div class="row between" style="padding:7px 14px;border-top:1px solid var(--line);background:var(--surface2)"><span class="tiny muted">' + esc(P.hoofd(P.dagNaam(d.datum))) + (loc !== T.locatieId ? ' · ' + esc(locNaam(loc)) : '') + '</span><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span></div></div>';
+    '<div class="row between" style="padding:7px 14px;border-top:1px solid var(--line);background:var(--surface2)"><span class="tiny muted">' + esc(P.hoofd(P.dagNaam(d.datum))) + (loc !== T.locatieId ? ' · ' + esc(locNaam(loc)) : '') + '</span><span class="row" style="gap:8px"><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span><button class="btn sec sm" data-act="open-dag" data-key="' + key + '" data-nr="' + p.nr + '">Wedstrijden openen</button></span></div></div>';
 }
 function lotingKaartenHtml(key) {
   const r = T.rondes[key], anim = UI.anim && UI.anim.key === key ? UI.anim : null;
@@ -2181,17 +2328,32 @@ function deelnemersPrefTabel(key, ids) {
   return (heeftPh ? '<div class="note warn">Eén of meer deelnemers zijn nog niet bekend omdat er nog een play-off voor een plek in deze ronde moet worden gespeeld. Die spelers loten mee als “A / B”; de play-off speel je op de dag van deze ronde en de winnaar neemt automatisch de plek in.</div>' : '') +
     '<div class="scroll-x" style="max-height:420px;overflow:auto"><table class="t"><thead><tr><th class="num">Nr</th><th>Speler</th><th>Voorkeur dag</th><th>Niet beschikbaar</th></tr></thead><tbody>' + ids.map(rij).join('') + '</tbody></table></div>';
 }
+function walkoverHerstelHtml() {
+  if (UI.viewer) return '';
+  const items = [];
+  T.plan.rondes.forEach(r => {
+    const rd = T.rondes[r.key]; if (!rd || !rd.geloot) return;
+    rd.poules.forEach(p => {
+      if (!p.pp) return;
+      p.pp.stappen.forEach((s, si) => { if (s.forfait) items.push({ soort: 'pp', key: r.key, nr: p.nr, stap: si, tekst: rondePoule(r.key, p.nr) + ': ' + spelerNaam(s.forfait.winnaar) + ' tegen ' + spelerNaam(s.forfait.afwezig), datum: P.planDag(T, r.key, p.nr) }); });
+    });
+    const ds = T.derden && T.derden[r.key] || {};
+    Object.keys(ds).forEach(i => { const po = ds[i]; if (po && po.forfait) items.push({ soort: 'derde', key: r.key, i: +i, tekst: rondeNaam(r.key) + ' · beste nummer 3: ' + spelerNaam(po.forfait.winnaar) + ' tegen ' + spelerNaam(po.forfait.afwezig), datum: P.planDag(T, r.key, 2 * (+i) + 2) }); });
+  });
+  if (!items.length) return '';
+  return '<div class="sect"><header><h3>Geregistreerde walk-overs</h3><span class="chip warn">Herstelbaar</span></header><div class="body stack"><p class="small">Een verkeerde verhindering? Maak de walk-over hier ongedaan. De playoff wordt opnieuw geopend.</p><div class="rows">' + items.map(x => '<div class="row between" style="padding:7px 0;border-bottom:1px solid var(--line)"><span>' + esc(x.tekst) + (x.datum ? ' <span class="tiny muted">· ' + esc(P.datumKort(x.datum.datum)) + '</span>' : '') + '</span><button class="btn sec sm" data-act="' + (x.soort === 'pp' ? 'pp-walkover-reset' : 'd-walkover-reset') + '" data-key="' + x.key + '"' + (x.soort === 'pp' ? ' data-nr="' + x.nr + '" data-stap="' + x.stap + '"' : ' data-i="' + x.i + '"') + '>Ongedaan maken</button></div>').join('') + '</div></div></div>';
+}
 function viewLoting() {
   if (!T.plan.rondes.length) return '<div class="sect"><div class="body"><div class="note warn">Voeg eerst minstens 4 spelers toe op het tabblad Spelers.</div></div></div>';
   const key = lotingKey(), r = P.planRonde(T, key);
-  if (UI.manual && UI.manual.key === key) return lotingTabs(key) + manueelHtml(key);
+  if (UI.manual && UI.manual.key === key) return lotingTabs(key) + walkoverHerstelHtml() + manueelHtml(key);
   if (!P.rondeGeloot(T, key)) {
     const fouten = P.controleerLoting(T, key);
     const kan = !fouten.length;
     const ids = kan ? P.deelnemersVoor(T, key) : [];
     const dagen = P.planDagen(T, key);
     const cap = kan ? P.capaciteitCheck(T, key, ids) : null;
-    return '<div class="stack-l">' + lotingTabs(key) + '<div class="cols"><div class="sect"><header><h3>' + esc(r.naam) + ' – deelnemers en voorkeuren</h3></header><div class="body stack">' +
+    return '<div class="stack-l">' + lotingTabs(key) + walkoverHerstelHtml() + '<div class="cols"><div class="sect"><header><h3>' + esc(r.naam) + ' – deelnemers en voorkeuren</h3></header><div class="body stack">' +
       (kan ? deelnemersPrefTabel(key, ids) : '<div class="note warn">' + fouten.map(esc).join('<br>') + '</div>') +
       '</div></div><div class="stack"><div class="sect"><header><h3>Poules en speeldagen</h3></header><div class="body stack"><p class="small">' + plural(r.sizes.length, 'poule', 'poules') + ': ' + esc(r.sizes.join(' + ')) + ' spelers.' + (r.derden ? ' Daarnaast gaat de beste nummer 3 per weekend door.' : '') + '</p>' +
       '<div class="daglist">' + dagen.map(d => '<div class="row between small" style="border-bottom:1px solid var(--line);padding:4px 0"><span>Poule ' + d.poule + ' · ' + esc(P.datumKort(d.datum)) + '</span><span class="muted">' + esc(dagLabelLang(d.dag)) + '</span></div>').join('') + '</div>' +
@@ -2203,14 +2365,15 @@ function viewLoting() {
   const anim = UI.anim && UI.anim.key === key;
   const modusTekst = UI.modus === 'wissel' ? (UI.sel ? 'Kies nu de tweede speler (of een reserve) om mee te wisselen.' : 'Kies de eerste speler die je wilt wisselen.') : (UI.modus === 'vervang' ? 'Kies de speler die uitvalt; daarna kies je de vervanger.' : '');
   const reserves = P.reserves(T);
-  return '<div class="stack-l">' + lotingTabs(key) + '<div class="row between noprint"><div class="row"><span class="chip ' + (P.rondeAfgerond(T, key) ? 'ok' : 'info') + '">' + (rd.volgorde ? 'Ingedeeld in lijstvolgorde' : (rd.handmatig ? 'Handmatig geloot' : 'Geloot')) + (rd.geloot_op ? ' · ' + esc(tijdTekst(rd.geloot_op)) : '') + '</span></div><div class="row">' +
+  const toonReserves = P.rondeIndex(T, key) === 0;
+  return '<div class="stack-l">' + lotingTabs(key) + walkoverHerstelHtml() + '<div class="row between noprint"><div class="row"><span class="chip ' + (P.rondeAfgerond(T, key) ? 'ok' : 'info') + '">' + (rd.volgorde ? 'Ingedeeld in lijstvolgorde' : (rd.handmatig ? 'Handmatig geloot' : 'Geloot')) + (rd.geloot_op ? ' · ' + esc(tijdTekst(rd.geloot_op)) : '') + '</span></div><div class="row">' +
     (anim ? '<button class="btn sec" data-act="anim-skip">Loting overslaan</button>' : '') +
     '<button class="btn sec' + (UI.modus === 'wissel' ? ' act' : '') + '" data-act="modus" data-m="wissel">Wissel spelers</button><button class="btn sec' + (UI.modus === 'vervang' ? ' act' : '') + '" data-act="modus" data-m="vervang">Speler vervangen</button><button class="btn sec" data-act="print">Afdrukken</button>' +
     '<button class="btn danger" data-act="loot-reset" data-key="' + key + '"' + (gescoord ? ' disabled title="Er zijn al uitslagen ingevoerd"' : '') + '>Opnieuw loten</button></div></div>' +
     (modusTekst ? '<div class="note"><b>' + (UI.modus === 'wissel' ? 'Wisselen' : 'Vervangen') + ':</b> ' + modusTekst + ' <button class="btn sec sm" data-act="modus" data-m="">Stoppen</button></div>' : '') +
     '<div class="printtitle"><h2>' + esc(T.naam) + ' – loting ' + esc(r.naam) + '</h2></div>' +
     '<div class="cols"><div id="lotkaarten" class="cards">' + lotingKaartenHtml(key) + '</div><div class="stack">' +
-    '<div class="sect"><header><h3>Reserves</h3></header><div class="body stack">' + (reserves.length ? '<div class="rows">' + reserves.map(s => '<div class="row between' + (UI.modus ? ' pick' : '') + (UI.sel === s.id ? ' sel' : '') + '" style="padding:5px 0;border-bottom:1px solid var(--line)"' + (UI.modus ? ' data-act="kies-speler" data-id="' + s.id + '" tabindex="0"' : '') + '><span>' + esc(s.naam) + '</span><span class="tiny muted">reserve</span></div>').join('') + '</div>' : '<p class="muted small">Geen reserves. Voeg ze toe op het tabblad Spelers (vink “Reserve” aan).</p>') + '</div></div>' +
+    (toonReserves ? '<div class="sect"><header><h3>Reserves</h3></header><div class="body stack">' + (reserves.length ? '<div class="rows">' + reserves.map(s => '<div class="row between' + (UI.modus ? ' pick' : '') + (UI.sel === s.id ? ' sel' : '') + '" style="padding:5px 0;border-bottom:1px solid var(--line)"' + (UI.modus ? ' data-act="kies-speler" data-id="' + s.id + '" tabindex="0"' : '') + '><span>' + esc(s.naam) + '</span><span class="tiny muted">reserve</span></div>').join('') + '</div>' : '<p class="muted small">Geen reserves. Voeg ze toe op het tabblad Spelers (vink “Reserve” aan).</p>') + '</div></div>' : '') +
     (opm.length ? '<div class="sect"><header><h3>Let op</h3></header><div class="body"><ul style="margin:0;padding-left:18px">' + opm.map(o => '<li class="small">' + esc(o.tekst) + '</li>').join('') + '</ul></div></div>' : '<div class="note good small">Alle voorkeuren en verhinderdata zijn gevolgd.</div>') +
     '</div></div></div>';
 }
@@ -2358,9 +2521,10 @@ function ppKetenHtml(key, p, pp, o) {
     const bSel = false ? '<label class="f" style="min-width:200px"><span>Eerste break (toss)</span><select data-chg="pp-break" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (gestart || vast ? ' disabled' : '') + '>' + s.groep.map(id => '<option value="' + id + '"' + (id === s.eersteBreak ? ' selected' : '') + '>' + esc(spelerNaam(id)) + '</option>').join('') + '</select></label>' : '';
     const rijen = s.games.map(g => gameRijHtml(g, posFn, { act: 'ppwin', attrs: 'data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"', actief: !g.w && P.ppGameNodig(s, g) && s.games.find(x => !x.w && P.ppGameNodig(s, x)) === g && si === pp.stappen.length - 1 && !o.afgesloten, skip: !g.w && !P.ppGameNodig(s, g), locked: vast })).join('');
     const stand = s.groep.slice().sort((a, b) => wins[b] - wins[a]).map(id => '<span class="row gap-s">' + esc(spelerNaam(id)) + ' <b>' + wins[id] + '</b></span>').join('<span class="muted">·</span>');
+    const walkover = s.forfait ? '<div class="note good small"><b>Walk-over wegens verhindering:</b> ' + esc(spelerNaam(s.forfait.winnaar)) + ' gaat door; ' + esc(spelerNaam(s.forfait.afwezig)) + ' was verhinderd.</div>' : '';
     return '<div class="sect playoff-block public-match-card" id="' + ((si === pp.stappen.length - 1 && !o.afgesloten) ? 'ppblok' : 'ppblok' + (o.plek || '') + '_' + si) + '"><header><h3>' + (si === 0 ? (o.plek ? (o.extra ? 'Extra play-off om ' : 'Play-off om ') + plaatsTxt : (voorDerde ? derdeTitel : 'Play-off om de doorgaande plek' + (s.plekken > 1 ? 'en' : ''))) : 'Extra play-off' + (o.plek ? ' om ' + plaatsTxt : '')) + '</h3><span class="chip ' + (klaar ? 'ok' : 'warn') + '">' + (klaar ? 'Beslist' : (o.plek ? plaatsTxt + ' te bepalen' : plural(s.plekken, 'plek', 'plekken') + ' te winnen')) + '</span>' +
-      (UI.viewer ? '' : '<button class="btn sec sm noprint" data-act="pp-reset" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast ? ' disabled' : '') + '>Opnieuw opzetten</button>') + '</header><div class="body stack">' +
-      '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + bSel + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="pp-loot-breaks" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast || gestart ? ' disabled' : '') + ' title="Verdeelt wie er breekt eerlijk over het hele blok">🎲 Loot wie breekt</button><span class="muted">Breaks: ' + Object.keys(P.telBreaks(s.games)).map(id => esc(spelerNaam(id)) + ' ' + P.telBreaks(s.games)[id]).join(' · ') + '</span></div>') + '<div class="games public-match-list">' + gameKopHtml() + rijen + '</div><div class="row small" style="gap:10px">' + stand + '</div></div></div>';
+      (UI.viewer ? '' : '<button class="btn sec sm noprint" data-act="' + (s.forfait ? 'pp-walkover-reset' : 'pp-reset') + '" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast && !s.forfait ? ' disabled' : '') + '>' + (s.forfait ? 'Walk-over ongedaan maken' : 'Opnieuw opzetten') + '</button>') + '</header><div class="body stack">' + walkover +
+      '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + bSel + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="pp-loot-breaks" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast || gestart ? ' disabled' : '') + ' title="Verdeelt wie er breekt eerlijk over het hele blok">🎲 Loot wie breekt</button>' + (n === 2 ? '<button class="btn sec sm noprint" data-act="pp-walkover" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast || klaar ? ' disabled' : '') + '>Winst wegens verhindering</button>' : '') + '<span class="muted">Breaks: ' + Object.keys(P.telBreaks(s.games)).map(id => esc(spelerNaam(id)) + ' ' + P.telBreaks(s.games)[id]).join(' · ') + '</span></div>') + '<div class="games public-match-list">' + gameKopHtml() + rijen + '</div><div class="row small" style="gap:10px">' + stand + '</div></div></div>';
   }).join('');
 }
 function derdeBlokHtml(key, i) {
@@ -2370,9 +2534,10 @@ function derdeBlokHtml(key, i) {
   const gestart = po.games.some(g => g.w), wins = P.ppWins({ groep: [po.a, po.b], games: po.games }), doel = Math.floor(po.games.length / 2) + 1;
   const rijen = po.games.map(g => { const nodig = !(wins[po.a] >= doel || wins[po.b] >= doel) || !!g.w; return gameRijHtml(g, posFn, { act: 'dwin', attrs: 'data-key="' + key + '" data-i="' + i + '"', actief: !g.w && nodig && po.games.find(x => !x.w) === g && !po.winnaar, skip: !g.w && !nodig, locked: vast }); }).join('');
   const fSel = UI.viewer ? '<div><span class="muted small">Formaat</span><br><b>' + esc(po.formaat) + '</b></div>' : '<label class="f" style="min-width:160px"><span>Formaat</span><select data-chg="d-formaat" data-key="' + key + '" data-i="' + i + '"' + (gestart ? ' disabled' : '') + '>' + P.ppFormaten(2).map(f => '<option' + (f === po.formaat ? ' selected' : '') + '>' + esc(f) + '</option>').join('') + '</select></label>';
-  return '<div class="sect playoff-block public-match-card"><header><h3>Play-off beste nummer 3</h3><span class="chip ' + (po.winnaar ? 'ok' : 'warn') + '">' + (po.winnaar ? 'Beslist: ' + esc(spelerNaam(po.winnaar)) + ' gaat door' : 'Wacht op uitslag') + '</span></header><div class="body stack">' +
+  const walkover = po.forfait ? '<div class="note good small"><b>Walk-over wegens verhindering:</b> ' + esc(spelerNaam(po.forfait.winnaar)) + ' gaat door; ' + esc(spelerNaam(po.forfait.afwezig)) + ' was verhinderd.</div>' : '';
+  return '<div class="sect playoff-block public-match-card"><header><h3>Play-off beste nummer 3</h3><span class="chip ' + (po.winnaar ? 'ok' : 'warn') + '">' + (po.winnaar ? 'Beslist: ' + esc(spelerNaam(po.winnaar)) + ' gaat door' : 'Wacht op uitslag') + '</span></header><div class="body stack">' + walkover +
     '<p class="small">De nummers 3 van poule ' + (2 * i + 1) + ' en ' + (2 * i + 2) + ' hebben evenveel punten. De winnaar gaat door naar de volgende ronde.</p>' +
-    '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + (UI.viewer ? '' : (vast ? '<button class="btn sec sm noprint" data-act="derde-ontgrendel" data-key="' + key + '" data-i="' + i + '">🔒 Ontgrendelen</button>' : '')) + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="d-loot-breaks" data-key="' + key + '" data-i="' + i + '"' + (vast || gestart ? ' disabled' : '') + '>🎲 Loot wie breekt</button></div>') + '<div class="games public-match-list">' + gameKopHtml() + rijen + '</div><div class="row small" style="gap:12px"><span class="row gap-s">' + esc(spelerNaam(po.a)) + ' <b>' + wins[po.a] + '</b></span><span class="muted">·</span><span class="row gap-s">' + esc(spelerNaam(po.b)) + ' <b>' + wins[po.b] + '</b></span></div></div></div>';
+    '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + (UI.viewer ? '' : (po.forfait ? '<button class="btn sec sm noprint" data-act="d-walkover-reset" data-key="' + key + '" data-i="' + i + '">Walk-over ongedaan maken</button>' : (vast ? '<button class="btn sec sm noprint" data-act="derde-ontgrendel" data-key="' + key + '" data-i="' + i + '">🔒 Ontgrendelen</button>' : ''))) + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="d-loot-breaks" data-key="' + key + '" data-i="' + i + '"' + (vast || gestart ? ' disabled' : '') + '>🎲 Loot wie breekt</button><button class="btn sec sm noprint" data-act="d-walkover" data-key="' + key + '" data-i="' + i + '"' + (vast || po.winnaar ? ' disabled' : '') + '>Winst wegens verhindering</button></div>') + '<div class="games public-match-list">' + gameKopHtml() + rijen + '</div><div class="row small" style="gap:12px"><span class="row gap-s">' + esc(spelerNaam(po.a)) + ' <b>' + wins[po.a] + '</b></span><span class="muted">·</span><span class="row gap-s">' + esc(spelerNaam(po.b)) + ' <b>' + wins[po.b] + '</b></span></div></div></div>';
 }
 function bronnenPh(key, p) {
   const vk = P.vorigeKey(T, key), pool = {}, derde = {};
@@ -2897,10 +3062,15 @@ async function kiesSpeler(id) {
     const p = P.positieVan(T, key, id).poule;
     if (P.heeftScores(p)) { toast('Vervangen kan niet meer: in deze poule is al een score ingevoerd.', true); return; }
     const k = P.vervangKandidaten(T, key, id);
+    const voorstel = k.voorstel;
+    const zonderVoorstel = lijst => lijst.filter(x => !voorstel || x.id !== voorstel.id);
     const optie = (lbl, lijst, f) => lijst.length ? '<optgroup label="' + lbl + '">' + lijst.map(x => '<option value="' + esc(x.id) + '">' + esc(spelerNaam(x.id)) + (f ? ' ' + f(x) : '') + '</option>').join('') + '</optgroup>' : '';
-    const html = '<p>Wie neemt de plek in van <b>' + esc(spelerNaam(id)) + '</b>?</p><label class="f"><span>Vervanger</span><select id="vervSel">' +
-      optie('Beste nummers 3 van de vorige ronde', k.derde, x => '(' + x.punten + ' pt, poule ' + x.poule + ')') + optie('Volgende uit de oorspronkelijke poule', k.bron, x => '(poule ' + x.poule + ')') +
-      optie('Reserves', k.overig.filter(x => x.reserve), null) + optie('Overige spelers', k.overig.filter(x => !x.reserve), null) + '</select></label>';
+    const voorstelOptie = voorstel ? '<optgroup label="Voorstel uit oorspronkelijk weekend"><option value="' + esc(voorstel.id) + '" selected>' + esc(spelerNaam(voorstel.id)) + ' (' + voorstel.punten + ' pt, poule ' + voorstel.poule + ')</option></optgroup>' : '';
+    const uitleg = voorstel ? '<div class="note good small"><b>Voorstel:</b> ' + esc(spelerNaam(voorstel.id)) + ' is de eerstvolgende best geklasseerde, nog beschikbare deelnemer uit hetzelfde oorspronkelijke weekend. Je kunt hieronder ook iemand anders kiezen.</div>' : '';
+    const html = '<p>Wie neemt de plek in van <b>' + esc(spelerNaam(id)) + '</b>?</p>' + uitleg + '<label class="f"><span>Vervanger</span><select id="vervSel">' +
+      voorstelOptie + optie('Andere deelnemers uit hetzelfde oorspronkelijke weekend', zonderVoorstel(k.weekend), x => '(' + x.punten + ' pt, poule ' + x.poule + ')') +
+      optie('Beste nummers 3 van de vorige ronde', zonderVoorstel(k.derde), x => '(' + x.punten + ' pt, poule ' + x.poule + ')') + optie('Volgende uit de oorspronkelijke poule', zonderVoorstel(k.bron), x => '(poule ' + x.poule + ')') +
+      (P.rondeIndex(T, key) === 0 ? optie('Reserves', k.overig.filter(x => x.reserve), null) : '') + optie('Overige spelers', k.overig.filter(x => !x.reserve && (!voorstel || x.id !== voorstel.id)), null) + '</select></label>';
     const res = await dialoog({ titel: 'Speler vervangen', html, ok: 'Vervangen', lees: ov => $('#vervSel', ov).value });
     if (!res || res === true) { return; }
     const w = P.wissel(T, key, id, res);
@@ -2940,6 +3110,34 @@ const ACT = {
   win: actWin, ppwin: actPpWin, dwin: actDerdeWin,
   async 'pp-loot-breaks'(b) { if (await volgordeGeblokkeerd()) return; const r = P.lootBreaksPp(T, b.dataset.key, +b.dataset.nr, +b.dataset.stap); if (!r.ok) { toast(r.tekst || 'Niet mogelijk', true); return; } commit(); toast('Breaks eerlijk verdeeld'); },
   async 'd-loot-breaks'(b) { if (await volgordeGeblokkeerd()) return; const r = P.lootBreaksDerde(T, b.dataset.key, +b.dataset.i); if (!r.ok) { toast(r.tekst || 'Niet mogelijk', true); return; } commit(); toast('Breaks eerlijk verdeeld'); },
+  async 'pp-walkover'(b) {
+    const key = b.dataset.key, nr = +b.dataset.nr, si = +b.dataset.stap, p = P.zoekPoule(T, key, nr), s = p && p.pp && p.pp.stappen[si];
+    if (!s || s.groep.length !== 2) return;
+    const html = '<p>Welke partij is verhinderd? De andere partij wint de play-off automatisch.</p><label class="f"><span>Verhinderd</span><select id="woSel">' + s.groep.map(id => '<option value="' + esc(id) + '">' + esc(spelerNaam(id)) + '</option>').join('') + '</select></label>';
+    const afwezig = await dialoog({ titel: 'Winst wegens verhindering', html, ok: 'Walk-over vastleggen', lees: ov => $('#woSel', ov).value });
+    if (!afwezig || afwezig === true) return;
+    const r = P.zetPpWalkover(T, key, nr, si, afwezig); if (!r.ok) { toast(r.tekst || 'Niet mogelijk', true); return; }
+    commit(); toast(spelerNaam(r.winnaar) + ' gaat door via walk-over.');
+  },
+  async 'pp-walkover-reset'(b) {
+    if (!(await bevestig('De walk-over wordt ongedaan gemaakt en de play-off wordt opnieuw geopend.', { titel: 'Walk-over ongedaan maken?', ja: 'Ongedaan maken' }))) return;
+    const r = P.resetPpWalkover(T, b.dataset.key, +b.dataset.nr, +b.dataset.stap); if (!r.ok) { toast(r.tekst || 'Niet mogelijk', true); return; }
+    commit(); toast('Walk-over ongedaan gemaakt.');
+  },
+  async 'd-walkover'(b) {
+    const key = b.dataset.key, i = +b.dataset.i, st = P.derdeStatus(T, key, i), po = st.playoff;
+    if (!po) return;
+    const html = '<p>Welke partij is verhinderd? De andere partij wint de play-off automatisch.</p><label class="f"><span>Verhinderd</span><select id="woSel">' + [po.a, po.b].map(id => '<option value="' + esc(id) + '">' + esc(spelerNaam(id)) + '</option>').join('') + '</select></label>';
+    const afwezig = await dialoog({ titel: 'Winst wegens verhindering', html, ok: 'Walk-over vastleggen', lees: ov => $('#woSel', ov).value });
+    if (!afwezig || afwezig === true) return;
+    const r = P.zetDerdeWalkover(T, key, i, afwezig); if (!r.ok) { toast(r.tekst || 'Niet mogelijk', true); return; }
+    commit(); toast(spelerNaam(r.winnaar) + ' gaat door via walk-over.');
+  },
+  async 'd-walkover-reset'(b) {
+    if (!(await bevestig('De walk-over wordt ongedaan gemaakt en de play-off wordt opnieuw geopend.', { titel: 'Walk-over ongedaan maken?', ja: 'Ongedaan maken' }))) return;
+    const r = P.resetDerdeWalkover(T, b.dataset.key, +b.dataset.i); if (!r.ok) { toast(r.tekst || 'Niet mogelijk', true); return; }
+    commit(); toast('Walk-over ongedaan gemaakt.');
+  },
   herstel(b) { herstelVorige(b.dataset.key, +b.dataset.nr); },
   async ontgrendel(b) { if (!(await bevestig('Deze speeldag is afgerond. Ontgrendelen is bedoeld om een fout te herstellen; wijzigingen kunnen de stand en de doorgang veranderen.', { titel: 'Speeldag ontgrendelen?', ja: 'Ontgrendelen' }))) return; P.zetOntgrendeld(T, b.dataset.key, +b.dataset.nr, true); commit(); toast('Speeldag ontgrendeld'); },
   vergrendel(b) { P.zetOntgrendeld(T, b.dataset.key, +b.dataset.nr, false); commit(); toast('Speeldag vergrendeld'); },
