@@ -2,7 +2,9 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- De publieke Vue-weergave opent bewust iets uitgezoomd, zodat lange
+     dubbelnamen en beide wedstrijdkolommen direct binnen het telefoonscherm vallen. -->
+<meta name="viewport" content="width=device-width, initial-scale=0.8, minimum-scale=0.5, maximum-scale=3, user-scalable=yes">
 <title>Pooltoernooi</title>
 <style>
 :root {
@@ -196,6 +198,9 @@ table.t select { max-width: 150px; }
 .game .ball, .playoff-block .games .ball, .playoff-block .games + .row .ball { display: none !important; }
 .game.viewer-game { grid-template-columns: minmax(0, 1fr) 2rem minmax(0, 1fr); }
 .ghead.viewer-ghead { grid-template-columns: minmax(0, 1fr) 2rem minmax(0, 1fr); }
+@media (max-width: 980px) {
+  .game.viewer-game .pl .nm { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; line-height: 1.15; }
+}
 .public-match-list,
 .public-match-card,
 .public-match-card .body,
@@ -381,7 +386,7 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
   .dagview .games { width: 100% !important; min-width: 0 !important; max-width: 100% !important; }
   .dagview .game.viewer-game { width: 100% !important; min-width: 0 !important; max-width: 100% !important; grid-template-columns: minmax(0, 1fr) 1.7rem minmax(0, 1fr) !important; }
   .dagview .game.viewer-game .pl { min-width: 0 !important; max-width: 100%; padding-left: 8px; padding-right: 8px; gap: 5px; }
-  .dagview .game.viewer-game .pl .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dagview .game.viewer-game .pl .nm { min-width: 0; overflow: visible; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
   .dagview .public-match-list,
   .dagview .public-match-card,
   .dagview .public-match-card .body,
