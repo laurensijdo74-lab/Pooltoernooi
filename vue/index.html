@@ -196,6 +196,10 @@ table.t select { max-width: 150px; }
 .game .ball, .playoff-block .games .ball, .playoff-block .games + .row .ball { display: none !important; }
 .game.viewer-game { grid-template-columns: minmax(0, 1fr) 2rem minmax(0, 1fr); }
 .ghead.viewer-ghead { grid-template-columns: minmax(0, 1fr) 2rem minmax(0, 1fr); }
+.public-match-list,
+.public-match-card,
+.public-match-card .body,
+.public-match-card .games { width: 100%; min-width: 0; max-width: none; }
 .game.actief { box-shadow: inset 5px 0 0 var(--accent); background: var(--accent-soft); }
 .game.actief .gnr { background: var(--accent); color: #fff; }
 .game.skip { opacity: .4; }
@@ -353,18 +357,46 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 /* Play-offwedstrijden volgen exact de breedte van de gewone poulewedstrijden:
    op mobiel de volledige wedstrijdkolom, op desktop de linkerkolom van .cols. */
 .dagview .stack-l > .sect.playoff-block { width: 100%; max-width: none; align-self: stretch; }
+.dagview .dag-detail-stack,
+.dagview .playoff-fullwidth { width: 100%; min-width: 0; max-width: none; }
+.dagview .playoff-fullwidth > .playoff-block { width: 100%; min-width: 0; max-width: none; }
 @media (min-width: 1181px) {
   .dagview .stack-l > .sect.playoff-block .games { width: calc(55.5556% + 6.667px); margin-left: -16px; }
+  .dagview .playoff-fullwidth > .playoff-block .games { width: calc(55.5556% + 6.667px); margin-left: -16px; }
 }
 @media (max-width: 1180px) {
   .dagview .stack-l > .sect.playoff-block .games { width: calc(100% + 32px); margin-left: -16px; }
+  .dagview .playoff-fullwidth > .playoff-block .games { width: 100%; margin-left: 0; }
 }
 @media (max-width: 980px) {
+  /* Houd alle mobiele tussencontainers op dezelfde volledige kolombreedte.
+     Vooral de min-content-breedte van de standtabel mag de pagina niet
+     breder maken dan het telefoonscherm. */
+  html, body, #app, #main, #main.wrap, .dagview, .dagview > section,
+  .dagview .dag-detail-stack, .dagview .playoff-fullwidth { width: 100%; min-width: 0; max-width: 100%; }
+  html, body, #app { overflow-x: hidden; }
+  .dagview .cols { width: 100%; min-width: 0; grid-template-columns: minmax(0, 1fr) !important; }
+  .dagview .cols > *, .dagview .cols > * > .sect,
+  .dagview .cols .games, .dagview .cols .stand { width: 100%; min-width: 0; max-width: 100%; }
+  .dagview .games { width: 100% !important; min-width: 0 !important; max-width: 100% !important; }
+  .dagview .game.viewer-game { width: 100% !important; min-width: 0 !important; max-width: 100% !important; grid-template-columns: minmax(0, 1fr) 1.7rem minmax(0, 1fr) !important; }
+  .dagview .game.viewer-game .pl { min-width: 0 !important; max-width: 100%; padding-left: 8px; padding-right: 8px; gap: 5px; }
+  .dagview .game.viewer-game .pl .nm { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dagview .public-match-list,
+  .dagview .public-match-card,
+  .dagview .public-match-card .body,
+  .dagview .public-match-card .games,
+  .dagview .playoff-fullwidth { width: 100% !important; min-width: 0 !important; max-width: 100% !important; }
+  .dagview .playoff-fullwidth { display: block !important; grid-column: 1 / -1 !important; }
+  .dagview .playoff-fullwidth > .playoff-block { display: block; margin-left: 0 !important; align-self: stretch; }
+  .dagview .playoff-fullwidth > .playoff-block .games { margin-left: 0 !important; }
+  .dagview .playoff-fullwidth > .playoff-block .game,
+  .dagview .playoff-fullwidth > .playoff-block .ghead { width: 100% !important; min-width: 0 !important; }
   /* De openbare kop volgt exact de inhoudsbreedte van .wrap en daarmee de wedstrijdkolom. */
   .hero-public { width: calc(100vw - 40px) !important; max-width: none !important; margin-left: 20px; margin-right: 20px; }
-  /* Ook wanneer het playoffblok niet rechtstreeks onder .stack-l staat, blijft het volledig breed. */
-  .dagview .playoff-block { width: calc(100vw - 40px) !important; max-width: none !important; align-self: stretch; }
-  .dagview .playoff-block .games { width: calc(100vw - 40px) !important; max-width: none !important; margin-left: -16px !important; }
+  /* De playoffkaart volgt dezelfde kolombreedte als de gewone wedstrijdlijst. */
+  .dagview .playoff-block { width: 100% !important; max-width: 100% !important; align-self: stretch; }
+  .dagview .playoff-block .games { width: 100% !important; max-width: none !important; margin-left: 0 !important; }
 }
 .public-dag-controls { gap: 6px; flex-wrap: nowrap; }
 .public-dag-controls .viewer-refresh { margin-left: 8px; padding: 4px 8px; min-width: 2.1em; font-size: 1.05rem; line-height: 1; }
@@ -2218,7 +2250,7 @@ function gamesHtml(key, p) {
     h += gameRijHtml(g, posFn, { act: 'win', attrs: 'data-key="' + key + '" data-nr="' + p.nr + '"', actief: actief && actief.nr === g.nr && !P.vergrendeld(T, key, p.nr), locked: P.vergrendeld(T, key, p.nr) });
     if (pauze && g.nr === pauze) h += '<div class="pauze">PAUZE</div>';
   });
-  return '<div class="games">' + gameKopHtml() + h + '</div>';
+  return '<div class="games public-match-list">' + gameKopHtml() + h + '</div>';
 }
 
 /* ---------- stand ---------- */
@@ -2321,9 +2353,9 @@ function ppKetenHtml(key, p, pp, o) {
     const bSel = false ? '<label class="f" style="min-width:200px"><span>Eerste break (toss)</span><select data-chg="pp-break" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (gestart || vast ? ' disabled' : '') + '>' + s.groep.map(id => '<option value="' + id + '"' + (id === s.eersteBreak ? ' selected' : '') + '>' + esc(spelerNaam(id)) + '</option>').join('') + '</select></label>' : '';
     const rijen = s.games.map(g => gameRijHtml(g, posFn, { act: 'ppwin', attrs: 'data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"', actief: !g.w && P.ppGameNodig(s, g) && s.games.find(x => !x.w && P.ppGameNodig(s, x)) === g && si === pp.stappen.length - 1 && !o.afgesloten, skip: !g.w && !P.ppGameNodig(s, g), locked: vast })).join('');
     const stand = s.groep.slice().sort((a, b) => wins[b] - wins[a]).map(id => '<span class="row gap-s">' + esc(spelerNaam(id)) + ' <b>' + wins[id] + '</b></span>').join('<span class="muted">·</span>');
-    return '<div class="sect playoff-block" id="' + ((si === pp.stappen.length - 1 && !o.afgesloten) ? 'ppblok' : 'ppblok' + (o.plek || '') + '_' + si) + '"><header><h3>' + (si === 0 ? (o.plek ? (o.extra ? 'Extra play-off om ' : 'Play-off om ') + plaatsTxt : (voorDerde ? derdeTitel : 'Play-off om de doorgaande plek' + (s.plekken > 1 ? 'en' : ''))) : 'Extra play-off' + (o.plek ? ' om ' + plaatsTxt : '')) + '</h3><span class="chip ' + (klaar ? 'ok' : 'warn') + '">' + (klaar ? 'Beslist' : (o.plek ? plaatsTxt + ' te bepalen' : plural(s.plekken, 'plek', 'plekken') + ' te winnen')) + '</span>' +
+    return '<div class="sect playoff-block public-match-card" id="' + ((si === pp.stappen.length - 1 && !o.afgesloten) ? 'ppblok' : 'ppblok' + (o.plek || '') + '_' + si) + '"><header><h3>' + (si === 0 ? (o.plek ? (o.extra ? 'Extra play-off om ' : 'Play-off om ') + plaatsTxt : (voorDerde ? derdeTitel : 'Play-off om de doorgaande plek' + (s.plekken > 1 ? 'en' : ''))) : 'Extra play-off' + (o.plek ? ' om ' + plaatsTxt : '')) + '</h3><span class="chip ' + (klaar ? 'ok' : 'warn') + '">' + (klaar ? 'Beslist' : (o.plek ? plaatsTxt + ' te bepalen' : plural(s.plekken, 'plek', 'plekken') + ' te winnen')) + '</span>' +
       (UI.viewer ? '' : '<button class="btn sec sm noprint" data-act="pp-reset" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast ? ' disabled' : '') + '>Opnieuw opzetten</button>') + '</header><div class="body stack">' +
-      '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + bSel + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="pp-loot-breaks" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast || gestart ? ' disabled' : '') + ' title="Verdeelt wie er breekt eerlijk over het hele blok">🎲 Loot wie breekt</button><span class="muted">Breaks: ' + Object.keys(P.telBreaks(s.games)).map(id => esc(spelerNaam(id)) + ' ' + P.telBreaks(s.games)[id]).join(' · ') + '</span></div>') + '<div class="games">' + gameKopHtml() + rijen + '</div><div class="row small" style="gap:10px">' + stand + '</div></div></div>';
+      '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + bSel + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="pp-loot-breaks" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast || gestart ? ' disabled' : '') + ' title="Verdeelt wie er breekt eerlijk over het hele blok">🎲 Loot wie breekt</button><span class="muted">Breaks: ' + Object.keys(P.telBreaks(s.games)).map(id => esc(spelerNaam(id)) + ' ' + P.telBreaks(s.games)[id]).join(' · ') + '</span></div>') + '<div class="games public-match-list">' + gameKopHtml() + rijen + '</div><div class="row small" style="gap:10px">' + stand + '</div></div></div>';
   }).join('');
 }
 function derdeBlokHtml(key, i) {
@@ -2333,9 +2365,9 @@ function derdeBlokHtml(key, i) {
   const gestart = po.games.some(g => g.w), wins = P.ppWins({ groep: [po.a, po.b], games: po.games }), doel = Math.floor(po.games.length / 2) + 1;
   const rijen = po.games.map(g => { const nodig = !(wins[po.a] >= doel || wins[po.b] >= doel) || !!g.w; return gameRijHtml(g, posFn, { act: 'dwin', attrs: 'data-key="' + key + '" data-i="' + i + '"', actief: !g.w && nodig && po.games.find(x => !x.w) === g && !po.winnaar, skip: !g.w && !nodig, locked: vast }); }).join('');
   const fSel = UI.viewer ? '<div><span class="muted small">Formaat</span><br><b>' + esc(po.formaat) + '</b></div>' : '<label class="f" style="min-width:160px"><span>Formaat</span><select data-chg="d-formaat" data-key="' + key + '" data-i="' + i + '"' + (gestart ? ' disabled' : '') + '>' + P.ppFormaten(2).map(f => '<option' + (f === po.formaat ? ' selected' : '') + '>' + esc(f) + '</option>').join('') + '</select></label>';
-  return '<div class="sect playoff-block"><header><h3>Play-off beste nummer 3</h3><span class="chip ' + (po.winnaar ? 'ok' : 'warn') + '">' + (po.winnaar ? 'Beslist: ' + esc(spelerNaam(po.winnaar)) + ' gaat door' : 'Wacht op uitslag') + '</span></header><div class="body stack">' +
+  return '<div class="sect playoff-block public-match-card"><header><h3>Play-off beste nummer 3</h3><span class="chip ' + (po.winnaar ? 'ok' : 'warn') + '">' + (po.winnaar ? 'Beslist: ' + esc(spelerNaam(po.winnaar)) + ' gaat door' : 'Wacht op uitslag') + '</span></header><div class="body stack">' +
     '<p class="small">De nummers 3 van poule ' + (2 * i + 1) + ' en ' + (2 * i + 2) + ' hebben evenveel punten. De winnaar gaat door naar de volgende ronde.</p>' +
-    '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + (UI.viewer ? '' : (vast ? '<button class="btn sec sm noprint" data-act="derde-ontgrendel" data-key="' + key + '" data-i="' + i + '">🔒 Ontgrendelen</button>' : '')) + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="d-loot-breaks" data-key="' + key + '" data-i="' + i + '"' + (vast || gestart ? ' disabled' : '') + '>🎲 Loot wie breekt</button></div>') + '<div class="games">' + gameKopHtml() + rijen + '</div><div class="row small" style="gap:12px"><span class="row gap-s">' + esc(spelerNaam(po.a)) + ' <b>' + wins[po.a] + '</b></span><span class="muted">·</span><span class="row gap-s">' + esc(spelerNaam(po.b)) + ' <b>' + wins[po.b] + '</b></span></div></div></div>';
+    '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + (UI.viewer ? '' : (vast ? '<button class="btn sec sm noprint" data-act="derde-ontgrendel" data-key="' + key + '" data-i="' + i + '">🔒 Ontgrendelen</button>' : '')) + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="d-loot-breaks" data-key="' + key + '" data-i="' + i + '"' + (vast || gestart ? ' disabled' : '') + '>🎲 Loot wie breekt</button></div>') + '<div class="games public-match-list">' + gameKopHtml() + rijen + '</div><div class="row small" style="gap:12px"><span class="row gap-s">' + esc(spelerNaam(po.a)) + ' <b>' + wins[po.a] + '</b></span><span class="muted">·</span><span class="row gap-s">' + esc(spelerNaam(po.b)) + ' <b>' + wins[po.b] + '</b></span></div></div></div>';
 }
 function bronnenPh(key, p) {
   const vk = P.vorigeKey(T, key), pool = {}, derde = {};
@@ -2449,7 +2481,8 @@ function dagDetailHtml(key, nr) {
   const links = '<div>' + uitleg + (wachtPh ? '' : gamesHtml(key, p)) + '</div>';
   const derdePp = derdeBlokkenVoorPoule(key, p);
   const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p) + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + testHulpHtml(key, p) + '</div>';
-  return '<div class="stack-l">' + kop + waarschuw + (wachtPh ? vorigePlayoffsHtml(key, p) : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols">' + links + rechts + '</div>' + ppBlokHtml(key, p) + derdePp + '</div>';
+  const playoffs = ppBlokHtml(key, p) + derdePp;
+  return '<div class="stack-l dag-detail-stack">' + kop + waarschuw + (wachtPh ? vorigePlayoffsHtml(key, p) : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + '</div>';
 }
 async function vernieuwPubliek(melding) {
   if (!UI.viewer || !window.POOL_ONLINE || !T || !T.id || publiekeVerversingBezig) return;
