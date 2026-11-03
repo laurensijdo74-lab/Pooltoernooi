@@ -1746,23 +1746,31 @@ function brMatches(key,nr){
   return out;
 }
 function brRanking(){
-  if(!T.instellingen.breakRun)return [];
-  const totals={};
-  (T.plan.rondes||[]).forEach(r=>(T.rondes[r.key]?.poules||[]).forEach(p=>brMatches(r.key,p.nr).forEach(m=>{
-    const vals=(T.breakRuns||{})[m.id]||{};
-    [m.g.a,m.g.b].forEach(id=>{const n=Number(vals[id])||0;if(n>0&&!P.isPh(id)&&P.spelerById(T,id))totals[id]=(totals[id]||0)+n;});
-  })));
-  return Object.entries(totals).map(([id,aantal])=>({id,aantal,naam:P.naamVan(T,id)})).sort((a,b)=>b.aantal-a.aantal||a.naam.localeCompare(b.naam,'nl'));
+ if(!T.instellingen.breakRun)return [];
+ const totals={};
+ (T.plan.rondes||[]).forEach(r=>(T.rondes[r.key]?.poules||[]).forEach(p=>brMatches(r.key,p.nr).forEach(m=>{
+  const vals=(T.breakRuns||{})[m.id];
+  if(!m.g.w || !m.g.a || P.isPh(m.g.a) || !P.spelerById(T,m.g.a))return;
+  if(vals && (vals[m.g.a]===true || Number(vals[m.g.a])>0)) totals[m.g.a]=(totals[m.g.a]||0)+1;
+ })));
+ return Object.entries(totals).map(([id,aantal])=>({id,aantal,naam:P.naamVan(T,id)})).sort((a,b)=>b.aantal-a.aantal||a.naam.localeCompare(b.naam,'nl'));
 }
-function brVoetnoot(){const r=brRanking();return r.length?'<div class="br-foot"><b>🎱 Break & Run:</b> '+r.map(x=>esc(x.naam)+' ('+x.aantal+')').join(' · ')+'</div>':'';}
+function brVoetnoot(){const r=brRanking();return r.length?'<div class="br-foot"><b>🎱 Break & Runs (hele toernooi):</b> '+r.map(x=>esc(x.naam)+' ('+x.aantal+')').join(' · ')+'</div>':'';}
+function brKlassement(){
+ if(!T.instellingen.breakRun)return '';
+ const ranking=brRanking();
+ return '<div class="sect"><header><h3>🎱 Break & Run-klassement · hele toernooi</h3></header><div class="body">'+(ranking.length?'<table class="t"><thead><tr><th>Positie</th><th>Speler</th><th class="num">Aantal</th></tr></thead><tbody>'+ranking.map((x,i)=>'<tr><td>'+(i+1)+'</td><td>'+esc(x.naam)+'</td><td class="num"><b>'+x.aantal+'</b></td></tr>').join('')+'</tbody></table>':'<span class="muted">Nog geen Break & Runs geregistreerd.</span>')+'</div></div>';
+}
 function brPaneel(key,nr){
  if(UI.viewer||!T.instellingen.breakRun)return '';
  const matches=brMatches(key,nr), selected=matches.find(m=>m.id===UI.brSelected)||null;
  const ranking=brRanking();
+ const registered=selected&&selected.g.a&&((T.breakRuns||{})[selected.id]||{})[selected.g.a];
+ const eligible=selected&&selected.g.w&&!P.isPh(selected.g.a)&&P.spelerById(T,selected.g.a)&&selected.g.w===selected.g.a;
  return '<div class="br-side noprint"><details class="sect" '+(UI.brOpen?'open':'')+'><summary data-br-summary>🎱 Break & Run registreren'+(ranking.length?' · '+ranking.reduce((a,b)=>a+b.aantal,0):'')+'</summary><div class="body stack">'+
- (matches.length?'<label class="f">Wedstrijd<select data-chg="br-match"><option value=""'+(!selected?' selected':'')+'>— Geen wedstrijd geselecteerd —</option>'+matches.map(m=>'<option value="'+esc(m.id)+'"'+(selected&&selected.id===m.id?' selected':'')+'>'+esc(m.label+' · '+P.naamVan(T,m.g.a)+' – '+P.naamVan(T,m.g.b))+'</option>').join('')+'</select></label>'+(selected?'<button class="btn sec sm" data-act="br-clear" type="button">Selectie wissen</button>':''):'<span class="muted">Nog geen wedstrijden.</span>')+
- (selected?[selected.g.a,selected.g.b].filter(id=>!P.isPh(id)).map(id=>{const n=Number(((T.breakRuns||{})[selected.id]||{})[id])||0;return '<div class="br-person"><span>'+esc(P.naamVan(T,id))+'</span><div class="row"><button class="btn sec sm" data-act="br-adjust" data-match="'+esc(selected.id)+'" data-id="'+esc(id)+'" data-delta="-1"'+(n?'':' disabled')+'>−</button><b>'+n+'</b><button class="btn sec sm" data-act="br-adjust" data-match="'+esc(selected.id)+'" data-id="'+esc(id)+'" data-delta="1">+</button></div></div>';}).join(''):'')+
- '<div class="br-ranking"><b>Individuele ranking</b>'+(ranking.length?ranking.map((x,i)=>'<div>'+(i+1)+'. '+esc(x.naam)+' <b>'+x.aantal+'</b></div>').join(''):'<p class="muted small">Nog geen Break & Runs.</p>')+'</div></div></details></div>';
+ (matches.length?'<label class="f">Wedstrijd<select data-chg="br-match"><option value=""'+(!selected?' selected':'')+'>— Kies wedstrijd —</option>'+matches.map(m=>'<option value="'+esc(m.id)+'"'+(selected&&selected.id===m.id?' selected':'')+'>'+esc(m.label+' · '+P.naamVan(T,m.g.a)+' – '+P.naamVan(T,m.g.b))+'</option>').join('')+'</select></label>'+(selected?'<button class="btn sec sm" data-act="br-clear" type="button">Selectie wissen</button>':''):'<span class="muted">Nog geen wedstrijden.</span>')+
+ (selected?'<div class="br-person"><span><b>Breaker: '+esc(P.naamVan(T,selected.g.a))+'</b><br><span class="small muted">'+(!selected.g.w?'Voer eerst de wedstrijduitslag in.':selected.g.w!==selected.g.a?'Geen Break & Run: de breaker won niet.':'Alleen de openingsbreaker kan scoren.')+'</span></span><label class="row"><input type="checkbox" data-chg="br-toggle" data-match="'+esc(selected.id)+'"'+(registered?' checked':'')+(eligible?'':' disabled')+'> Break & Run</label></div>':'')+
+ '</div></details></div>';
 }
 /* ---------- kleurhulp ---------- */
 function hex2rgb(h) { h = String(h).replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); const n = parseInt(h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
@@ -3121,7 +3129,7 @@ function view() {
     case 'spelers': return viewSpelers();
     case 'loting': return viewLoting();
     case 'dag': return viewDag();
-    case 'standen': return viewStanden();
+    case 'standen': return viewStanden() + (!UI.viewer ? brKlassement() : '');
     case 'planning': return viewPlanning();
     case 'instellingen': return viewInstellingen();
     case 'regels': return viewRegels();
@@ -3316,7 +3324,7 @@ async function kiesSpeler(id) {
 /* ---------- acties ---------- */
 const ACT = {
   'br-clear'() { UI.brSelected=null; UI.brOpen=true; render(); },
-  'br-adjust'(b) { const matches=brMatches(UI.dag.key,UI.dag.nr); const m=matches.find(x=>x.id===b.dataset.match); if(!m||![m.g.a,m.g.b].includes(b.dataset.id))return; T.breakRuns=T.breakRuns||{}; const v=T.breakRuns[m.id]||(T.breakRuns[m.id]={}); v[b.dataset.id]=Math.max(0,(Number(v[b.dataset.id])||0)+Number(b.dataset.delta)); if(!v[b.dataset.id])delete v[b.dataset.id]; UI.brSelected=m.id;UI.brOpen=true;commit(); },
+  'br-adjust'() { /* oude teller niet meer gebruikt */ },
   'dag-lijst'() { UI.dagLijst = UI.dagLijst === false; render(); },
   tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = mobielWeergave() ? false : true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
   'ga-gegevens'() { UI.tab = 'instellingen'; UI.inst = 'gegevens'; render(); },
@@ -3538,6 +3546,7 @@ const CHG = {
   'inst-derden'(el) { T.instellingen.derden[+el.dataset.idx] = el.value; planOpnieuw(); commit(); },
   'inst-volgorde'(el) { T.instellingen.strikteVolgorde = el.checked; commit(); },
   'inst-breakrun'(el) { T.instellingen.breakRun = el.checked; commit(); },
+  'br-toggle'(el) { const m=brMatches(UI.dag.key,UI.dag.nr).find(x=>x.id===el.dataset.match); if(!m||!m.g.w||m.g.w!==m.g.a||P.isPh(m.g.a)){el.checked=false;return;} T.breakRuns=T.breakRuns||{}; if(el.checked)T.breakRuns[m.id]={[m.g.a]:1};else delete T.breakRuns[m.id]; UI.brSelected=m.id;UI.brOpen=true;commit(); },
   'br-match'(el) { UI.brSelected=el.value; UI.brOpen=true; render(); },
   'inst-test'(el) { T.instellingen.testmodus = el.checked; commit(); },
   'online-toegang'(el) { T.online = T.online || {}; T.online.toegang = el.value === 'openbaar' ? 'openbaar' : 'besloten'; T.online.gepubliceerd = T.online.toegang === 'openbaar'; commit(); },
