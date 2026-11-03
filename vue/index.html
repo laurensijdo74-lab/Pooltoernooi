@@ -485,6 +485,12 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
   .sect .btn { display: none !important; }
 }
 
+.br-side summary{cursor:pointer;padding:12px 16px;font-weight:700;color:var(--ink)}
+.br-side .br-person{display:flex;justify-content:space-between;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding:6px 0}
+.br-side .br-person .row{gap:10px}.br-ranking{border-top:1px solid var(--line);padding-top:10px}
+.br-ranking>div{display:flex;justify-content:space-between;padding:3px 0}
+.br-foot{font-size:.82rem;color:var(--muted);border-top:1px solid var(--line);padding:9px 3px;margin-top:8px}
+@media print{.br-side{display:none!important}}
 </style>
 </head>
 <body>
@@ -1719,6 +1725,37 @@ function tijdTekst(iso) {
 function ball(pos, extra) { const ph = pos > 8 || pos < 1; return '<span class="ball b' + (ph ? 'x' : pos) + (extra ? ' ' + extra : '') + '" aria-hidden="true"><b>' + (ph ? '' : pos) + '</b></span>'; }
 function plural(n, een, meer) { return n + ' ' + (n === 1 ? een : meer); }
 
+/* Break & Run: onafhankelijke wedstrijdregistratie, toernooibreed opgeteld. */
+function brKey(key,nr,g){ return key + ':' + nr + ':' + g; }
+function brMatches(key,nr){
+  const p=P.zoekPoule(T,key,nr), out=[];
+  if(!p)return out;
+  p.schema.forEach(g=>out.push({id:brKey(key,nr,'r'+g.nr),label:'Wedstrijd '+g.nr,g}));
+  if(p.pp) p.pp.stappen.forEach((st,si)=>st.games.forEach(g=>out.push({id:brKey(key,nr,'p'+si+'-'+g.nr),label:'Play-off '+(si+1)+' / '+g.nr,g})));
+  if(p.fin) p.fin.plaatsen.forEach((pl,pi)=>pl.pp.stappen.forEach((st,si)=>st.games.forEach(g=>out.push({id:brKey(key,nr,'f'+pi+'-'+si+'-'+g.nr),label:'Finale play-off '+(pi+1)+' / '+g.nr,g}))));
+  const rd=T.rondes[key]; const ix=rd&&rd.poules?rd.poules.indexOf(p):-1;
+  if(ix>=0 && T.derden[key]) { const po=T.derden[key][Math.floor(ix/2)]; if(po && ix%2===0) po.games.forEach(g=>out.push({id:brKey(key,nr,'d'+Math.floor(ix/2)+'-'+g.nr),label:'Play-off beste nr. 3 / '+g.nr,g})); }
+  return out;
+}
+function brRanking(){
+  if(!T.instellingen.breakRun)return [];
+  const totals={};
+  (T.plan.rondes||[]).forEach(r=>(T.rondes[r.key]?.poules||[]).forEach(p=>brMatches(r.key,p.nr).forEach(m=>{
+    const vals=(T.breakRuns||{})[m.id]||{};
+    [m.g.a,m.g.b].forEach(id=>{const n=Number(vals[id])||0;if(n>0&&!P.isPh(id)&&P.spelerById(T,id))totals[id]=(totals[id]||0)+n;});
+  })));
+  return Object.entries(totals).map(([id,aantal])=>({id,aantal,naam:P.naamVan(T,id)})).sort((a,b)=>b.aantal-a.aantal||a.naam.localeCompare(b.naam,'nl'));
+}
+function brVoetnoot(){const r=brRanking();return r.length?'<div class="br-foot"><b>🎱 Break & Run:</b> '+r.map(x=>esc(x.naam)+' ('+x.aantal+')').join(' · ')+'</div>':'';}
+function brPaneel(key,nr){
+ if(UI.viewer||!T.instellingen.breakRun)return '';
+ const matches=brMatches(key,nr), selected=matches.find(m=>m.id===UI.brSelected)||matches[0];
+ const ranking=brRanking();
+ return '<div class="br-side noprint"><details class="sect" '+(UI.brOpen?'open':'')+'><summary data-br-summary>🎱 Break & Run registreren'+(ranking.length?' · '+ranking.reduce((a,b)=>a+b.aantal,0):'')+'</summary><div class="body stack">'+
+ (matches.length?'<label class="f">Wedstrijd<select data-chg="br-match">'+matches.map(m=>'<option value="'+esc(m.id)+'"'+(selected&&selected.id===m.id?' selected':'')+'>'+esc(m.label+' · '+P.naamVan(T,m.g.a)+' – '+P.naamVan(T,m.g.b))+'</option>').join('')+'</select></label>':'<span class="muted">Nog geen wedstrijden.</span>')+
+ (selected?[selected.g.a,selected.g.b].filter(id=>!P.isPh(id)).map(id=>{const n=Number(((T.breakRuns||{})[selected.id]||{})[id])||0;return '<div class="br-person"><span>'+esc(P.naamVan(T,id))+'</span><div class="row"><button class="btn sec sm" data-act="br-adjust" data-match="'+esc(selected.id)+'" data-id="'+esc(id)+'" data-delta="-1"'+(n?'':' disabled')+'>−</button><b>'+n+'</b><button class="btn sec sm" data-act="br-adjust" data-match="'+esc(selected.id)+'" data-id="'+esc(id)+'" data-delta="1">+</button></div></div>';}).join(''):'')+
+ '<div class="br-ranking"><b>Individuele ranking</b>'+(ranking.length?ranking.map((x,i)=>'<div>'+(i+1)+'. '+esc(x.naam)+' <b>'+x.aantal+'</b></div>').join(''):'<p class="muted small">Nog geen Break & Runs.</p>')+'</div></div></details></div>';
+}
 /* ---------- kleurhulp ---------- */
 function hex2rgb(h) { h = String(h).replace('#', ''); if (h.length === 3) h = h.split('').map(c => c + c).join(''); const n = parseInt(h, 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
 function rgb2hex(r, g, b) { return '#' + [r, g, b].map(x => Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0')).join(''); }
@@ -2806,10 +2843,10 @@ function dagDetailHtml(key, nr) {
   const uitleg = UI.viewer ? '' : '<div class="row between noprint" style="margin-bottom:8px"><span class="muted small">Tik op de winnaar van elke wedstrijd. De speler links heeft de break. Sneltoetsen: <kbd>1</kbd> of ← links wint, <kbd>2</kbd> of → rechts wint, <kbd>Backspace</kbd> herstelt de vorige.</span><button class="btn sec sm" data-act="herstel" data-key="' + key + '" data-nr="' + nr + '"' + (kanHerstel && !vast ? '' : ' disabled') + '>Herstel vorige wedstrijd</button></div>';
   const links = '<div>' + uitleg + (wachtPh ? '' : gamesHtml(key, p)) + '</div>';
   const derdePp = derdeBlokkenVoorPoule(key, p);
-  const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p) + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + testHulpHtml(key, p) + '</div>';
+  const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p) + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + brPaneel(key,nr) + testHulpHtml(key, p) + '</div>';
   const playoffs = ppBlokHtml(key, p) + derdePp;
   const verslagen = verslagBlokHtml('poule', key, nr) + verslagBlokHtml('weekend', key, nr);
-  return '<div class="stack-l dag-detail-stack">' + kop + waarschuw + (wachtPh ? vorigePlayoffsHtml(key, p) : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + verslagen + '</div>';
+  return '<div class="stack-l dag-detail-stack">' + kop + waarschuw + (wachtPh ? vorigePlayoffsHtml(key, p) : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + (UI.viewer ? brVoetnoot() : '') + verslagen + '</div>';
 }
 function pasPubliekeStandToe(remote, melding) {
   if (!remote || !remote.id || !T || remote.id !== T.id) return false;
@@ -2961,6 +2998,7 @@ function instToernooi() {
     '<div><div class="f"><span style="font-weight:600;font-size:.88rem">Weken overslaan</span></div><div class="row" style="margin-top:6px"><input type="date" id="weekDatum" aria-label="Datum in het weekend dat wordt overgeslagen"><button class="btn sec sm" data-act="week-toe"' + (vrij ? '' : ' disabled') + '>Dit weekend overslaan</button>' + overslaan + '</div><div class="hint muted small" style="margin-top:4px">Handig bij vakanties of een gesloten locatie. Kies een datum in het weekend dat vervalt.</div></div>' +
     (derdenSel ? '<div><div class="small" style="font-weight:600;margin-bottom:6px">Beste nummer 3 per weekend meenemen?</div><div class="grid2">' + derdenSel + '</div><div class="hint muted small">“Automatisch” kiest wat het beste uitkomt met poules van 4–5 spelers. Bij 50 spelers is dat dezelfde opzet als in het Excel-bestand.</div></div>' : '') +
     '<label class="row" style="gap:8px"><input type="checkbox" data-chg="inst-volgorde"' + (i.strikteVolgorde === false ? '' : ' checked') + '> <span><b>Speeldagen op volgorde afwerken</b><br><span class="muted small">Uitslagen invoeren kan pas als alle eerdere speeldagen zijn afgerond. Zet dit uit als een speeldag bijvoorbeeld niet doorgaat.</span></span></label>' +
+    '<label class="row" style="gap:8px"><input type="checkbox" data-chg="inst-breakrun"' + (i.breakRun ? ' checked' : '') + '> <span><b>Break & Run bijhouden</b><br><span class="muted small">Registreer per wedstrijd en toon een individuele ranking als voetnoot voor toeschouwers.</span></span></label>' +
     '<label class="row" style="gap:8px"><input type="checkbox" data-chg="inst-test"' + (i.testmodus ? ' checked' : '') + '> <span><b>Testmodus</b><br><span class="muted small">Toont testhulp bij de speeldagen (willekeurige uitslagen, gedwongen gelijke standen).</span></span></label>' +
     (vrij ? '' : '<div class="note warn small">Ronde 1 is geloot: de opzet is vastgezet. Datums per speeldag pas je aan in Planning.</div>') +
     '</div></div><div class="sect"><header><h3>Opzet bij ' + P.actief(T).length + ' spelers</h3></header><div class="body scroll-x">' + preview + '</div></div></div>';
@@ -3251,6 +3289,7 @@ async function kiesSpeler(id) {
 
 /* ---------- acties ---------- */
 const ACT = {
+  'br-adjust'(b) { const matches=brMatches(UI.dag.key,UI.dag.nr); const m=matches.find(x=>x.id===b.dataset.match); if(!m||![m.g.a,m.g.b].includes(b.dataset.id))return; T.breakRuns=T.breakRuns||{}; const v=T.breakRuns[m.id]||(T.breakRuns[m.id]={}); v[b.dataset.id]=Math.max(0,(Number(v[b.dataset.id])||0)+Number(b.dataset.delta)); if(!v[b.dataset.id])delete v[b.dataset.id]; UI.brSelected=m.id;UI.brOpen=true;commit(); },
   'dag-lijst'() { UI.dagLijst = UI.dagLijst === false; render(); },
   tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = mobielWeergave() ? false : true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
   'ga-gegevens'() { UI.tab = 'instellingen'; UI.inst = 'gegevens'; render(); },
@@ -3471,6 +3510,8 @@ const CHG = {
   'inst-vertraging'(el) { T.instellingen.lotingVertraging = Number(el.value); commit(); },
   'inst-derden'(el) { T.instellingen.derden[+el.dataset.idx] = el.value; planOpnieuw(); commit(); },
   'inst-volgorde'(el) { T.instellingen.strikteVolgorde = el.checked; commit(); },
+  'inst-breakrun'(el) { T.instellingen.breakRun = el.checked; commit(); },
+  'br-match'(el) { UI.brSelected=el.value; UI.brOpen=true; render(); },
   'inst-test'(el) { T.instellingen.testmodus = el.checked; commit(); },
   'online-toegang'(el) { T.online = T.online || {}; T.online.toegang = el.value === 'openbaar' ? 'openbaar' : 'besloten'; T.online.gepubliceerd = T.online.toegang === 'openbaar'; commit(); },
   'online-synchroniseren'(el) { T.online = T.online || {}; T.online.synchroniseren = !!el.checked; if (T.online.synchroniseren) startOnlineSynchronisatie(); else stopOnlineSynchronisatie(); commit(); },
@@ -3507,6 +3548,7 @@ const CHG = {
 };
 
 function migreerNaLaden(bron) {
+  T.instellingen=T.instellingen||{}; if(T.instellingen.breakRun===undefined)T.instellingen.breakRun=false; T.breakRuns=T.breakRuns||{};
   if (!T.online) T.online = { toegang: 'besloten', synchroniseren: true, gepubliceerd: false };
   if (!T.online.toegang) T.online.toegang = 'besloten';
   if (T.online.synchroniseren === undefined) T.online.synchroniseren = true;
@@ -3525,7 +3567,7 @@ function koppelEvents() {
     if (e.detail && !e.detail.user) stopOnlineSynchronisatie();
     if (!UI.viewer) render();
   });
-  document.addEventListener('click', e => {
+  document.addEventListener('click', e => { if(e.target.closest('[data-br-summary]')) UI.brOpen=!e.target.closest('details').open;
     const b = e.target.closest('[data-act]'); if (!b || b.disabled || b.classList.contains('off')) return;
     if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'dag-lijst', 'viewer-refresh', 'stand-ronde'].indexOf(b.dataset.act) < 0) return;
     const f = ACT[b.dataset.act]; if (f) { e.preventDefault(); f(b, e); }
