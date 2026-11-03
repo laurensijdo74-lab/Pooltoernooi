@@ -491,6 +491,13 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 .br-ranking>div{display:flex;justify-content:space-between;padding:3px 0}
 .br-foot{font-size:.82rem;color:var(--muted);border-top:1px solid var(--line);padding:9px 3px;margin-top:8px}
 @media print{.br-side{display:none!important}}
+
+/* Live aftelklok voor de openbare toeschouwerskop */
+.viewer-countdown{margin-left:auto;flex:0 0 auto;min-width:112px;padding:5px 9px;border:1px solid rgba(255,255,255,.25);border-radius:10px;background:rgba(8,12,30,.45);text-align:center;font-family:var(--font-body);line-height:1.2;color:var(--hero-ink)}
+.viewer-countdown .cd-label{display:block;font-size:.65rem;opacity:.85;font-weight:700}
+.viewer-countdown .cd-value{display:block;font-size:1rem;font-weight:850;font-variant-numeric:tabular-nums;white-space:nowrap}
+.viewer-countdown .cd-date{display:block;font-size:.62rem;opacity:.85;white-space:nowrap}
+@media(max-width:980px){.hero-public .hero-in{gap:7px}.hero-public .logo{max-width:65px;height:38px}.hero-public .hero-in>div:not(.meta):not(.viewer-countdown){min-width:0;flex:1 1 auto}.viewer-countdown{min-width:100px;padding:5px 6px}.viewer-countdown .cd-value{font-size:.88rem}.hero-public .hero-tournament{font-size:.82rem}}
 </style>
 </head>
 <body>
@@ -2197,6 +2204,43 @@ async function volgordeGeblokkeerd() {
 }
 function openDag(key, nr) { UI.dag = { key, nr }; UI.tab = 'dag'; if (mobielWeergave() || !UI.viewer) UI.dagLijst = false; render(); window.scrollTo(0, 0); }
 
+/* Aftellen naar de eerstvolgende niet-afgeronde gelote speeldag.
+   Een nog openstaande speeldag houdt de klok vast, ook na zijn startdatum.
+   De klok gebruikt expliciet Europe/Amsterdam, onafhankelijk van de telefoonzone. */
+function countdownTarget(){
+  if(!UI.viewer || !T || !T.plan || !T.plan.dagen)return null;
+  const dagen=alleDagen().filter(d=>P.rondeGeloot(T,d.ronde));
+  const d=dagen.find(d=>dagStatus(d.ronde,d.poule).code!=='klaar');
+  if(!d)return null;
+  const playoff=dagStatus(d.ronde,d.poule).code==='playoff';
+  const hh=playoff?13:14;
+  const iso=d.datum+'T'+String(hh).padStart(2,'0')+':00:00';
+  // Tijdzone Nederland: offset via Intl, ook correct rond zomer-/wintertijd.
+  const utc=Date.parse(iso+'Z');
+  const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Amsterdam',timeZoneName:'shortOffset'}).formatToParts(new Date(utc));
+  const zone=(parts.find(x=>x.type==='timeZoneName')||{}).value||'GMT+1';
+  const m=zone.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
+  const offset=m?(m[1]==='+'?1:-1)*(Number(m[2])*60+Number(m[3]||0)):60;
+  return {d,playoff,hh,ms:utc-offset*60000};
+}
+function countdownHtml(){
+  if(!UI.viewer)return '';
+  const t=countdownTarget();
+  if(!t)return '';
+  return '<div class="viewer-countdown noprint" id="viewerCountdown" role="timer" aria-label="Aftellen naar de eerstvolgende speeldag"><span class="cd-label">⏱ START OVER</span><span class="cd-value" id="viewerCountdownValue">--</span><span class="cd-date">'+esc(P.datumKort(t.d.datum))+' · '+t.hh+':00</span></div>';
+}
+function updateViewerCountdown(){
+  const el=document.getElementById('viewerCountdownValue');if(!el)return;
+  const t=countdownTarget();if(!t){el.closest('.viewer-countdown')?.remove();return;}
+  let sec=Math.max(0,Math.ceil((t.ms-Date.now())/1000));
+  if(sec===0){el.textContent=t.playoff?'● Play-off bezig':'● Wedstrijden bezig';return;}
+  const d=Math.floor(sec/86400);sec%=86400;
+  const h=Math.floor(sec/3600);sec%=3600;
+  const m=Math.floor(sec/60),ss=sec%60;
+  const pad=n=>String(n).padStart(2,'0');
+  el.textContent=(d?d+'d ':'')+pad(h)+':'+pad(m)+':'+pad(ss);
+}
+
 /* ---------- hero en navigatie ---------- */
 function heroHtml() {
   const loc = locatieVoorWeergave();
@@ -2206,7 +2250,7 @@ function heroHtml() {
   const onlineChip = UI.viewer || !o ? '' : '<button class="chip ' + (os.user ? 'ok' : (os.status === 'fout' ? 'bad' : 'warn')) + '" data-act="ga-gegevens" title="Naar Instellingen → Online versie">' + (os.user ? '✓ Online aangemeld' : (os.status === 'initialiseren' ? 'Online laden…' : 'Niet aangemeld')) + '</button>';
   const status = UI.viewer ? '' : '<div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-end">' + onlineChip + '<button id="statchip" class="chip ' + st.cls + '" data-act="ga-gegevens" title="Naar opslag en back-up">' + (UI.opslag.ok ? '✓ ' : '! ') + esc(st.tekst) + '</button></div>';
   return '<div class="hero' + (UI.viewer ? ' hero-public' : '') + '"><div class="hero-in">' + logo + '<div><div class="hero-title-row"><h1>' + esc(loc.naam) + '</h1><div class="hero-tournament">' + esc(T.naam) + '</div></div>' + (loc.adres ? '<div class="sub">' + esc(loc.adres) + '</div>' : '') + '</div>' +
-    (status ? '<div class="meta noprint">' + status + '</div>' : '') + '</div></div><div class="rail"></div>';
+    (status ? '<div class="meta noprint">' + status + '</div>' : '') + countdownHtml() + '</div></div><div class="rail"></div>';
 }
 function tabsVoorWeergave() {
   if (!UI.viewer) return TABS;
@@ -3108,6 +3152,7 @@ function render() {
   pasThemaToe(locatieVoorWeergave());
   app.innerHTML = heroHtml() + navHtml() + '<main class="wrap" id="main">' + view() + '</main>' + (UI.scorebord ? scorebordHtml() : '');
   window.scrollTo(0, UI.resetScroll ? 0 : y); UI.resetScroll = false;
+  updateViewerCountdown();
   ververscScorebordVenster();
   if (UI.scrollNaar) { const el = document.getElementById(UI.scrollNaar); UI.scrollNaar = null; if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60); }
   if (focusId) { const el = document.getElementById(focusId); if (el) el.focus(); }
@@ -3606,6 +3651,7 @@ function koppelEvents() {
   window.addEventListener('beforeunload', () => { try { bewaarNu(); } catch (e) { } });
   window.addEventListener('pagehide', () => { try { bewaarNu(); } catch (e) { } });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && UI.viewer) vernieuwPubliek(false); });
+  setInterval(updateViewerCountdown, 1000);
   setInterval(updateStatusChip, 60000);
   setTimeout(() => { if (onlineActief()) startOnlineSynchronisatie(); }, 0);
   startPubliekeVerversing();
