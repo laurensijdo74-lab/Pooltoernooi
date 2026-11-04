@@ -46,9 +46,20 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .hero .meta { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .hero-public { width: calc(100% - 40px); margin: 0 auto; border-radius: 0 0 var(--radius) var(--radius); }
 .hero-public { overflow: hidden; }
-.hero-public::after { content: "1"; position: absolute; z-index: 1; top: 50%; left: -24px; width: 18px; height: 18px; display: grid; place-items: center; border-radius: 50%; color: #111; background: radial-gradient(circle at 32% 28%, rgba(255,255,255,.7), rgba(255,255,255,0) 38%), #f2bf00; box-shadow: inset -2px -2px 4px rgba(0,0,0,.35), 0 1px 2px rgba(0,0,0,.35); font: 800 9px/1 var(--font-body); pointer-events: none; opacity: 0; animation: viewer-ball-sweep 22s linear infinite; }
-@keyframes viewer-ball-sweep { 0%, 68% { transform: translateX(0) rotate(0deg); opacity: 0; } 72% { opacity: .72; } 90% { opacity: .72; } 100% { transform: translateX(calc(100vw + 60px)) rotate(360deg); opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .hero-public::after { display: none; animation: none; } }
+/* Geanimeerde poolbreak, alleen in de openbare kop. */
+.hero-public .hero-in {position:relative}
+.hero-public .viewer-break {position:absolute;left:95px;bottom:7px}
+@media(max-width:980px){.hero-public .viewer-break{left:82px;bottom:5px}}
+.viewer-break { position:relative; width:112px; height:57px; flex:0 0 112px; overflow:hidden; pointer-events:none; isolation:isolate; }
+.viewer-break .rack-ball { position:absolute; width:12px; height:12px; border-radius:50%; left:70px; top:23px; background:radial-gradient(circle at 30% 25%,#fff9 0%,#fff5 12%,transparent 38%),var(--bc); box-shadow:inset -2px -2px 3px #0008,0 1px 3px #0008; transform:translate(var(--sx),var(--sy)); animation:rack-scatter 6.5s ease-in-out infinite; animation-delay:var(--delay); }
+.viewer-break .rack-ball::after { content:''; position:absolute; inset:4px; border-radius:50%; background:#fff8; }
+.viewer-break .cue-ball { position:absolute; width:13px; height:13px; border-radius:50%; top:23px; left:5px; background:radial-gradient(circle at 28% 25%,#fff,#cdd3db 80%); box-shadow:0 1px 4px #0008; animation:cue-strike 6.5s ease-in-out infinite; }
+.viewer-break .cue-stick { position:absolute; width:43px; height:3px; top:28px; left:-38px; border-radius:4px; background:linear-gradient(90deg,#a46b32,#f4dbad); transform-origin:right center; animation:cue-stick-hit 6.5s ease-in-out infinite; }
+@keyframes rack-scatter { 0%,17% {transform:translate(var(--sx),var(--sy));opacity:1} 40%,70% {transform:translate(calc(var(--sx) + var(--dx)),calc(var(--sy) + var(--dy)));opacity:1} 85%,100% {transform:translate(var(--sx),var(--sy));opacity:1} }
+@keyframes cue-strike { 0%,12% {transform:translateX(0)} 24%,62% {transform:translateX(54px)} 80%,100% {transform:translateX(0)} }
+@keyframes cue-stick-hit { 0%,12% {transform:translateX(0)} 23% {transform:translateX(29px)} 35%,100% {transform:translateX(0)} }
+@media(max-width:980px){.viewer-break{width:82px;height:52px;flex-basis:82px;transform:scale(.78);transform-origin:left center;margin-right:-18px}}
+@media(prefers-reduced-motion:reduce){.viewer-break *{animation:none!important}}
 .hero-public .hero-in { padding: 8px 12px 10px; gap: 10px; }
 .hero-public .logo { height: 42px; max-width: 110px; }
 .hero-public h1 { font-size: 1.2rem; }
@@ -2254,6 +2265,18 @@ function updateViewerCountdown(){
 }
 
 /* ---------- hero en navigatie ---------- */
+function viewerBreakHtml() {
+  if (!UI.viewer) return '';
+  const colors=['#f4c522','#214cb7','#d42e35','#7335a3','#f47b20','#23834b','#8b2929','#151515','#f4c522','#214cb7','#d42e35','#7335a3','#f47b20','#23834b','#8b2929'];
+  const moves=[[32,-15],[38,-6],[45,8],[26,20],[10,-23],[30,5],[48,-21],[8,23],[42,22],[19,-9],[28,13],[14,-17],[37,-27],[49,0],[17,27]];
+  let balls='';let n=0;
+  for(let row=0;row<5;row++)for(let j=0;j<=row;j++){
+    const x=-row*10.5,y=(j-row/2)*12;
+    const m=moves[n];balls+='<i class="rack-ball" style="--bc:'+colors[n]+';--sx:'+x+'px;--sy:'+y+'px;--dx:'+m[0]+'px;--dy:'+m[1]+'px;--delay:0s"></i>';n++;
+  }
+  return '<div class="viewer-break" role="img" aria-label="Geanimeerde break van vijftien poolballen"><i class="cue-stick"></i><i class="cue-ball"></i>'+balls+'</div>';
+}
+
 function heroHtml() {
   const loc = locatieVoorWeergave();
   const logo = loc.logo ? '<img class="logo" alt="Logo ' + esc(loc.naam) + '" src="' + esc(loc.logo) + '">' : '<span class="logo-bal" aria-hidden="true">' + ((THEMAS[loc.thema] || {}).icoon || '🎱') + '</span>';
@@ -2261,7 +2284,7 @@ function heroHtml() {
   const o = window.POOL_ONLINE, os = o && o.state || {};
   const onlineChip = UI.viewer || !o ? '' : '<button class="chip ' + (os.user ? 'ok' : (os.status === 'fout' ? 'bad' : 'warn')) + '" data-act="ga-gegevens" title="Naar Instellingen → Online versie">' + (os.user ? '✓ Online aangemeld' : (os.status === 'initialiseren' ? 'Online laden…' : 'Niet aangemeld')) + '</button>';
   const status = UI.viewer ? '' : '<div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-end">' + onlineChip + '<button id="statchip" class="chip ' + st.cls + '" data-act="ga-gegevens" title="Naar opslag en back-up">' + (UI.opslag.ok ? '✓ ' : '! ') + esc(st.tekst) + '</button></div>';
-  return '<div class="hero' + (UI.viewer ? ' hero-public' : '') + '"><div class="hero-in">' + logo + '<div><div class="hero-title-row"><h1>' + esc(loc.naam) + '</h1><div class="hero-tournament">' + esc(T.naam) + '</div></div>' + (loc.adres ? '<div class="sub">' + esc(loc.adres) + '</div>' : '') + '</div>' +
+  return '<div class="hero' + (UI.viewer ? ' hero-public' : '') + '"><div class="hero-in">' + logo + viewerBreakHtml() + '<div><div class="hero-title-row"><h1>' + esc(loc.naam) + '</h1><div class="hero-tournament">' + esc(T.naam) + '</div></div>' + (loc.adres ? '<div class="sub">' + esc(loc.adres) + '</div>' : '') + '</div>' +
     (status ? '<div class="meta noprint">' + status + '</div>' : '') + countdownHtml() + '</div></div><div class="rail"></div>';
 }
 function tabsVoorWeergave() {
