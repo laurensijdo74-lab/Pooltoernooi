@@ -49,31 +49,31 @@ button, input, select, textarea { font: inherit; color: inherit; }
 /* Poolbreak: compact naast logo; opbouw in driehoek, snelle break, elke 30 s. */
 .hero-public .hero-in{position:relative;isolation:isolate;min-height:64px}
 .hero-public .hero-in > :not(.viewer-break){position:relative;z-index:2}
-.hero-public .viewer-break{position:absolute;z-index:1;left:235px;top:1px;width:160px;height:70px;pointer-events:none;overflow:visible;transform-origin:top left}
+.hero-public .viewer-break{position:absolute;z-index:1;left:415px;top:1px;width:160px;height:70px;pointer-events:none;overflow:visible;transform-origin:top left}
 .viewer-break .rack-ball{position:absolute;width:12px;height:12px;border-radius:50%;left:91px;top:32px;background:radial-gradient(circle at 30% 25%,#fff9 0%,#fff5 12%,transparent 38%),var(--bc);box-shadow:inset -2px -2px 3px #0008,0 1px 3px #0008;transform:translate(var(--sx),var(--sy));animation:rack-fill-scatter 30s linear infinite, var(--appear) 30s linear infinite}
 .viewer-break .rack-ball::after{content:'';position:absolute;inset:4px;border-radius:50%;background:#fff8}
-.viewer-break .rack-triangle{position:absolute;left:87px;top:1px;width:69px;height:74px;overflow:visible;animation:rack-frame 30s linear infinite}
+.viewer-break .rack-triangle{position:absolute;left:85px;top:-5px;width:65px;height:74px;overflow:visible;animation:rack-frame 30s linear infinite}
 .viewer-break .rack-triangle path{fill:none;stroke:#d8b47b;stroke-width:3;stroke-linejoin:round;filter:drop-shadow(0 1px 2px #0009)}
 .viewer-break .cue-ball{position:absolute;width:13px;height:13px;border-radius:50%;top:32px;left:-26px;background:radial-gradient(circle at 28% 25%,#fff,#cdd3db 80%);box-shadow:0 1px 4px #0008;opacity:0;animation:cue-strike 30s linear infinite}
 @keyframes rack-frame{0%,49%{opacity:1}52%,100%{opacity:0}}
-@keyframes cue-strike{0%,55%{transform:translateX(-55px);opacity:0}56%{opacity:1}61%{transform:translateX(110px);opacity:1}63%{transform:translateX(140px);opacity:0}63.1%,100%{opacity:0}}
-@keyframes rack-fill-scatter{0%,60.9%{transform:translate(var(--sx),var(--sy))}61%{transform:translate(var(--sx),var(--sy));opacity:1}75%{transform:translate(calc(var(--sx) + var(--dx)),calc(var(--sy) + var(--dy)));opacity:0}100%{transform:translate(calc(var(--sx) + var(--dx)),calc(var(--sy) + var(--dy)));opacity:0}}
-@keyframes rack-appear-0{0%,10.0%{opacity:0}10.15%,61%{opacity:1}75%,100%{opacity:0}}
-@keyframes rack-appear-1{0%,12.5%{opacity:0}12.65%,61%{opacity:1}75%,100%{opacity:0}}
-@keyframes rack-appear-2{0%,15.0%{opacity:0}15.15%,61%{opacity:1}75%,100%{opacity:0}}
-@keyframes rack-appear-3{0%,17.5%{opacity:0}17.65%,61%{opacity:1}75%,100%{opacity:0}}
-@keyframes rack-appear-4{0%,20.0%{opacity:0}20.15%,61%{opacity:1}75%,100%{opacity:0}}
-@keyframes rack-appear-5{0%,22.5%{opacity:0}22.65%,61%{opacity:1}75%,100%{opacity:0}}
-@keyframes rack-appear-6{0%,25.0%{opacity:0}25.15%,61%{opacity:1}75%,100%{opacity:0}}
-@keyframes rack-appear-7{0%,27.5%{opacity:0}27.65%,61%{opacity:1}75%,100%{opacity:0}}
-@keyframes rack-appear-8{0%,30.0%{opacity:0}30.15%,61%{opacity:1}75%,100%{opacity:0}}
-@keyframes rack-appear-9{0%,32.5%{opacity:0}32.65%,61%{opacity:1}75%,100%{opacity:0}}
-@keyframes rack-appear-10{0%,35.0%{opacity:0}35.15%,61%{opacity:1}75%,100%{opacity:0}}
-@keyframes rack-appear-11{0%,37.5%{opacity:0}37.65%,61%{opacity:1}75%,100%{opacity:0}}
-@keyframes rack-appear-12{0%,40.0%{opacity:0}40.15%,61%{opacity:1}75%,100%{opacity:0}}
-@keyframes rack-appear-13{0%,42.5%{opacity:0}42.65%,61%{opacity:1}75%,100%{opacity:0}}
-@keyframes rack-appear-14{0%,45.0%{opacity:0}45.15%,61%{opacity:1}75%,100%{opacity:0}}
-@media(max-width:980px){.hero-public .hero-in{min-height:72px;padding-bottom:10px!important}.hero-public .viewer-break{left:31px;top:29px;transform:scale(.65)}.hero-public .viewer-countdown{z-index:3}}
+@keyframes cue-strike{0%,55%{transform:translateX(-55px);opacity:0}56%{opacity:1}58.7%{transform:translateX(110px);opacity:1}60%{transform:translateX(140px);opacity:0}63.1%,100%{opacity:0}}
+@keyframes rack-fill-scatter{0%,58.6%{transform:translate(var(--sx),var(--sy))}58.7%{transform:translate(var(--sx),var(--sy));opacity:1}75%{transform:translate(calc(var(--sx) + var(--dx)),calc(var(--sy) + var(--dy)));opacity:0}100%{transform:translate(calc(var(--sx) + var(--dx)),calc(var(--sy) + var(--dy)));opacity:0}}
+@keyframes rack-appear-0{0%,10.0%{opacity:0}10.15%,58.7%{opacity:1}75%,100%{opacity:0}}
+@keyframes rack-appear-1{0%,12.5%{opacity:0}12.65%,58.7%{opacity:1}75%,100%{opacity:0}}
+@keyframes rack-appear-2{0%,15.0%{opacity:0}15.15%,58.7%{opacity:1}75%,100%{opacity:0}}
+@keyframes rack-appear-3{0%,17.5%{opacity:0}17.65%,58.7%{opacity:1}75%,100%{opacity:0}}
+@keyframes rack-appear-4{0%,20.0%{opacity:0}20.15%,58.7%{opacity:1}75%,100%{opacity:0}}
+@keyframes rack-appear-5{0%,22.5%{opacity:0}22.65%,58.7%{opacity:1}75%,100%{opacity:0}}
+@keyframes rack-appear-6{0%,25.0%{opacity:0}25.15%,58.7%{opacity:1}75%,100%{opacity:0}}
+@keyframes rack-appear-7{0%,27.5%{opacity:0}27.65%,58.7%{opacity:1}75%,100%{opacity:0}}
+@keyframes rack-appear-8{0%,30.0%{opacity:0}30.15%,58.7%{opacity:1}75%,100%{opacity:0}}
+@keyframes rack-appear-9{0%,32.5%{opacity:0}32.65%,58.7%{opacity:1}75%,100%{opacity:0}}
+@keyframes rack-appear-10{0%,35.0%{opacity:0}35.15%,58.7%{opacity:1}75%,100%{opacity:0}}
+@keyframes rack-appear-11{0%,37.5%{opacity:0}37.65%,58.7%{opacity:1}75%,100%{opacity:0}}
+@keyframes rack-appear-12{0%,40.0%{opacity:0}40.15%,58.7%{opacity:1}75%,100%{opacity:0}}
+@keyframes rack-appear-13{0%,42.5%{opacity:0}42.65%,58.7%{opacity:1}75%,100%{opacity:0}}
+@keyframes rack-appear-14{0%,45.0%{opacity:0}45.15%,58.7%{opacity:1}75%,100%{opacity:0}}
+@media(max-width:980px){.hero-public .hero-in{min-height:72px;padding-bottom:10px!important}.hero-public .viewer-break{left:96px;top:29px;transform:scale(.65)}.hero-public .viewer-countdown{z-index:3}}
 @media(prefers-reduced-motion:reduce){.viewer-break *{animation:none!important}.viewer-break .rack-ball{opacity:1!important}.viewer-break .cue-ball{opacity:0!important}.viewer-break .rack-triangle{opacity:0!important}}
 .hero-public .hero-in { padding: 8px 12px 10px; gap: 10px; }
 .hero-public .logo { height: 42px; max-width: 110px; }
@@ -523,7 +523,7 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 .viewer-countdown .cd-label{display:block;font-size:.65rem;opacity:.85;font-weight:700}
 .viewer-countdown .cd-value{display:block;font-size:1rem;font-weight:850;font-variant-numeric:tabular-nums;white-space:nowrap}
 .viewer-countdown .cd-date{display:block;font-size:.62rem;opacity:.85;white-space:nowrap}
-@media(max-width:980px){.hero-public .hero-in{gap:7px}.hero-public .logo{max-width:65px;height:38px}.hero-public .hero-in>div:not(.meta):not(.viewer-countdown){min-width:0;flex:1 1 auto}.viewer-countdown{min-width:100px;padding:5px 6px}.viewer-countdown .cd-value{font-size:.88rem}.hero-public .hero-tournament{font-size:.82rem}}
+@media(max-width:980px){.hero-public .hero-in{gap:7px}.hero-public .logo{max-width:76px;height:44px}.hero-public .hero-in>div:not(.meta):not(.viewer-countdown){min-width:0;flex:1 1 auto}.viewer-countdown{min-width:100px;padding:5px 6px}.viewer-countdown .cd-value{font-size:.88rem}.hero-public .hero-tournament{font-size:.82rem}}
 /* Mobiel: volledige locatienaam en toernooinaam zonder afkappen; klok apart rechts. */
 @media(max-width:980px){
  .hero-public .hero-in{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px}
@@ -2289,7 +2289,7 @@ function viewerBreakHtml() {
     const x=row*10.5,y=(j-row/2)*12;
     const m=moves[n];balls+='<i class="rack-ball" style="--bc:'+colors[n]+';--sx:'+x+'px;--sy:'+y+'px;--dx:'+m[0]+'px;--dy:'+m[1]+'px;--appear:rack-appear-'+n+'"></i>';n++;
   }
-  return '<div class="viewer-break" role="img" aria-label="Poolballen worden een voor een in de driehoek gelegd, waarna de witte bal ze uitbreekt"><svg class="rack-triangle" viewBox="0 0 69 74" aria-hidden="true"><path d="M 3 37 L 66 4 L 66 70 Z"/></svg><i class="cue-ball"></i>'+balls+'</div>';
+  return '<div class="viewer-break" role="img" aria-label="Poolballen worden een voor een in de driehoek gelegd, waarna de witte bal ze uitbreekt"><svg class="rack-triangle" viewBox="0 0 65 74" aria-hidden="true"><path d="M 0 37 L 64 1 L 64 73 Z"/></svg><i class="cue-ball"></i>'+balls+'</div>';
 }
 
 function heroHtml() {
