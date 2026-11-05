@@ -581,6 +581,23 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  .dagview .game.viewer-game .pl .sc{min-width:0;font-size:.9rem}
  .dagview .game.viewer-game .vs{font-size:.75rem}
 }
+
+/* Toeschouwers: volledige namen en alle standcijfers zichtbaar, zonder horizontaal scrollen. */
+.viewer-stand-list{width:100%;min-width:0;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.viewer-stand-row{padding:9px 12px;border-bottom:1px solid var(--line);min-width:0}
+.viewer-stand-row:last-child{border-bottom:0}
+.viewer-stand-row.door{background:var(--good-soft)}
+.viewer-stand-row.uit{background:var(--bad-soft)}
+.viewer-stand-row.po{background:var(--warn-soft)}
+.viewer-stand-name{display:flex;align-items:baseline;gap:8px;min-width:0;line-height:1.3}
+.viewer-stand-name strong{font-size:1rem;white-space:normal;overflow-wrap:anywhere;min-width:0}
+.viewer-stand-rank{flex:none;color:var(--muted)}
+.viewer-stand-numbers{display:flex;align-items:center;gap:clamp(12px,4vw,30px);flex-wrap:wrap;margin:5px 0 0 25px}
+.viewer-stand-numbers>span:not(.viewer-stand-status){display:flex;flex-direction:column;min-width:42px;line-height:1.2}
+.viewer-stand-numbers small{font-size:.67rem;color:var(--muted);white-space:nowrap}
+.viewer-stand-numbers b{font-size:.95rem;font-variant-numeric:tabular-nums}
+.viewer-stand-status{margin-left:auto}
+@media(max-width:980px){.dagview .cols>.stack:last-child{position:static!important;max-height:none!important;overflow:visible!important}.viewer-stand-row{padding:9px 10px}.viewer-stand-numbers{gap:12px;margin-left:22px}.viewer-stand-status{margin-left:0}}
 </style>
 </head>
 <body>
@@ -2646,6 +2663,16 @@ function standHtml(key, p, compact) {
   const rows = P.standPoule(T, p), klaar = P.pouleAfgerond(T, p);
   const volgorde = klaar ? P.eindvolgorde(T, p).map(id => rows.find(r => r.id === id)) : rows;
   const posFn = id => p.spelers.indexOf(id) + 1;
+  if (UI.viewer) {
+    const cards = volgorde.map((r, i) => {
+      const st = rijStatus(key, p, rows, r, i);
+      return '<div class="viewer-stand-row '+st.cls+'"><div class="viewer-stand-name"><b class="viewer-stand-rank">'+(i+1)+'.</b><strong>'+esc(spelerNaam(r.id))+'</strong></div>'+
+        '<div class="viewer-stand-numbers"><span><small>Punten</small><b>'+r.punten+'</b></span>'+
+        (compact?'':'<span><small>Gespeeld</small><b>'+r.gespeeld+'</b></span><span><small>Max. haalbaar</small><b>'+r.max+'</b></span>')+
+        (st.chip?'<span class="viewer-stand-status">'+st.chip+'</span>':'')+'</div></div>';
+    }).join('');
+    return '<div class="viewer-stand-list">'+cards+'</div>';
+  }
   const tr = volgorde.map((r, i) => {
     const s = rijStatus(key, p, rows, r, i);
     return '<tr class="' + s.cls + '"><td><span class="naam">' + ball(P.isPh(r.id) ? 0 : i + 1, P.isPh(r.id) ? 'ph' : '') + esc(spelerNaam(r.id)) + '</span></td><td class="num"><b>' + r.punten + '</b>' + '' + '</td>' +
