@@ -621,6 +621,22 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  .dagview .cols>.stack:last-child .sect .body{padding:10px 8px}
  .viewer-stand-table th,.viewer-stand-table td{padding:8px 3px!important}
 }
+/* Toeschouwersstand: grotere leesbare namen en cijfers; status bereikbaar door horizontaal te schuiven. */
+@media screen and (max-width:980px){
+ .viewer-stand-scroll{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch}
+ .viewer-stand-table{width:100%;min-width:520px;table-layout:fixed}
+ .viewer-stand-table th:first-child{width:43%}
+ .viewer-stand-table th:nth-child(2){width:12%}
+ .viewer-stand-table th:nth-child(3){width:15%}
+ .viewer-stand-table th:nth-child(4){width:9%}
+ .viewer-stand-table th:last-child{width:21%}
+ .viewer-stand-table .viewer-team-inner strong{font-size:17px;letter-spacing:-.02em;overflow-wrap:normal;word-break:normal;white-space:nowrap}
+ .viewer-stand-table .num{font-size:17px}
+ .viewer-stand-table th{font-size:12px!important}
+ .viewer-stand-table th:nth-child(4),.viewer-stand-table td:nth-child(4){font-size:12px!important}
+ .viewer-stand-table .ball{font-size:15px}
+ .viewer-stand-table .viewer-status{font-size:12px}
+}
 </style>
 </head>
 <body>
@@ -2694,9 +2710,9 @@ function standHtml(key, p, compact) {
         (compact?'':'<td class="num">'+r.gespeeld+'</td><td class="num">'+r.max+'</td>')+
         '<td class="viewer-status">'+st.chip+'</td></tr>';
     }).join('');
-    return '<table class="t stand viewer-stand-table"><thead><tr><th>Speler</th><th class="num">Punten</th>'+
+    return '<div class="viewer-stand-scroll"><table class="t stand viewer-stand-table"><thead><tr><th>Speler</th><th class="num">Punten</th>'+
       (compact?'':'<th class="num">Gespeeld</th><th class="num">Max</th>')+
-      '<th>Status</th></tr></thead><tbody>'+tr+'</tbody></table>';
+      '<th>Status</th></tr></thead><tbody>'+tr+'</tbody></table></div>';
   }
   const tr = volgorde.map((r, i) => {
     const s = rijStatus(key, p, rows, r, i);
