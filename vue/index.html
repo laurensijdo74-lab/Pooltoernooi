@@ -670,6 +670,28 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  .viewer-stand-table th{font-size:12px!important;overflow:hidden!important}
  .viewer-stand-table td{overflow:hidden!important}
 }
+
+/* Definitieve mobiele stand: een blok, geen scroll; status mag intern schuiven. */
+@media screen and (max-width:980px){
+ .viewer-stand-scroll{width:100%!important;max-width:100%!important;overflow:visible!important}
+ .viewer-stand-table{width:100%!important;min-width:0!important;table-layout:fixed!important}
+ .viewer-stand-table th:first-child{width:auto!important}
+ .viewer-stand-table th:nth-child(2){width:37px!important}
+ .viewer-stand-table th:nth-child(3){width:37px!important}
+ .viewer-stand-table th:nth-child(4){width:37px!important}
+ .viewer-stand-table th:last-child{width:55px!important}
+ .viewer-stand-table th,.viewer-stand-table td{padding:8px 2px!important;overflow:visible!important}
+ .viewer-stand-table .viewer-team{min-width:0!important}
+ .viewer-stand-table .viewer-team-inner{gap:4px!important;min-width:0!important;display:flex!important}
+ .viewer-stand-table .viewer-team-inner strong{font-size:clamp(13px,3.65vw,17px)!important;font-weight:750!important;letter-spacing:-.025em!important;white-space:nowrap!important;overflow:visible!important;line-height:1.25!important;min-width:0!important}
+ .viewer-stand-table .ball{font-size:12px!important}
+ .viewer-stand-table .num{font-size:clamp(13px,3.65vw,17px)!important;white-space:nowrap}
+ .viewer-stand-table th{font-size:10px!important;white-space:nowrap!important;overflow:hidden!important}
+ .viewer-stand-table .viewer-status{overflow:hidden!important;max-width:55px!important}
+ .viewer-stand-table .viewer-status .chip{display:block;max-width:100%;overflow-x:auto!important;overflow-y:hidden!important;white-space:nowrap!important;word-break:normal!important;overflow-wrap:normal!important;font-size:10px!important;padding:2px!important;scrollbar-width:none}
+ .viewer-stand-table .viewer-status .chip::-webkit-scrollbar{display:none}
+ .dagview .cols>.stack:last-child .sect .body{padding:9px 5px!important}
+}
 </style>
 </head>
 <body>
@@ -3342,6 +3364,20 @@ function view() {
     default: return viewOverzicht();
   }
 }
+
+function fitViewerStandNames(){
+ document.querySelectorAll('.viewer-stand-table .viewer-team-inner strong').forEach(el=>{
+  el.style.fontSize='';
+  const cell=el.closest('.viewer-team');if(!cell)return;
+  const ball=el.previousElementSibling;
+  const available=cell.clientWidth-(ball?ball.getBoundingClientRect().width+5:0)-5;
+  if(available<=0)return;
+  const max=parseFloat(getComputedStyle(el).fontSize)||16;
+  let size=max;
+  while(size>9 && el.scrollWidth>available){size-=.5;el.style.fontSize=size+'px';}
+ });
+}
+
 function render() {
   const app = $('#app'); if (!app) return;
   const y = window.scrollY, focusId = UI.focusId; UI.focusId = null;
@@ -3349,6 +3385,7 @@ function render() {
   app.innerHTML = heroHtml() + navHtml() + '<main class="wrap" id="main">' + view() + '</main>' + (UI.scorebord ? scorebordHtml() : '');
   window.scrollTo(0, UI.resetScroll ? 0 : y); UI.resetScroll = false;
   updateViewerCountdown();
+  if(UI.viewer)fitViewerStandNames();
   ververscScorebordVenster();
   if (UI.scrollNaar) { const el = document.getElementById(UI.scrollNaar); UI.scrollNaar = null; if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60); }
   if (focusId) { const el = document.getElementById(focusId); if (el) el.focus(); }
