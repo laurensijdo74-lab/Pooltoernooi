@@ -46,17 +46,15 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .hero .meta { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .hero-public { width: calc(100% - 40px); margin: 0 auto; border-radius: 0 0 var(--radius) var(--radius); }
 .hero-public { overflow: hidden; }
-/* Poolbreak links in de openbare banner; ballen vliegen tot buiten de banner. */
+/* Poolbreak: punt naar links, witte bal van links, impact en explosie elke 30 seconden. */
 .hero-public .hero-in{position:relative;isolation:isolate;min-height:108px;padding-bottom:68px!important}
 .hero-public .hero-in > :not(.viewer-break){position:relative;z-index:2}
 .hero-public .viewer-break{position:absolute;z-index:1;left:15px;right:0;bottom:0;height:68px;width:auto;overflow:visible;pointer-events:none;isolation:isolate}
-.viewer-break .rack-ball{position:absolute;width:12px;height:12px;border-radius:50%;left:64px;top:32px;background:radial-gradient(circle at 30% 25%,#fff9 0%,#fff5 12%,transparent 38%),var(--bc);box-shadow:inset -2px -2px 3px #0008,0 1px 3px #0008;animation:rack-scatter 7s cubic-bezier(.17,.67,.25,1) infinite}
+.viewer-break .rack-ball{position:absolute;width:12px;height:12px;border-radius:50%;left:91px;top:32px;background:radial-gradient(circle at 30% 25%,#fff9 0%,#fff5 12%,transparent 38%),var(--bc);box-shadow:inset -2px -2px 3px #0008,0 1px 3px #0008;animation:rack-scatter 30s linear infinite}
 .viewer-break .rack-ball::after{content:'';position:absolute;inset:4px;border-radius:50%;background:#fff8}
-.viewer-break .cue-ball{position:absolute;width:13px;height:13px;border-radius:50%;top:32px;left:2px;background:radial-gradient(circle at 28% 25%,#fff,#cdd3db 80%);box-shadow:0 1px 4px #0008;animation:cue-strike 7s ease-in-out infinite}
-.viewer-break .cue-stick{position:absolute;width:43px;height:3px;top:37px;left:-40px;border-radius:4px;background:linear-gradient(90deg,#a46b32,#f4dbad);animation:cue-stick-hit 7s ease-in-out infinite}
-@keyframes rack-scatter{0%,19%{transform:translate(var(--sx),var(--sy));opacity:1}23%{opacity:1}58%,78%{transform:translate(calc(var(--sx) + var(--dx)),calc(var(--sy) + var(--dy)));opacity:0}79%,100%{transform:translate(var(--sx),var(--sy));opacity:1}}
-@keyframes cue-strike{0%,12%{transform:translateX(0);opacity:1}22%{transform:translateX(49px);opacity:1}35%,75%{transform:translateX(220px);opacity:0}76%,100%{transform:translateX(0);opacity:1}}
-@keyframes cue-stick-hit{0%,12%{transform:translateX(0)}22%{transform:translateX(28px)}35%,100%{transform:translateX(0)}}
+.viewer-break .cue-ball{position:absolute;width:13px;height:13px;border-radius:50%;top:32px;left:-26px;background:radial-gradient(circle at 28% 25%,#fff,#cdd3db 80%);box-shadow:0 1px 4px #0008;animation:cue-strike 30s linear infinite}
+@keyframes rack-scatter{0%,6.65%{transform:translate(var(--sx),var(--sy));opacity:1}6.7%{transform:translate(var(--sx),var(--sy));opacity:1}17%{transform:translate(calc(var(--sx) + var(--dx)),calc(var(--sy) + var(--dy)));opacity:1}22%,96%{transform:translate(calc(var(--sx) + var(--dx)),calc(var(--sy) + var(--dy)));opacity:0}97%,100%{transform:translate(var(--sx),var(--sy));opacity:1}}
+@keyframes cue-strike{0%{transform:translateX(-30px);opacity:0}1%{opacity:1}6.65%{transform:translateX(95px);opacity:1}9%{transform:translateX(125px);opacity:0}9.1%,100%{transform:translateX(-30px);opacity:0}}
 @media(max-width:980px){.hero-public .hero-in{min-height:126px;padding-bottom:66px!important}.hero-public .viewer-break{left:12px;height:63px;bottom:0}.viewer-break .rack-ball{width:11px;height:11px}.hero-public .viewer-countdown{z-index:3}}
 @media(prefers-reduced-motion:reduce){.viewer-break *{animation:none!important}}
 .hero-public .hero-in { padding: 8px 12px 10px; gap: 10px; }
@@ -2270,10 +2268,10 @@ function viewerBreakHtml() {
   const moves=[[620,-180],[350,210],[720,90],[180,-160],[-210,160],[530,-95],[260,240],[-170,-150],[800,200],[400,-260],[130,190],[650,-240],[-240,-220],[900,-40],[310,310]];
   let balls='';let n=0;
   for(let row=0;row<5;row++)for(let j=0;j<=row;j++){
-    const x=-row*10.5,y=(j-row/2)*12;
+    const x=row*10.5,y=(j-row/2)*12;
     const m=moves[n];balls+='<i class="rack-ball" style="--bc:'+colors[n]+';--sx:'+x+'px;--sy:'+y+'px;--dx:'+m[0]+'px;--dy:'+m[1]+'px;--delay:0s"></i>';n++;
   }
-  return '<div class="viewer-break" role="img" aria-label="Geanimeerde break van vijftien poolballen"><i class="cue-stick"></i><i class="cue-ball"></i>'+balls+'</div>';
+  return '<div class="viewer-break" role="img" aria-label="Geanimeerde break van vijftien poolballen"><i class="cue-ball"></i>'+balls+'</div>';
 }
 
 function heroHtml() {
