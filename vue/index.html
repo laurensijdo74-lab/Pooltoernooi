@@ -598,6 +598,29 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 .viewer-stand-numbers b{font-size:.95rem;font-variant-numeric:tabular-nums}
 .viewer-stand-status{margin-left:auto}
 @media(max-width:980px){.dagview .cols>.stack:last-child{position:static!important;max-height:none!important;overflow:visible!important}.viewer-stand-row{padding:9px 10px}.viewer-stand-numbers{gap:12px;margin-left:22px}.viewer-stand-status{margin-left:0}}
+
+/* Toeschouwers: klassieke compacte stand, alle kolommen zonder horizontale scroll. */
+.viewer-stand-table{width:100%;table-layout:fixed;border-collapse:collapse}
+.viewer-stand-table th,.viewer-stand-table td{padding:8px 5px!important;vertical-align:middle}
+.viewer-stand-table th{font-size:clamp(9px,2.4vw,12px)!important;white-space:nowrap}
+.viewer-stand-table th:first-child{width:39%;text-align:left}
+.viewer-stand-table th:nth-child(2){width:12%}
+.viewer-stand-table th:nth-child(3){width:15%}
+.viewer-stand-table th:nth-child(4){width:10%}
+.viewer-stand-table th:last-child{width:24%}
+.viewer-stand-table .viewer-team-inner{display:flex;align-items:center;gap:5px;min-width:0}
+.viewer-stand-table .viewer-team-inner strong{font-size:clamp(10px,2.8vw,15px);line-height:1.2;overflow-wrap:anywhere;word-break:normal}
+.viewer-stand-table .ball{display:inline-grid!important;font-size:clamp(10px,2.5vw,14px);flex:none}
+.viewer-stand-table .num{font-size:clamp(10px,2.8vw,15px);font-variant-numeric:tabular-nums}
+.viewer-stand-table .viewer-status{font-size:clamp(9px,2.4vw,12px);overflow-wrap:anywhere}
+.viewer-stand-table .viewer-status .chip{font-size:inherit;padding:1px 4px;white-space:normal;line-height:1.2;max-width:100%;border:0;background:transparent}
+.viewer-stand-table tr.door td{background:var(--good-soft)}
+.viewer-stand-table tr.uit td{background:var(--bad-soft)}
+.viewer-stand-table tr.po td{background:var(--warn-soft)}
+@media(max-width:980px){
+ .dagview .cols>.stack:last-child .sect .body{padding:10px 8px}
+ .viewer-stand-table th,.viewer-stand-table td{padding:8px 3px!important}
+}
 </style>
 </head>
 <body>
@@ -2664,14 +2687,16 @@ function standHtml(key, p, compact) {
   const volgorde = klaar ? P.eindvolgorde(T, p).map(id => rows.find(r => r.id === id)) : rows;
   const posFn = id => p.spelers.indexOf(id) + 1;
   if (UI.viewer) {
-    const cards = volgorde.map((r, i) => {
+    const tr = volgorde.map((r, i) => {
       const st = rijStatus(key, p, rows, r, i);
-      return '<div class="viewer-stand-row '+st.cls+'"><div class="viewer-stand-name"><b class="viewer-stand-rank">'+(i+1)+'.</b><strong>'+esc(spelerNaam(r.id))+'</strong></div>'+
-        '<div class="viewer-stand-numbers"><span><small>Punten</small><b>'+r.punten+'</b></span>'+
-        (compact?'':'<span><small>Gespeeld</small><b>'+r.gespeeld+'</b></span><span><small>Max. haalbaar</small><b>'+r.max+'</b></span>')+
-        (st.chip?'<span class="viewer-stand-status">'+st.chip+'</span>':'')+'</div></div>';
+      return '<tr class="'+st.cls+'"><td class="viewer-team"><span class="viewer-team-inner">'+ball(P.isPh(r.id)?0:i+1,P.isPh(r.id)?'ph':'')+'<strong>'+esc(spelerNaam(r.id))+'</strong></span></td>'+
+        '<td class="num"><b>'+r.punten+'</b></td>'+
+        (compact?'':'<td class="num">'+r.gespeeld+'</td><td class="num">'+r.max+'</td>')+
+        '<td class="viewer-status">'+st.chip+'</td></tr>';
     }).join('');
-    return '<div class="viewer-stand-list">'+cards+'</div>';
+    return '<table class="t stand viewer-stand-table"><thead><tr><th>Speler</th><th class="num">Punten</th>'+
+      (compact?'':'<th class="num">Gespeeld</th><th class="num">Max</th>')+
+      '<th>Status</th></tr></thead><tbody>'+tr+'</tbody></table>';
   }
   const tr = volgorde.map((r, i) => {
     const s = rijStatus(key, p, rows, r, i);
