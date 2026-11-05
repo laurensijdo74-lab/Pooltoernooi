@@ -637,6 +637,24 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  .viewer-stand-table .ball{font-size:15px}
  .viewer-stand-table .viewer-status{font-size:12px}
 }
+
+/* Mobiele toeschouwersstand: alle kolommen passend, zonder overlap of scroll. */
+@media screen and (max-width:980px){
+ .viewer-stand-scroll{overflow-x:hidden!important;width:100%!important}
+ .viewer-stand-table{width:100%!important;min-width:0!important;table-layout:fixed!important}
+ .viewer-stand-table th:first-child{width:45%!important}
+ .viewer-stand-table th:nth-child(2){width:12%!important}
+ .viewer-stand-table th:nth-child(3){width:16%!important}
+ .viewer-stand-table th:nth-child(4){width:9%!important}
+ .viewer-stand-table th:last-child{width:18%!important}
+ .viewer-stand-table th,.viewer-stand-table td{padding:7px 2px!important;overflow:hidden}
+ .viewer-stand-table th{font-size:clamp(8px,2.05vw,10px)!important;letter-spacing:-.035em}
+ .viewer-stand-table .viewer-team-inner{gap:4px!important;min-width:0}
+ .viewer-stand-table .viewer-team-inner strong{font-size:clamp(9px,2.65vw,12px)!important;letter-spacing:-.035em!important;white-space:normal!important;overflow-wrap:normal!important;word-break:normal!important;line-height:1.16}
+ .viewer-stand-table .ball{font-size:clamp(10px,2.7vw,13px)!important}
+ .viewer-stand-table .num,.viewer-stand-table th:nth-child(4),.viewer-stand-table td:nth-child(4){font-size:clamp(10px,2.7vw,13px)!important}
+ .viewer-stand-table .viewer-status,.viewer-stand-table .viewer-status .chip{font-size:clamp(8px,2vw,10px)!important;overflow-wrap:anywhere;white-space:normal}
+}
 </style>
 </head>
 <body>
