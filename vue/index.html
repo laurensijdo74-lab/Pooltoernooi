@@ -655,28 +655,21 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  .viewer-stand-table .num,.viewer-stand-table th:nth-child(4),.viewer-stand-table td:nth-child(4){font-size:clamp(10px,2.7vw,13px)!important}
  .viewer-stand-table .viewer-status,.viewer-stand-table .viewer-status .chip{font-size:clamp(8px,2vw,10px)!important;overflow-wrap:anywhere;white-space:normal}
 }
-/* Stand: spelersnamen even groot als wedstrijdnamen; kolommen blijven gescheiden. */
+/* Samsung: stand als een vaste tabel zonder horizontale scroll. */
 @media screen and (max-width:980px){
- .viewer-stand-scroll{overflow-x:auto!important;max-width:100%!important;-webkit-overflow-scrolling:touch}
- .viewer-stand-table{width:100%!important;min-width:510px!important;table-layout:fixed!important}
- .viewer-stand-table th:first-child{width:46%!important}
- .viewer-stand-table th:nth-child(2){width:11%!important}
- .viewer-stand-table th:nth-child(3){width:13%!important}
- .viewer-stand-table th:nth-child(4){width:10%!important}
- .viewer-stand-table th:last-child{width:20%!important}
- .viewer-stand-table .viewer-team-inner strong{font-size:clamp(13px,3.65vw,17px)!important;font-weight:750!important;letter-spacing:-.025em!important;white-space:nowrap!important;line-height:1.25!important}
- .viewer-stand-table .ball{font-size:15px!important}
- .viewer-stand-table .num{font-size:16px!important}
- .viewer-stand-table th{font-size:12px!important;overflow:hidden!important}
- .viewer-stand-table td{overflow:hidden!important}
-}
-
-/* Alleen wedstrijdregels met te lange namen worden verticaal gezet. */
-@media screen and (max-width:980px){
- .dagview .game.viewer-game.viewer-name-wrap{grid-template-columns:minmax(0,1fr)!important;}
- .dagview .game.viewer-game.viewer-name-wrap .pl{width:100%;min-width:0;display:flex;justify-content:space-between;padding:9px 12px!important;}
- .dagview .game.viewer-game.viewer-name-wrap .pl .nm{overflow:visible!important;text-overflow:clip!important;white-space:normal!important;overflow-wrap:break-word!important;}
- .dagview .game.viewer-game.viewer-name-wrap .vs{padding:0 12px;justify-items:start;font-size:.72rem;line-height:1;}
+ .viewer-stand-scroll{overflow-x:hidden!important;overflow-y:visible!important;width:100%!important;max-width:100%!important}
+ .viewer-stand-table{width:100%!important;min-width:0!important;table-layout:fixed!important}
+ .viewer-stand-table th:first-child{width:45%!important}
+ .viewer-stand-table th:nth-child(2){width:12%!important}
+ .viewer-stand-table th:nth-child(3){width:16%!important}
+ .viewer-stand-table th:nth-child(4){width:9%!important}
+ .viewer-stand-table th:last-child{width:18%!important}
+ .viewer-stand-table .viewer-team-inner strong{white-space:normal!important;overflow-wrap:normal!important;font-size:clamp(9px,2.65vw,12px)!important}
+ .viewer-stand-table .viewer-status .chip{white-space:normal!important;overflow-wrap:anywhere!important}
+ /* Wedstrijdnamen blijven groot, maar lopen bij ruimtegebrek door op een tweede regel. */
+ .dagview .game.viewer-game .pl{align-items:center!important;min-width:0!important}
+ .dagview .game.viewer-game .pl .nm{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:break-word!important;word-break:normal!important;min-width:0!important;line-height:1.2!important}
+ .dagview .game.viewer-game .pl .sc{flex:0 0 auto!important;align-self:center!important}
 }
 </style>
 </head>
@@ -3350,24 +3343,28 @@ function view() {
     default: return viewOverzicht();
   }
 }
+
+function fitViewerStandNames(){
+ document.querySelectorAll('.viewer-stand-table .viewer-team-inner strong').forEach(el=>{
+  el.style.fontSize='';
+  const cell=el.closest('.viewer-team');if(!cell)return;
+  const ball=el.previousElementSibling;
+  const available=cell.clientWidth-(ball?ball.getBoundingClientRect().width+5:0)-5;
+  if(available<=0)return;
+  const max=parseFloat(getComputedStyle(el).fontSize)||16;
+  let size=max;
+  while(size>9 && el.scrollWidth>available){size-=.5;el.style.fontSize=size+'px';}
+ });
+}
+
 function render() {
   const app = $('#app'); if (!app) return;
   const y = window.scrollY, focusId = UI.focusId; UI.focusId = null;
   pasThemaToe(locatieVoorWeergave());
   app.innerHTML = heroHtml() + navHtml() + '<main class="wrap" id="main">' + view() + '</main>' + (UI.scorebord ? scorebordHtml() : '');
   window.scrollTo(0, UI.resetScroll ? 0 : y); UI.resetScroll = false;
-   // Per wedstrijd controleren of een naam daadwerkelijk te lang is.
-   // Alleen die wedstrijd krijgt namen onder elkaar; de rest blijft naast elkaar.
-   if (UI.viewer && mobielWeergave()) {
-     $$('.game.viewer-game').forEach(g => {
-       g.classList.remove('viewer-name-wrap');
-       const namen = $$('.pl .nm', g);
-       if (namen.some(n => n.scrollWidth > n.clientWidth + 1 || n.getBoundingClientRect().right > n.parentElement.getBoundingClientRect().right - 3)) {
-         g.classList.add('viewer-name-wrap');
-       }
-     });
-   }
   updateViewerCountdown();
+  if(UI.viewer)fitViewerStandNames();
   ververscScorebordVenster();
   if (UI.scrollNaar) { const el = document.getElementById(UI.scrollNaar); UI.scrollNaar = null; if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60); }
   if (focusId) { const el = document.getElementById(focusId); if (el) el.focus(); }
