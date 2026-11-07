@@ -3418,22 +3418,28 @@ function fitViewerStandNames(){
 /* Toon de stand als vast blok zodra de gewone stand boven het scherm verdwijnt.
    Stop zodra de wedstrijdlijst voorbij is; gebruik een kloon om de bestaande
    pagina, wedstrijdindeling en realtime updates ongemoeid te laten. */
-function updateViewerFrozenStand(){
- const old=document.getElementById('viewerFrozenStand');
- if(!UI.viewer || UI.tab!=='dag' || !mobielWeergave()) {if(old)old.remove();return;}
- const cols=document.querySelector('.viewer-day-cols');
- const stand=cols&&cols.lastElementChild&&cols.lastElementChild.querySelector('.sect');
- const games=cols&&cols.firstElementChild;
- if(!stand||!games){if(old)old.remove();return;}
- const sr=stand.getBoundingClientRect(),gr=games.getBoundingClientRect();
- const visible=sr.bottom<=0 && gr.bottom>Math.min(window.innerHeight*.35,250);
- if(!visible){if(old)old.remove();return;}
- if(old)return;
- const frozen=document.createElement('div');frozen.id='viewerFrozenStand';
- frozen.setAttribute('aria-label','Vastgezette stand');
- frozen.appendChild(stand.cloneNode(true));
- document.body.appendChild(frozen);
-}
+ function updateViewerFrozenStand(){
+  const old=document.getElementById('viewerFrozenStand');
+  // Alleen de geselecteerde, daadwerkelijk LIVE speeldag mag een vaste stand hebben.
+  // LIVE begint op de ingestelde starttijd en eindigt zodra de poule klaar is.
+  const target=UI.viewer && UI.tab==='dag' && UI.dag && mobielWeergave() ? countdownTarget() : null;
+  const live=!!(target && target.ms<=Date.now() &&
+    UI.dag.key===target.d.ronde && UI.dag.nr===target.d.poule &&
+    dagStatus(UI.dag.key,UI.dag.nr).code!=='klaar');
+  if(!live){if(old)old.remove();return;}
+  const cols=document.querySelector('.viewer-day-cols');
+  const stand=cols&&cols.lastElementChild&&cols.lastElementChild.querySelector('.sect');
+  const games=cols&&cols.firstElementChild;
+  if(!stand||!games){if(old)old.remove();return;}
+  const sr=stand.getBoundingClientRect(),gr=games.getBoundingClientRect();
+  const visible=sr.bottom<=0 && gr.bottom>Math.min(window.innerHeight*.35,250);
+  if(!visible){if(old)old.remove();return;}
+  if(old)return;
+  const frozen=document.createElement('div');frozen.id='viewerFrozenStand';
+  frozen.setAttribute('aria-label','Vastgezette live-stand');
+  frozen.appendChild(stand.cloneNode(true));
+  document.body.appendChild(frozen);
+ }
 window.addEventListener('scroll',updateViewerFrozenStand,{passive:true});
 window.addEventListener('resize',updateViewerFrozenStand,{passive:true});
 function render() {
@@ -3943,7 +3949,7 @@ function koppelEvents() {
   window.addEventListener('beforeunload', () => { try { bewaarNu(); } catch (e) { } });
   window.addEventListener('pagehide', () => { try { bewaarNu(); } catch (e) { } });
   document.addEventListener('visibilitychange', () => { if (!document.hidden && UI.viewer) vernieuwPubliek(false); });
-  setInterval(updateViewerCountdown, 1000);
+  setInterval(() => { updateViewerCountdown(); updateViewerFrozenStand(); }, 1000);
   setInterval(updateStatusChip, 60000);
   setTimeout(() => { if (onlineActief()) startOnlineSynchronisatie(); }, 0);
   startPubliekeVerversing();
