@@ -671,6 +671,12 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  .dagview .game.viewer-game .pl .nm{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:break-word!important;word-break:normal!important;min-width:0!important;line-height:1.2!important}
  .dagview .game.viewer-game .pl .sc{flex:0 0 auto!important;align-self:center!important}
 }
+/* Stand: dezelfde lettergrootte als wedstrijdnamen, zonder het blok te verbreden. */
+@media screen and (max-width:980px){
+ .viewer-stand-table .viewer-team-inner strong{font-size:clamp(13px,3.65vw,17px)!important;font-weight:750!important;letter-spacing:-.025em!important;line-height:1.2!important;white-space:normal!important;overflow-wrap:normal!important}
+ .viewer-stand-table .viewer-team-inner{align-items:center!important}
+ .viewer-stand-table .num{font-size:clamp(13px,3.65vw,17px)!important}
+}
 </style>
 </head>
 <body>
@@ -3364,7 +3370,7 @@ function render() {
   app.innerHTML = heroHtml() + navHtml() + '<main class="wrap" id="main">' + view() + '</main>' + (UI.scorebord ? scorebordHtml() : '');
   window.scrollTo(0, UI.resetScroll ? 0 : y); UI.resetScroll = false;
   updateViewerCountdown();
-  if(UI.viewer)fitViewerStandNames();
+  /* Standnamen mogen op meerdere regels, niet kleiner worden gemaakt. */
   ververscScorebordVenster();
   if (UI.scrollNaar) { const el = document.getElementById(UI.scrollNaar); UI.scrollNaar = null; if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60); }
   if (focusId) { const el = document.getElementById(focusId); if (el) el.focus(); }
