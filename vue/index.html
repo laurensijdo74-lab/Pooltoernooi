@@ -523,6 +523,12 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 .br-foot{font-size:.82rem;color:var(--muted);border-top:1px solid var(--line);padding:9px 3px;margin-top:8px}
 @media print{.br-side{display:none!important}}
 
+/* LIVE-status na het aflopen van de aftelklok */
+.viewer-countdown.is-live{border-color:rgba(255,110,110,.65);background:rgba(85,12,20,.65)}
+.viewer-countdown.is-live .cd-value{color:#ff7777;font-size:1.3rem!important;font-weight:900;letter-spacing:.09em;animation:viewer-live-pulse 2s ease-in-out infinite}
+.viewer-countdown.is-live .cd-label{color:#ffd8d8}
+@keyframes viewer-live-pulse{0%,100%{opacity:1;text-shadow:0 0 3px rgba(255,70,70,.35)}50%{opacity:.65;text-shadow:0 0 12px rgba(255,70,70,.8)}}
+@media(prefers-reduced-motion:reduce){.viewer-countdown.is-live .cd-value{animation:none}}
 /* Live aftelklok voor de openbare toeschouwerskop */
 .viewer-countdown{margin-left:auto;flex:0 0 auto;min-width:112px;padding:5px 9px;border:1px solid rgba(255,255,255,.25);border-radius:10px;background:rgba(8,12,30,.45);text-align:center;font-family:var(--font-body);line-height:1.2;color:var(--hero-ink)}
 .viewer-countdown .cd-label{display:block;font-size:.65rem;opacity:.85;font-weight:700}
@@ -2417,7 +2423,8 @@ function updateViewerCountdown(){
   const el=document.getElementById('viewerCountdownValue');if(!el)return;
   const t=countdownTarget();if(!t || UI.tab!=='dag' || !UI.dag || UI.dag.key!==t.d.ronde || UI.dag.nr!==t.d.poule){el.closest('.viewer-countdown')?.remove();return;}
   let sec=Math.max(0,Math.ceil((t.ms-Date.now())/1000));
-  if(sec===0){el.textContent=t.playoff?'● Play-off bezig':'● Wedstrijden bezig';return;}
+  if(sec===0){el.closest('.viewer-countdown')?.classList.add('is-live');el.textContent='● LIVE';return;}
+   el.closest('.viewer-countdown')?.classList.remove('is-live');
   const d=Math.floor(sec/86400);sec%=86400;
   const h=Math.floor(sec/3600);sec%=3600;
   const m=Math.floor(sec/60),ss=sec%60;
