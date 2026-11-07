@@ -748,6 +748,18 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
   .dagview .game:not(.viewer-game) .vs{font-size:.75rem}
   .dagview .game:not(.viewer-game) .brkrow{padding-left:8px}
 }
+
+/* Beheercentrum: alleen beheerders; mobiele wedstrijdopmaak en desktopkolommen intact. */
+.admin-menu-wrap{position:relative;display:flex;align-items:center;flex:none}
+.admin-menu-button{border:1px solid var(--line);border-radius:9px;background:var(--surface2);padding:8px 12px;cursor:pointer;font-size:1.25rem;color:var(--ink)}
+.admin-menu-panel{position:absolute;top:calc(100% + 5px);left:0;width:min(310px,calc(100vw - 28px));padding:7px;background:var(--surface);border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 35px #0005;z-index:50}
+.admin-menu-panel button{display:block;width:100%;text-align:left;padding:12px;border:0;border-radius:8px;background:transparent;color:var(--ink);cursor:pointer;font-weight:650}
+.admin-menu-panel button:hover{background:var(--surface2)}
+.admin-menu-panel small{display:block;font-weight:400;color:var(--muted)}
+.admin-wizard .db{display:grid;gap:13px}.admin-wizard .f{margin:0}.admin-wizard input,.admin-wizard select,.admin-wizard textarea{width:100%}
+.admin-wizard .steps{display:flex;gap:5px}.admin-wizard .steps i{height:5px;flex:1;border-radius:5px;background:var(--line)}.admin-wizard .steps i.done{background:var(--accent)}
+.admin-tourneys{display:grid;gap:10px}.admin-tourneys article{padding:12px;border:1px solid var(--line);border-radius:9px}.admin-tourneys .row{margin-top:9px}
+@media(max-width:980px){.admin-menu-panel{position:fixed;left:10px;right:10px;top:105px;width:auto}.admin-wizard .dialog{max-height:94vh}}
 </style>
 </head>
 <body>
@@ -2202,6 +2214,7 @@ function commit(opties) {
   T.gewijzigd = new Date().toISOString();
   if (Date.now() - laatsteHerstelpunt > 6 * 3600 * 1000 && P.spelerById) maakHerstelpunt('Automatisch');
   planBewaren();
+  adminRemember();
   planOnlineSynchronisatie();
   if (opties.stil) updateStatusChip(); else render();
 }
@@ -2351,7 +2364,7 @@ function melding(titel, html) { return dialoog({ titel, html, ok: 'OK', annuleer
    ================================================================ */
 const TABS = [
   ['overzicht', 'Overzicht'], ['spelers', 'Spelers'], ['loting', 'Loting'], ['dag', 'Speeldagen'],
-  ['standen', 'Standen'], ['planning', 'Planning'], ['instellingen', 'Instellingen'], ['regels', 'Regels']
+  ['standen', 'Standen'], ['planning', 'Planning'], ['regels', 'Regels']
 ];
 const rondeNaam = k => { const r = P.planRonde(T, k); return r ? r.naam : k; };
 const rondeKort = k => { const r = P.planRonde(T, k); return r ? r.kort : k; };
@@ -2522,7 +2535,7 @@ function tabsVoorWeergave() {
 }
 function navHtml() {
   const open = alleDagen().filter(d => P.rondeGeloot(T, d.ronde) && dagStatus(d.ronde, d.poule).code === 'playoff').length;
-  return '<nav class="nav noprint" aria-label="Hoofdmenu"><div class="nav-in">' + tabsVoorWeergave().map(t =>
+  return '<nav class="nav noprint" aria-label="Hoofdmenu"><div class="nav-in">' + (UI.viewer ? '' : '<div class="admin-menu-wrap"><button class="admin-menu-button" data-act="admin-menu" aria-label="Beheermenu" aria-expanded="'+!!UI.adminMenu+'">☰</button>'+(UI.adminMenu ? '<div class="admin-menu-panel"><button data-act="admin-new">＋ Nieuw toernooi<small>Begeleide start</small></button><button data-act="admin-all">🏆 Alle toernooien<small>Wisselen en beheren</small></button><button data-act="admin-settings">⚙ Instellingen</button><button data-act="admin-themes">🎨 Thema’s<small>Ook tijdens het toernooi</small></button><button data-act="admin-changelog">◷ Changelog</button></div>' : '')+'</div>') + tabsVoorWeergave().map(t =>
     '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + '</div></nav>';
 }
 
@@ -3631,7 +3644,51 @@ async function kiesSpeler(id) {
 }
 
 /* ---------- acties ---------- */
+
+/* Beheercentrum en wizard. Toernooien worden per id apart bewaard. */
+const ADMIN_CATALOG_KEY='pooltoernooi.admin.catalog.v1';
+const ADMIN_CHANGELOG=[['2026-11-07','Beheermenu, toernooiwizard, themawissel en toernooioverzicht toegevoegd.'],['2026-11-07','Mobiele wedstrijdnamen en desktopindeling verbeterd.'],['2026-11-07','LIVE-indicator en mobiele standen verbeterd.'],['2026-11-03','Break & Run registratie en toernooiranglijst toegevoegd.']];
+function adminCatalog(){try{return JSON.parse(localStorage.getItem(ADMIN_CATALOG_KEY)||'{}')}catch(e){return {}}}
+function adminRemember(){if(!T||!T.id||UI.viewer)return;const all=adminCatalog();all[T.id]={id:T.id,naam:T.naam,datum:T.instellingen.startdatum,gewijzigd:T.gewijzigd,locatie:locatieVoorWeergave().naam};try{localStorage.setItem(ADMIN_CATALOG_KEY,JSON.stringify(all));localStorage.setItem('pooltoernooi.admin.data.'+T.id,JSON.stringify(T))}catch(e){}}
+function adminCloseMenu(){UI.adminMenu=false}
+function adminWizard(){
+ adminCloseMenu();const w={step:0,naam:'',locatie:'',datum:'2027-01-02',type:'koppels',aantal:10,namen:'',thema:'biljartgroen',pauze:'half',derden:'auto',starttijd:'14:00',breakRun:false,openbaar:false};
+ const pages=[['Basisgegevens','Naam, locatie en eerste speeldag'],['Deelnemers','Spelers of koppels'],['Speelopzet','Bestaande poulecompetitie met thuis- en uitwedstrijden'],['Planning','Speeldagen en pauze'],['Uiterlijk en opties','Thema en extra mogelijkheden'],['Controleren','Controleer je keuzes voor het aanmaken']];
+ const field=(label,html)=>'<label class="f"><span>'+label+'</span>'+html+'</label>';
+ function body(){const opt=(arr,sel)=>arr.map(([v,l])=>'<option value="'+esc(v)+'"'+(v===sel?' selected':'')+'>'+esc(l)+'</option>').join('');
+ switch(w.step){
+ case 0:return field('Naam toernooi','<input id="wiz-naam" required value="'+esc(w.naam)+'" placeholder="Bijv. Karroesel pooltoernooi 2027">')+field('Locatie','<input id="wiz-locatie" value="'+esc(w.locatie)+'" placeholder="Naam café of locatie">')+field('Eerste speeldag','<input id="wiz-datum" type="date" value="'+esc(w.datum)+'">');
+ case 1:return field('Deelnemersvorm','<select id="wiz-type">'+opt([['koppels','Koppels (teamnamen)'],['spelers','Individuele spelers']],w.type)+'</select>')+field('Aantal deelnemers (teams of spelers)','<input id="wiz-aantal" type="number" min="4" max="120" value="'+w.aantal+'">')+field('Namen (optioneel, één per regel)','<textarea id="wiz-namen" rows="5" placeholder="Bijv. Tamara & Ruud">'+esc(w.namen)+'</textarea>')+'<p class="small muted">Je kunt namen later aanvullen. Bij koppels is ieder koppel één deelnemer in het schema.</p>';
+ case 2:return '<div class="note good"><b>Bestaande poolopzet</b><p>Iedereen speelt twee keer tegen iedere andere deelnemer in de poule. De eerstgenoemde breekt. De beste twee gaan door, met optioneel beste nummers 3 en play-offs bij gelijke stand.</p></div>'+field('Beste nummer 3 per weekend','<select id="wiz-derden">'+opt([['auto','Automatisch (aanbevolen)'],['ja','Ja'],['nee','Nee']],w.derden)+'</select>')+'<p class="small muted">De poule-indeling wordt automatisch berekend op basis van het aantal deelnemers.</p>';
+ case 3:return field('Aanvang reguliere wedstrijden','<input id="wiz-starttijd" type="time" value="'+esc(w.starttijd)+'">')+field('Pauze','<select id="wiz-pauze">'+opt([['half','Halverwege'],['geen','Geen pauze']],w.pauze)+'</select>')+'<p class="small muted">Speeldagen worden automatisch over weekenden verdeeld. Datums kun je later in Planning aanpassen. De publieke aftelklok ondersteunt momenteel 14:00 (play-offs 13:00); een andere starttijd wordt als voorkeur opgeslagen, maar verandert de klok nog niet.</p>';
+ case 4:return field('Thema','<select id="wiz-thema">'+opt(Object.keys(THEMAS).map(k=>[k,THEMAS[k].naam]),w.thema)+'</select>')+'<label class="row"><input type="checkbox" id="wiz-br"'+(w.breakRun?' checked':'')+'> Break & Run bijhouden</label><label class="row"><input type="checkbox" id="wiz-openbaar"'+(w.openbaar?' checked':'')+'> Openbare toeschouwerslink toestaan</label>';
+ default:return '<div class="stack"><p><b>'+esc(w.naam)+'</b> · '+esc(w.locatie||'Locatie nog niet ingevuld')+'</p><p>'+esc(w.datum)+' · '+w.aantal+' '+(w.type==='koppels'?'koppels':'spelers')+'</p><p>Bestaande poulecompetitie · '+esc(THEMAS[w.thema].naam)+'</p><p>'+w.namen.split(/\r?\n/).filter(x=>x.trim()).length+' namen ingevuld · overige namen later mogelijk</p><p class="small muted">Het huidige toernooi blijft apart bewaard. De loting start pas nadat alle deelnemers zijn ingevoerd.</p></div>';
+ }}
+ function save(){const v=id=>{const el=document.getElementById('wiz-'+id);return el?el.value:null};
+ if(w.step===0){w.naam=v('naam')?.trim()||'';w.locatie=v('locatie')?.trim()||'';w.datum=v('datum')||w.datum;if(!w.naam){toast('Vul eerst een toernooinaam in.',true);return false}}
+ if(w.step===1){w.type=v('type');w.aantal=Number(v('aantal'));w.namen=v('namen')||'';if(!Number.isInteger(w.aantal)||w.aantal<4||w.aantal>120){toast('Kies 4 tot 120 deelnemers.',true);return false}if(w.namen.split(/\r?\n/).filter(x=>x.trim()).length>w.aantal){toast('Er zijn meer namen dan het opgegeven aantal.',true);return false}}
+ if(w.step===2)w.derden=v('derden');if(w.step===3){w.pauze=v('pauze');w.starttijd=v('starttijd')||'14:00'}
+ if(w.step===4){w.thema=v('thema');w.breakRun=document.getElementById('wiz-br').checked;w.openbaar=document.getElementById('wiz-openbaar').checked}return true;}
+ function draw(){let ov=document.getElementById('adminWizardOverlay');if(!ov){ov=document.createElement('div');ov.id='adminWizardOverlay';ov.className='overlay admin-wizard';document.body.appendChild(ov)}
+ ov.innerHTML='<div class="dialog wide"><h3>Nieuw toernooi · stap '+(w.step+1)+' van '+pages.length+'</h3><div class="db"><div class="steps">'+pages.map((x,i)=>'<i class="'+(i<=w.step?'done':'')+'"></i>').join('')+'</div><h4>'+pages[w.step][0]+'</h4><p class="muted small">'+pages[w.step][1]+'</p>'+body()+'</div><div class="df"><button class="btn sec" id="wiz-cancel">Annuleren</button>'+(w.step?'<button class="btn sec" id="wiz-back">Vorige</button>':'')+'<button class="btn" id="wiz-next">'+(w.step===5?'Toernooi aanmaken':'Volgende')+'</button></div></div>';
+ document.getElementById('wiz-cancel').onclick=()=>ov.remove();const back=document.getElementById('wiz-back');if(back)back.onclick=()=>{save();w.step--;draw()};
+ document.getElementById('wiz-next').onclick=()=>{if(!save())return;if(w.step<5){w.step++;draw();return}adminRemember();stopOnlineSynchronisatie();const nieuw=P.nieuwToernooi({naam:w.naam,startdatum:w.datum,locatieNaam:w.locatie||'Hoofdlocatie'});nieuw.locaties[0].thema=w.thema;nieuw.instellingen.pauzeNa=w.pauze;nieuw.instellingen.derden={0:w.derden};nieuw.instellingen.breakRun=w.breakRun;nieuw.instellingen.starttijdVoorkeur=w.starttijd;nieuw.deelnemersvorm=w.type;nieuw.verwachtAantal=w.aantal;nieuw.online.toegang=w.openbaar?'openbaar':'besloten';nieuw.online.gepubliceerd=w.openbaar;w.namen.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).forEach(n=>nieuw.spelers.push(P.nieuweSpeler(n)));P.herplan(nieuw);T=nieuw;UI.dag=null;UI.lotingKey=null;UI.tab='overzicht';ov.remove();commit();adminRemember();startOnlineSynchronisatie();toast('Nieuw toernooi aangemaakt. Vul zo nodig de overige deelnemers in en start daarna de loting.');};}
+ draw();
+}
+function adminAll(){adminCloseMenu();adminRemember();const local=adminCatalog();const online=(window.POOL_ONLINE?.state?.tournaments||[]);const all={...local};online.forEach(x=>{all[x.id]={...(all[x.id]||{}),...x,online:true}});const rows=Object.values(all).sort((a,b)=>String(b.gewijzigd||'').localeCompare(String(a.gewijzigd||'')));
+ dialoog({titel:'Alle toernooien',breed:true,annuleer:false,html:'<div class="admin-tourneys">'+(rows.length?rows.map(x=>'<article><b>'+esc(x.naam||'Pooltoernooi')+'</b> '+(x.id===T.id?'<span class="chip ok">Actief</span>':'')+'<div class="small muted">'+esc(x.datum||x.startdatum||'')+' · '+esc(x.locatie||x.locatieNaam||'')+'</div><div class="row"><button class="btn sec sm" data-act="admin-open" data-id="'+esc(x.id)+'"'+(x.id===T.id?' disabled':'')+'>Openen</button><button class="btn sec sm" data-act="admin-duplicate" data-id="'+esc(x.id)+'">Dupliceren</button></div></article>').join(''):'<p>Geen toernooien gevonden.</p>')+'</div><p class="small muted">Lokale toernooien zijn beschikbaar op dit apparaat. Online toernooien verschijnen wanneer je bent aangemeld en de lijst is geladen. Verwijderen en archiveren zijn bewust nog niet actief om uitslagen te beschermen.</p>',knoppen:[{label:'Sluiten',val:'sluit',cls:'sec'}]});}
+async function adminLoad(id,duplicate){let item=null;try{item=JSON.parse(localStorage.getItem('pooltoernooi.admin.data.'+id)||'null')}catch(e){}if(!item&&window.POOL_ONLINE?.loadTournament){try{item=await window.POOL_ONLINE.loadTournament(id)}catch(e){}}if(!item){toast('Toernooi niet beschikbaar. Meld je aan voor online toernooien.',true);return}if(!duplicate&&!(await bevestig('Open '+esc(item.naam)+'? De huidige stand wordt apart bewaard.',{titel:'Toernooi wisselen',ja:'Openen'})))return;adminRemember();stopOnlineSynchronisatie();if(duplicate){item=JSON.parse(JSON.stringify(item));item.id=P.uid('t');item.naam+=' (kopie)';item.online={toegang:'besloten',synchroniseren:true,gepubliceerd:false};item.gewijzigd=new Date().toISOString()}T=item;migreerNaLaden();UI.tab='overzicht';UI.dag=null;UI.lotingKey=null;commit();adminRemember();startOnlineSynchronisatie();toast(duplicate?'Kopie gemaakt':'Toernooi geopend');}
+function adminTheme(){adminCloseMenu();const loc=locatieVoorWeergave();dialoog({titel:'Thema huidig toernooi',html:'<p>Wijzig het uiterlijk zonder loting of uitslagen te veranderen.</p><label class="f">Thema<select id="admin-theme">'+Object.keys(THEMAS).map(k=>'<option value="'+k+'"'+(loc.thema===k?' selected':'')+'>'+esc(THEMAS[k].naam)+'</option>').join('')+'</select></label>',knoppen:[{label:'Annuleren',val:null,cls:'sec'},{label:'Thema toepassen',val:'apply'}],lees:ov=>$('#admin-theme',ov).value}).then(v=>{if(!v)return;loc.thema=v;commit();toast('Thema aangepast');});}
+function adminChangelog(){adminCloseMenu();melding('Changelog',ADMIN_CHANGELOG.map(([d,t])=>'<p><b>'+esc(d)+'</b> · '+esc(t)+'</p>').join('')+'<p class="small muted">Alleen wijzigingen die betrouwbaar zijn vastgelegd worden getoond.</p>');}
 const ACT = {
+  'admin-menu'(){UI.adminMenu=!UI.adminMenu;render()},
+  'admin-new'(){adminWizard()},
+  'admin-all'(){adminAll()},
+  'admin-settings'(){adminCloseMenu();UI.tab='instellingen';UI.inst='toernooi';render()},
+  'admin-themes'(){adminTheme()},
+  'admin-changelog'(){adminChangelog()},
+  'admin-open'(b){document.querySelector('.overlay')?.remove();adminLoad(b.dataset.id,false)},
+  'admin-duplicate'(b){document.querySelector('.overlay')?.remove();adminLoad(b.dataset.id,true)},
   'br-adjust'(b) { const matches=brMatches(UI.dag.key,UI.dag.nr); const m=matches.find(x=>x.id===b.dataset.match); if(!m||![m.g.a,m.g.b].includes(b.dataset.id))return; T.breakRuns=T.breakRuns||{}; const v=T.breakRuns[m.id]||(T.breakRuns[m.id]={}); v[b.dataset.id]=Math.max(0,(Number(v[b.dataset.id])||0)+Number(b.dataset.delta)); if(!v[b.dataset.id])delete v[b.dataset.id]; UI.brSelected=m.id;UI.brOpen=true;commit(); },
   'dag-lijst'() { UI.dagLijst = UI.dagLijst === false; render(); },
   tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = mobielWeergave() ? false : true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
