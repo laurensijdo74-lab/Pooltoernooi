@@ -756,9 +756,9 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 .stats-help summary{cursor:pointer;font-weight:700;color:var(--accent)}
 .stats-help>div{padding-top:8px;line-height:1.6}
 .stats-table{table-layout:fixed;width:100%}
-.stats-table th:first-child{width:40%}
-.stats-table th:nth-child(n+2):nth-child(-n+6){width:9%}
-.stats-table th:last-child{width:15%}
+.stats-table th:first-child{width:46%}
+.stats-table th:nth-child(n+2):nth-child(-n+5){width:9%}
+.stats-table th:last-child{width:18%}
 .stats-name{display:flex;align-items:center;gap:7px;min-width:0}
 .stats-name strong{min-width:0;overflow-wrap:anywhere;line-height:1.25}
 .stats-table .stats-out td{background:var(--bad-soft)}
@@ -767,9 +767,9 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 @media(max-width:980px){
  .stats-card .body{padding:8px 7px}
  .stats-table th,.stats-table td{padding:9px 2px!important;font-size:clamp(10px,2.8vw,14px)!important}
- .stats-table th:first-child{width:39%}
- .stats-table th:nth-child(n+2):nth-child(-n+6){width:9%}
- .stats-table th:last-child{width:16%}
+ .stats-table th:first-child{width:44%}
+ .stats-table th:nth-child(n+2):nth-child(-n+5){width:9%}
+ .stats-table th:last-child{width:20%}
  .stats-name{gap:4px}
  .stats-name .ball{font-size:11px}
  .stats-name strong{font-size:clamp(11px,3vw,15px)}
@@ -3318,31 +3318,27 @@ function viewStanden() {
 /* ---------- Toernooibrede wedstrijdstatistieken ---------- */
 function toernooiStatistieken(){
   const stats=new Map();
-  (T.spelers||[]).filter(x=>x.naam).forEach(x=>stats.set(x.id,{id:x.id,naam:x.naam,gespeeld:0,gewonnen:0,verloren:0,eigenBreak:0,poGewonnen:0,actief:true}));
-  const gezienDerden=new Set();
-  function tel(g,isPlayoff=false){
-    if(!g || !g.w || !stats.has(g.a) || !stats.has(g.b) || (g.w!==g.a && g.w!==g.b))return;
+  (T.spelers||[]).filter(x=>x.naam).forEach(x=>stats.set(x.id,{id:x.id,naam:x.naam,gespeeld:0,gewonnen:0,verloren:0,eigenBreak:0,actief:true}));
+  const getelde=new Set();
+  function tel(g,uniek){
+    if(!g||!g.w||!stats.has(g.a)||!stats.has(g.b)||(g.w!==g.a&&g.w!==g.b)||getelde.has(uniek))return;
+    getelde.add(uniek);
     const a=stats.get(g.a),b=stats.get(g.b);
     a.gespeeld++;b.gespeeld++;
-    if(isPlayoff)stats.get(g.w).poGewonnen++;else stats.get(g.w).gewonnen++;
+    stats.get(g.w).gewonnen++;
     stats.get(g.w===g.a?g.b:g.a).verloren++;
-    if(g.w===g.a && !isPlayoff)a.eigenBreak++;
+    if(g.w===g.a)a.eigenBreak++;
   }
   (T.plan.rondes||[]).forEach(r=>{
     const rd=T.rondes[r.key];if(!rd||!rd.geloot)return;
     (rd.poules||[]).forEach(p=>{
-      (p.schema||[]).forEach(tel);
-      if(p.fin && p.fin.plaatsen){
-        p.fin.plaatsen.forEach(pl=>(pl.pp?.stappen||[]).forEach(st=>(st.games||[]).forEach(g=>tel(g,true))));
-      }else if(p.pp){(p.pp.stappen||[]).forEach(st=>(st.games||[]).forEach(g=>tel(g,true)));}
+      (p.schema||[]).forEach((g,i)=>tel(g,r.key+':'+p.nr+':reg:'+i));
+      if(p.fin&&p.fin.plaatsen){
+        p.fin.plaatsen.forEach((pl,pi)=>(pl.pp?.stappen||[]).forEach((st,si)=>(st.games||[]).forEach((g,gi)=>tel(g,r.key+':'+p.nr+':fin:'+pi+':'+si+':'+gi))));
+      }else if(p.pp){(p.pp.stappen||[]).forEach((st,si)=>(st.games||[]).forEach((g,gi)=>tel(g,r.key+':'+p.nr+':pp:'+si+':'+gi)));}
     });
-    Object.entries((T.derden||{})[r.key]||{}).forEach(([i,po])=>{
-      const k=r.key+':'+i;if(gezienDerden.has(k))return;gezienDerden.add(k);
-      (po.games||[]).forEach(g=>tel(g,true));
-    });
+    Object.entries((T.derden||{})[r.key]||{}).forEach(([i,po])=>(po.games||[]).forEach((g,gi)=>tel(g,r.key+':derde:'+i+':'+gi)));
   });
-  // Deelnemers zijn uitgeschakeld wanneer hun laatste afgeronde poule geen
-  // kwalificatie oplevert. Een openstaande play-off blijft 'in toernooi'.
   stats.forEach(row=>{
     let laatste=null;
     (T.plan.rondes||[]).forEach(r=>{
@@ -3352,22 +3348,20 @@ function toernooiStatistieken(){
     });
     if(!laatste){row.actief=!((T.spelers||[]).find(x=>x.id===row.id)||{}).reserve;return;}
     if(!P.pouleAfgerond(T,laatste.p)){row.actief=true;return;}
-    if(!P.volgendeKey(T,laatste.r.key)){
-      row.actief=P.eindvolgorde(T,laatste.p)[0]===row.id;return;
-    }
+    if(!P.volgendeKey(T,laatste.r.key)){row.actief=P.eindvolgorde(T,laatste.p)[0]===row.id;return;}
     const st=P.spelerRondeStatus(T,laatste.r.key,row.id);
     row.actief=st.s!=='uit';
   });
-  return [...stats.values()].sort((a,b)=>b.gewonnen-a.gewonnen||b.eigenBreak-a.eigenBreak||b.poGewonnen-a.poGewonnen||a.verloren-b.verloren||a.naam.localeCompare(b.naam,'nl'));
+  return [...stats.values()].sort((a,b)=>b.gewonnen-a.gewonnen||b.eigenBreak-a.eigenBreak||a.verloren-b.verloren||a.naam.localeCompare(b.naam,'nl'));
 }
 function viewStatistieken(){
   const rows=toernooiStatistieken();
-  const totals=rows.reduce((n,r)=>n+r.gewonnen+r.poGewonnen,0);
-     const uitleg='<details class="stats-help"><summary aria-label="Uitleg statistieken">? Uitleg kolommen</summary><div class="small muted"><b>Ges</b> = gespeelde reguliere wedstrijden. <b>Gew</b> = gewonnen reguliere wedstrijden (bepaalt de ranglijst). <b>Ver</b> = verloren reguliere wedstrijden. <b>EB</b> = reguliere wedstrijden gewonnen op eigen break (deelnemer links). <b>PO</b> = gewonnen play-offwedstrijden, afzonderlijk geteld. De ranglijst sorteert op Gew, vervolgens EB, PO en het minste aantal verloren wedstrijden. Walk-overs zonder gespeelde partij tellen niet mee. <b>In/Uit</b> = nog in het toernooi of uitgeschakeld.</div></details>';
-   return '<div class="sect stats-card"><header><h3>Statistieken · hele toernooi</h3><span class="muted small">'+totals+' wedstrijden gespeeld (incl. play-offs)</span></header><div class="body">'+uitleg+
-   '<table class="t stats-table"><thead><tr><th>Deelnemer</th><th class="num" title="Gespeeld regulier">Ges</th><th class="num" title="Gewonnen regulier">Gew</th><th class="num" title="Verloren regulier">Ver</th><th class="num" title="Winst eigen break regulier">EB</th><th class="num" title="Gewonnen play-offs">PO</th><th>Status</th></tr></thead><tbody>'+
-   (rows.length?rows.map((r,i)=>'<tr class="'+(r.actief?'stats-in':'stats-out')+'"><td><span class="stats-name">'+ball(i+1)+'<strong>'+esc(r.naam)+'</strong></span></td><td class="num">'+r.gespeeld+'</td><td class="num"><b>'+r.gewonnen+'</b></td><td class="num">'+r.verloren+'</td><td class="num">'+r.eigenBreak+'</td><td class="num">'+r.poGewonnen+'</td><td class="stats-status">'+(r.actief?'<span class="chip ok">In</span>':'<span class="chip bad">Uit</span>')+'</td></tr>').join(''):'<tr><td colspan="7">Nog geen deelnemers.</td></tr>')+
-   '</tbody></table></div></div>';
+  const totals=rows.reduce((n,r)=>n+r.gewonnen,0);
+  const uitleg='<details class="stats-help"><summary aria-label="Uitleg statistieken">? Uitleg kolommen</summary><div class="small muted"><b>Ges</b> = alle gespeelde wedstrijden, inclusief play-offs. <b>Gew</b> = alle gewonnen wedstrijden, inclusief play-offs (bepaalt de ranglijst). <b>Ver</b> = alle verloren wedstrijden. <b>EB</b> = gewonnen wedstrijden met eigen break (deelnemer links), inclusief play-offs. De ranglijst sorteert op Gew, daarna EB en vervolgens het minste aantal verloren wedstrijden. Walk-overs zonder gespeelde partij tellen niet mee. <b>In/Uit</b> = nog in het toernooi of uitgeschakeld.</div></details>';
+  return '<div class="sect stats-card"><header><h3>Statistieken · hele toernooi</h3><span class="muted small">'+totals+' wedstrijden gespeeld (incl. play-offs)</span></header><div class="body">'+uitleg+
+    '<table class="t stats-table"><thead><tr><th>Deelnemer</th><th class="num" title="Alle gespeelde wedstrijden">Ges</th><th class="num" title="Alle gewonnen wedstrijden">Gew</th><th class="num" title="Alle verloren wedstrijden">Ver</th><th class="num" title="Winst eigen break">EB</th><th>Status</th></tr></thead><tbody>'+
+    (rows.length?rows.map((r,i)=>'<tr class="'+(r.actief?'stats-in':'stats-out')+'"><td><span class="stats-name">'+ball(i+1)+'<strong>'+esc(r.naam)+'</strong></span></td><td class="num">'+r.gespeeld+'</td><td class="num"><b>'+r.gewonnen+'</b></td><td class="num">'+r.verloren+'</td><td class="num">'+r.eigenBreak+'</td><td class="stats-status">'+(r.actief?'<span class="chip ok">In</span>':'<span class="chip bad">Uit</span>')+'</td></tr>').join(''):'<tr><td colspan="6">Nog geen deelnemers.</td></tr>')+
+    '</tbody></table></div></div>';
 }
 
 /* ---------- planning ---------- */
