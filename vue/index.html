@@ -714,6 +714,20 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  .viewer-day-cols > :first-child{order:2;min-width:0;width:100%}
  .viewer-day-cols > :last-child{order:1;min-width:0;width:100%}
 }
+/* Mobiele freeze-stand: zweeft boven wedstrijden, desktop blijft intact. */
+@media screen and (max-width:980px){
+ #viewerFrozenStand{position:fixed;top:0;left:0;right:0;z-index:65;padding:5px 20px 7px;background:var(--bg);box-shadow:0 5px 16px rgba(0,0,0,.3);pointer-events:auto}
+ #viewerFrozenStand .sect{max-height:min(48dvh,390px);overflow-y:auto;overscroll-behavior:contain;border-radius:10px}
+ #viewerFrozenStand .sect>header{padding:5px 10px}
+ #viewerFrozenStand .sect>header h3{font-size:1rem}
+ #viewerFrozenStand .sect .body{padding:3px 8px!important}
+ #viewerFrozenStand .viewer-stand-table th,#viewerFrozenStand .viewer-stand-table td{padding-top:4px!important;padding-bottom:4px!important}
+ #viewerFrozenStand .viewer-stand-table .viewer-team-inner strong{font-size:clamp(12px,3.3vw,15px)!important}
+ #viewerFrozenStand .viewer-stand-table .num{font-size:clamp(12px,3.3vw,15px)!important}
+ #viewerFrozenStand .sect .body>.small:last-child{display:none}
+}
+@media screen and (min-width:981px){#viewerFrozenStand{display:none!important}}
+@media print{#viewerFrozenStand{display:none!important}}
 </style>
 </head>
 <body>
@@ -3401,6 +3415,27 @@ function fitViewerStandNames(){
  });
 }
 
+/* Toon de stand als vast blok zodra de gewone stand boven het scherm verdwijnt.
+   Stop zodra de wedstrijdlijst voorbij is; gebruik een kloon om de bestaande
+   pagina, wedstrijdindeling en realtime updates ongemoeid te laten. */
+function updateViewerFrozenStand(){
+ const old=document.getElementById('viewerFrozenStand');
+ if(!UI.viewer || UI.tab!=='dag' || !mobielWeergave()) {if(old)old.remove();return;}
+ const cols=document.querySelector('.viewer-day-cols');
+ const stand=cols&&cols.lastElementChild&&cols.lastElementChild.querySelector('.sect');
+ const games=cols&&cols.firstElementChild;
+ if(!stand||!games){if(old)old.remove();return;}
+ const sr=stand.getBoundingClientRect(),gr=games.getBoundingClientRect();
+ const visible=sr.bottom<=0 && gr.bottom>Math.min(window.innerHeight*.35,250);
+ if(!visible){if(old)old.remove();return;}
+ if(old)return;
+ const frozen=document.createElement('div');frozen.id='viewerFrozenStand';
+ frozen.setAttribute('aria-label','Vastgezette stand');
+ frozen.appendChild(stand.cloneNode(true));
+ document.body.appendChild(frozen);
+}
+window.addEventListener('scroll',updateViewerFrozenStand,{passive:true});
+window.addEventListener('resize',updateViewerFrozenStand,{passive:true});
 function render() {
   const app = $('#app'); if (!app) return;
   const y = window.scrollY, focusId = UI.focusId; UI.focusId = null;
@@ -3408,6 +3443,7 @@ function render() {
   app.innerHTML = heroHtml() + navHtml() + '<main class="wrap" id="main">' + view() + '</main>' + (UI.scorebord ? scorebordHtml() : '');
   window.scrollTo(0, UI.resetScroll ? 0 : y); UI.resetScroll = false;
   updateViewerCountdown();
+  updateViewerFrozenStand();
   /* Standnamen mogen op meerdere regels, niet kleiner worden gemaakt. */
   ververscScorebordVenster();
   if (UI.scrollNaar) { const el = document.getElementById(UI.scrollNaar); UI.scrollNaar = null; if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60); }
