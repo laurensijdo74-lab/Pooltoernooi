@@ -688,6 +688,26 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  .viewer-stand-table .viewer-team-inner{align-items:center!important}
  .viewer-stand-table .num{font-size:clamp(13px,3.65vw,17px)!important}
 }
+
+/* LIVE: uitsluitend pulserend bolletje en tekst, zonder klokkaart. */
+.hero-public .viewer-countdown.is-live,
+.viewer-countdown.is-live {
+  min-width:0!important;max-width:none!important;width:auto!important;
+  padding:0!important;margin-left:auto!important;
+  border:0!important;border-radius:0!important;
+  background:transparent!important;box-shadow:none!important;
+  display:flex!important;align-items:center;justify-content:flex-end;
+}
+.viewer-countdown.is-live .cd-label,.viewer-countdown.is-live .cd-date{display:none!important}
+.hero-public .viewer-countdown.is-live .cd-value{
+  display:inline-flex;align-items:center;gap:.35em;
+  color:#ff7777;font-size:clamp(1.1rem,2.5vw,1.5rem)!important;
+  font-weight:900;letter-spacing:.045em;line-height:1.1;
+  animation:viewer-live-pulse 2s ease-in-out infinite;
+}
+.viewer-countdown.is-live .live-dot{display:inline-block;width:.65em;height:.65em;flex:none;border-radius:50%;background:currentColor}
+@media(max-width:980px){.hero-public .viewer-countdown.is-live{grid-column:3;grid-row:2;justify-self:end!important;margin:0!important}}
+@media(prefers-reduced-motion:reduce){.viewer-countdown.is-live .cd-value{animation:none!important}}
 </style>
 </head>
 <body>
@@ -2423,7 +2443,7 @@ function updateViewerCountdown(){
   const el=document.getElementById('viewerCountdownValue');if(!el)return;
   const t=countdownTarget();if(!t || UI.tab!=='dag' || !UI.dag || UI.dag.key!==t.d.ronde || UI.dag.nr!==t.d.poule){el.closest('.viewer-countdown')?.remove();return;}
   let sec=Math.max(0,Math.ceil((t.ms-Date.now())/1000));
-  if(sec===0){el.closest('.viewer-countdown')?.classList.add('is-live');el.textContent='● LIVE';return;}
+  if(sec===0){el.closest('.viewer-countdown')?.classList.add('is-live');el.innerHTML='<span class="live-dot" aria-hidden="true"></span>LIVE';return;}
    el.closest('.viewer-countdown')?.classList.remove('is-live');
   const d=Math.floor(sec/86400);sec%=86400;
   const h=Math.floor(sec/3600);sec%=3600;
