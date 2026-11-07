@@ -708,6 +708,12 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 .viewer-countdown.is-live .live-dot{display:inline-block;width:.65em;height:.65em;flex:none;border-radius:50%;background:currentColor}
 @media(max-width:980px){.hero-public .viewer-countdown.is-live{grid-column:3;grid-row:2;justify-self:end!important;margin:0!important}}
 @media(prefers-reduced-motion:reduce){.viewer-countdown.is-live .cd-value{animation:none!important}}
+/* Mobiele toeschouwers: stand eerst, wedstrijden eronder. */
+@media screen and (max-width:980px){
+ .viewer-day-cols{display:flex!important;flex-direction:column!important;gap:20px}
+ .viewer-day-cols > :first-child{order:2;min-width:0;width:100%}
+ .viewer-day-cols > :last-child{order:1;min-width:0;width:100%}
+}
 </style>
 </head>
 <body>
@@ -3125,7 +3131,7 @@ function dagDetailHtml(key, nr) {
   const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p) + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + brPaneel(key,nr) + testHulpHtml(key, p) + '</div>';
   const playoffs = ppBlokHtml(key, p) + derdePp;
   const verslagen = verslagBlokHtml('poule', key, nr) + verslagBlokHtml('weekend', key, nr);
-  return '<div class="stack-l dag-detail-stack">' + kop + waarschuw + (wachtPh ? vorigePlayoffsHtml(key, p) : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + (UI.viewer ? brVoetnoot() : '') + verslagen + '</div>';
+  return '<div class="stack-l dag-detail-stack">' + kop + waarschuw + (wachtPh ? vorigePlayoffsHtml(key, p) : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols' + (UI.viewer ? ' viewer-day-cols' : '') + '">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + (UI.viewer ? brVoetnoot() : '') + verslagen + '</div>';
 }
 function pasPubliekeStandToe(remote, melding) {
   if (!remote || !remote.id || !T || remote.id !== T.id) return false;
