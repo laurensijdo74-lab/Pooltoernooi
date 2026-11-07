@@ -714,6 +714,22 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  .viewer-day-cols > :first-child{order:2;min-width:0;width:100%}
  .viewer-day-cols > :last-child{order:1;min-width:0;width:100%}
 }
+/* Compacte speeldagkop uitsluitend voor mobiele toeschouwers. */
+@media screen and (max-width:980px){
+ .public-dag-kop .body{padding:9px 12px!important}
+ .public-dag-kop .row.between{display:flex;flex-wrap:wrap;gap:7px;align-items:center}
+ .public-dag-kop .public-dag-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-width:0}
+ .public-dag-kop .public-dag-datum{font-size:clamp(15px,4vw,19px);line-height:1.15;white-space:nowrap}
+ .public-dag-kop .public-dag-ronde{font-size:11px;margin-top:2px}
+ .public-dag-kop .public-dag-controls{width:100%;justify-content:space-between;gap:5px}
+ .public-dag-kop .public-dag-controls .btn{padding:5px 9px;font-size:13px;min-width:0}
+ .public-dag-kop .public-dag-controls .viewer-refresh{margin-left:auto;padding:5px 9px}
+ .public-dag-kop .public-live-state{font-size:12px;font-weight:800;white-space:nowrap;color:var(--good)}
+ .viewer-day-cols>.stack:last-child>.sect>header{padding:7px 10px}
+ .viewer-day-cols>.stack:last-child>.sect .body{padding-top:6px!important;padding-bottom:7px!important}
+ .viewer-day-cols>.stack:last-child .viewer-stand-table th,.viewer-day-cols>.stack:last-child .viewer-stand-table td{padding-top:5px!important;padding-bottom:5px!important}
+ .viewer-day-cols>.stack:last-child .body>.small:last-child{font-size:12px;line-height:1.3}
+}
 /* Mobiele freeze-stand: zweeft boven wedstrijden, desktop blijft intact. */
 @media screen and (max-width:980px){
  #viewerFrozenStand{position:fixed;top:0;left:0;right:0;z-index:65;padding:5px 20px 7px;background:var(--bg);box-shadow:0 5px 16px rgba(0,0,0,.3);pointer-events:auto}
@@ -2459,8 +2475,18 @@ function countdownHtml(){
   if(!t || UI.tab!=='dag' || !UI.dag || UI.dag.key!==t.d.ronde || UI.dag.nr!==t.d.poule)return '';
   return '<div class="viewer-countdown noprint" id="viewerCountdown" role="timer" aria-label="Aftellen naar de eerstvolgende speeldag"><span class="cd-label">⏱ START OVER</span><span class="cd-value" id="viewerCountdownValue">--</span><span class="cd-date">'+esc(P.datumKort(t.d.datum))+' · '+t.hh+':00</span></div>';
 }
+function updatePublicDayStatus(){
+ const el=document.getElementById('publicDayStatus');
+ if(!el||!UI.viewer||!UI.dag)return;
+ const st=dagStatus(UI.dag.key,UI.dag.nr);
+ const target=countdownTarget();
+ const live=!!(target && target.ms<=Date.now() && target.d.ronde===UI.dag.key && target.d.poule===UI.dag.nr && st.code!=='klaar');
+ el.textContent=st.code==='klaar'?'Gespeeld':live?'● Nu bezig':st.tekst;
+ el.classList.toggle('is-active',live);
+}
 function updateViewerCountdown(){
-  const el=document.getElementById('viewerCountdownValue');if(!el)return;
+  updatePublicDayStatus();
+   const el=document.getElementById('viewerCountdownValue');if(!el)return;
   const t=countdownTarget();if(!t || UI.tab!=='dag' || !UI.dag || UI.dag.key!==t.d.ronde || UI.dag.nr!==t.d.poule){el.closest('.viewer-countdown')?.remove();return;}
   let sec=Math.max(0,Math.ceil((t.ms-Date.now())/1000));
   if(sec===0){el.closest('.viewer-countdown')?.classList.add('is-live');el.innerHTML='<span class="live-dot" aria-hidden="true"></span>LIVE';return;}
@@ -3132,7 +3158,7 @@ function dagDetailHtml(key, nr) {
   const beheerKnoppen = '<button class="btn sec sm" data-act="scorebord">Scorebord</button><button class="btn sec sm" data-act="scorebord-venster" title="Opent het scorebord in een eigen venster, bijvoorbeeld voor een tweede scherm of tv">Scorebord in eigen venster</button><button class="btn sec sm" data-act="print">Afdrukken</button>';
   const ondertitel = UI.viewer ? P.datumLang(d.datum) : P.datumLang(d.datum) + ' · ' + locNaam(dagLocatie(key, nr));
   const navigatie = '<button class="btn sec sm" data-act="dag-nav" data-d="-1"' + (vorige ? '' : ' disabled') + '>← Vorige</button><button class="btn sec sm" data-act="dag-nav" data-d="1"' + (volgendeOpenbaar ? '' : ' disabled') + '>Volgende →</button>' + (UI.viewer ? viewerRefresh : beheerKnoppen);
-  const titelBlok = UI.viewer ? '<div class="stack"><div class="public-dag-datum">' + esc(P.datumLang(d.datum)) + '</div><div class="public-dag-ronde">' + esc(rondeNaam(key)) + ' · ' + esc(s.tekst) + '</div></div>' : '<div class="stack"><div class="row"><h2>' + esc(rondePoule(key, nr)) + '</h2><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span></div><div class="muted">' + esc(ondertitel) + '</div></div>';
+  const titelBlok = UI.viewer ? '<div class="public-dag-heading"><div><div class="public-dag-datum">' + esc(P.datumLang(d.datum)) + '</div><div class="public-dag-ronde">' + esc(rondeNaam(key)) + '</div></div><span class="public-live-state" id="publicDayStatus">' + esc(s.code === 'klaar' ? 'Gespeeld' : s.tekst) + '</span></div>' : '<div class="stack"><div class="row"><h2>' + esc(rondePoule(key, nr)) + '</h2><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span></div><div class="muted">' + esc(ondertitel) + '</div></div>';
   const kop = '<div class="sect ' + (UI.viewer ? 'public-dag-kop' : '') + '"><div class="body"><div class="row between">' + titelBlok +
     '<div class="row noprint' + (UI.viewer ? ' public-dag-controls' : '') + '">' + navigatie + '</div></div></div></div>';
   const vast = P.vergrendeld(T, key, nr), ontgrendeldKlaar = !vast && p.ontgrendeld && P.pouleAfgerond(T, p);
