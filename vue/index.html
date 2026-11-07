@@ -744,6 +744,32 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 }
 @media screen and (min-width:981px){#viewerFrozenStand{display:none!important}}
 @media print{#viewerFrozenStand{display:none!important}}
+
+/* Statistieken: zelfde tabelstijl als standen, zonder horizontaal scrollen. */
+.stats-card .body{padding:12px 14px}
+.stats-help{margin-bottom:12px;border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+.stats-help summary{cursor:pointer;font-weight:700;color:var(--accent)}
+.stats-help>div{padding-top:8px;line-height:1.6}
+.stats-table{table-layout:fixed;width:100%}
+.stats-table th:first-child{width:44%}
+.stats-table th:nth-child(n+2):nth-child(-n+5){width:10%}
+.stats-table th:last-child{width:16%}
+.stats-name{display:flex;align-items:center;gap:7px;min-width:0}
+.stats-name strong{min-width:0;overflow-wrap:anywhere;line-height:1.25}
+.stats-table .stats-out td{background:var(--bad-soft)}
+.stats-table .stats-in td{background:var(--good-soft)}
+.stats-table .stats-status .chip{padding:1px 5px}
+@media(max-width:980px){
+ .stats-card .body{padding:8px 7px}
+ .stats-table th,.stats-table td{padding:9px 2px!important;font-size:clamp(10px,2.8vw,14px)!important}
+ .stats-table th:first-child{width:43%}
+ .stats-table th:nth-child(n+2):nth-child(-n+5){width:10%}
+ .stats-table th:last-child{width:17%}
+ .stats-name{gap:4px}
+ .stats-name .ball{font-size:11px}
+ .stats-name strong{font-size:clamp(11px,3vw,15px)}
+ .stats-table .stats-status .chip{font-size:10px;padding:1px 3px}
+}
 </style>
 </head>
 <body>
@@ -2347,7 +2373,7 @@ function melding(titel, html) { return dialoog({ titel, html, ok: 'OK', annuleer
    ================================================================ */
 const TABS = [
   ['overzicht', 'Overzicht'], ['spelers', 'Spelers'], ['loting', 'Loting'], ['dag', 'Speeldagen'],
-  ['standen', 'Standen'], ['planning', 'Planning'], ['instellingen', 'Instellingen'], ['regels', 'Regels']
+  ['standen', 'Standen'], ['statistieken', 'Statistieken'], ['planning', 'Planning'], ['instellingen', 'Instellingen'], ['regels', 'Regels']
 ];
 const rondeNaam = k => { const r = P.planRonde(T, k); return r ? r.naam : k; };
 const rondeKort = k => { const r = P.planRonde(T, k); return r ? r.kort : k; };
@@ -2523,7 +2549,7 @@ function heroHtml() {
 }
 function tabsVoorWeergave() {
   if (!UI.viewer) return TABS;
-  const openbaar = ['standen', 'dag'];
+  const openbaar = ['standen', 'dag', 'statistieken'];
   return openbaar.map(k => TABS.find(t => t[0] === k)).filter(Boolean);
 }
 function navHtml() {
@@ -3284,6 +3310,61 @@ function viewStanden() {
   return '<div class="stack-l">' + tabs + extra + '<div class="cards" style="grid-template-columns:repeat(auto-fill,minmax(340px,1fr))">' + kaarten + '</div></div>';
 }
 
+/* ---------- Toernooibrede wedstrijdstatistieken ---------- */
+function toernooiStatistieken(){
+  const stats=new Map();
+  (T.spelers||[]).filter(x=>x.naam).forEach(x=>stats.set(x.id,{id:x.id,naam:x.naam,gespeeld:0,gewonnen:0,verloren:0,eigenBreak:0,actief:true}));
+  const gezienDerden=new Set();
+  function tel(g){
+    if(!g || !g.w || !stats.has(g.a) || !stats.has(g.b) || (g.w!==g.a && g.w!==g.b))return;
+    const a=stats.get(g.a),b=stats.get(g.b);
+    a.gespeeld++;b.gespeeld++;
+    stats.get(g.w).gewonnen++;
+    stats.get(g.w===g.a?g.b:g.a).verloren++;
+    if(g.w===g.a)a.eigenBreak++;
+  }
+  (T.plan.rondes||[]).forEach(r=>{
+    const rd=T.rondes[r.key];if(!rd||!rd.geloot)return;
+    (rd.poules||[]).forEach(p=>{
+      (p.schema||[]).forEach(tel);
+      if(p.fin && p.fin.plaatsen){
+        p.fin.plaatsen.forEach(pl=>(pl.pp?.stappen||[]).forEach(st=>(st.games||[]).forEach(tel)));
+      }else if(p.pp){(p.pp.stappen||[]).forEach(st=>(st.games||[]).forEach(tel));}
+    });
+    Object.entries((T.derden||{})[r.key]||{}).forEach(([i,po])=>{
+      const k=r.key+':'+i;if(gezienDerden.has(k))return;gezienDerden.add(k);
+      (po.games||[]).forEach(tel);
+    });
+  });
+  // Deelnemers zijn uitgeschakeld wanneer hun laatste afgeronde poule geen
+  // kwalificatie oplevert. Een openstaande play-off blijft 'in toernooi'.
+  stats.forEach(row=>{
+    let laatste=null;
+    (T.plan.rondes||[]).forEach(r=>{
+      const rd=T.rondes[r.key];
+      const p=rd&&rd.geloot&&(rd.poules||[]).find(p=>p.spelers.includes(row.id));
+      if(p)laatste={r,p};
+    });
+    if(!laatste){row.actief=!((T.spelers||[]).find(x=>x.id===row.id)||{}).reserve;return;}
+    if(!P.pouleAfgerond(T,laatste.p)){row.actief=true;return;}
+    if(!P.volgendeKey(T,laatste.r.key)){
+      row.actief=P.eindvolgorde(T,laatste.p)[0]===row.id;return;
+    }
+    const st=P.spelerRondeStatus(T,laatste.r.key,row.id);
+    row.actief=st.s!=='uit';
+  });
+  return [...stats.values()].sort((a,b)=>b.gewonnen-a.gewonnen||b.eigenBreak-a.eigenBreak||a.verloren-b.verloren||a.naam.localeCompare(b.naam,'nl'));
+}
+function viewStatistieken(){
+  const rows=toernooiStatistieken();
+  const totals=rows.reduce((n,r)=>n+r.gewonnen,0);
+  const uitleg='<details class="stats-help"><summary aria-label="Uitleg statistieken">? Uitleg kolommen</summary><div class="small muted"><b>Ges</b> = gespeelde wedstrijden. <b>Gew</b> = gewonnen wedstrijden. <b>Ver</b> = verloren wedstrijden. <b>EB</b> = gewonnen wedstrijden waarin deze deelnemer zelf de break had (links in het schema). De statistieken tellen alle gespeelde rondes en play-offs van dit toernooi mee. Een walk-over zonder gespeelde wedstrijd telt niet mee. Bij gelijke aantallen gewonnen wordt gesorteerd op EB, daarna op minst verloren.</div></details>';
+  return '<div class="sect stats-card"><header><h3>Statistieken · hele toernooi</h3><span class="muted small">'+totals+' wedstrijden gespeeld</span></header><div class="body">'+uitleg+
+  '<table class="t stats-table"><thead><tr><th>Deelnemer</th><th class="num" title="Gespeeld">Ges</th><th class="num" title="Gewonnen">Gew</th><th class="num" title="Verloren">Ver</th><th class="num" title="Winst eigen break">EB</th><th>Status</th></tr></thead><tbody>'+
+  (rows.length?rows.map((r,i)=>'<tr class="'+(r.actief?'stats-in':'stats-out')+'"><td><span class="stats-name">'+ball(i+1)+'<strong>'+esc(r.naam)+'</strong></span></td><td class="num">'+r.gespeeld+'</td><td class="num"><b>'+r.gewonnen+'</b></td><td class="num">'+r.verloren+'</td><td class="num">'+r.eigenBreak+'</td><td class="stats-status">'+(r.actief?'<span class="chip ok">In</span>':'<span class="chip bad">Uit</span>')+'</td></tr>').join(''):'<tr><td colspan="6">Nog geen deelnemers.</td></tr>')+
+  '</tbody></table></div></div>';
+}
+
 /* ---------- planning ---------- */
 function viewPlanning() {
   if (!T.plan.dagen.length) return '<div class="sect"><div class="body"><div class="note warn">Voeg eerst spelers toe; dan wordt de planning berekend.</div></div></div>';
@@ -3421,6 +3502,7 @@ function view() {
     case 'loting': return viewLoting();
     case 'dag': return viewDag();
     case 'standen': return viewStanden();
+    case 'statistieken': return viewStatistieken();
     case 'planning': return viewPlanning();
     case 'instellingen': return viewInstellingen();
     case 'regels': return viewRegels();
