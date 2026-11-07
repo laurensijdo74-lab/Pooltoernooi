@@ -718,6 +718,36 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
   .dagview .cols>div:first-child{min-width:0}
   .dagview .cols>.stack:last-child{position:sticky!important;top:62px!important;align-self:start!important;max-height:calc(100vh - 78px)!important;overflow-y:auto!important;overscroll-behavior:contain}
 }
+
+
+/* Beheer mobiel: wedstrijdweergave gelijk aan toeschouwers, desktop intact. */
+@media screen and (max-width:980px){
+  .dagview .game:not(.viewer-game),
+  .dagview .ghead:not(.viewer-ghead){
+    grid-template-columns:minmax(0,1fr) 1.35rem minmax(0,1fr)!important;
+    width:100%;min-width:0;
+  }
+  .dagview .game:not(.viewer-game)>.gnr,
+  .dagview .ghead:not(.viewer-ghead)>span:first-child{display:none!important}
+  .dagview .game:not(.viewer-game) .pl{
+    min-width:0!important;max-width:100%;padding:11px 7px!important;
+    gap:3px!important;align-items:center;
+  }
+  .dagview .game:not(.viewer-game) .pl .nm{
+    min-width:0!important;white-space:normal!important;
+    overflow:visible!important;text-overflow:clip!important;
+    overflow-wrap:break-word!important;word-break:normal!important;
+    font-size:clamp(13px,3.65vw,17px)!important;
+    font-weight:750!important;letter-spacing:-.025em;
+    line-height:1.2!important;
+  }
+  .dagview .game:not(.viewer-game) .pl .sc{
+    flex:0 0 auto!important;min-width:0!important;
+    font-size:.9rem!important;align-self:center;
+  }
+  .dagview .game:not(.viewer-game) .vs{font-size:.75rem}
+  .dagview .game:not(.viewer-game) .brkrow{padding-left:8px}
+}
 </style>
 </head>
 <body>
