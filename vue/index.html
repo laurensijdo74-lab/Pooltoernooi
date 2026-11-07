@@ -583,6 +583,19 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 }
 
 
+/* Vue: typografisch cafelogo zonder foto; bestaande herohoogte behouden. */
+.hero-public .vue-wordmark{display:flex;flex-direction:column;justify-content:center;align-items:center;flex:0 0 190px;width:190px;height:76px;color:#fff;line-height:.82;text-align:center;transform:rotate(-5deg);text-shadow:0 2px 3px #0006;pointer-events:none}
+.hero-public .vue-wordmark .vue-cafe{font:700 13px/1 var(--font-body);letter-spacing:.12em;align-self:flex-start;margin-left:13px;transform:rotate(5deg)}
+.hero-public .vue-wordmark .vue-script{font-family:'URW Chancery L','Apple Chancery','Brush Script MT','Segoe Script',cursive;font-style:italic;font-weight:400;font-size:39px;letter-spacing:-.065em;white-space:nowrap}
+.hero-public .vue-wordmark .vue-script-bottom{font-size:35px;margin-left:23px}
+@media(max-width:980px){
+ .hero-public .hero-in>.vue-wordmark{grid-column:1;grid-row:2;align-self:center;justify-self:start;width:105px;height:66px;flex:none;transform:rotate(-5deg) scale(.95);transform-origin:left center}
+ .hero-public .vue-wordmark .vue-cafe{font-size:9px;margin-left:7px}
+ .hero-public .vue-wordmark .vue-script{font-size:25px}
+ .hero-public .vue-wordmark .vue-script-bottom{font-size:22px;margin-left:9px}
+}
+@media(max-width:380px){.hero-public .hero-in>.vue-wordmark{transform:rotate(-5deg) scale(.83)}}
+
 /* Mobiele wedstrijdnamen: grotere, vette letters zoals de eerdere weergave.
    Alleen wedstrijdregels; de volledige bovenbalk blijft ongewijzigd. */
 @media screen and (max-width:980px){
@@ -2544,7 +2557,7 @@ function viewerBreakHtml() {
 
 function heroHtml() {
   const loc = locatieVoorWeergave();
-  const logo = loc.logo ? '<img class="logo" alt="Logo ' + esc(loc.naam) + '" src="' + esc(loc.logo) + '">' : '<span class="logo-bal" aria-hidden="true">' + ((THEMAS[loc.thema] || {}).icoon || '🎱') + '</span>';
+  const logo = UI.viewer && /vue grandige/i.test(loc.naam || '') ? '<div class="vue-wordmark" role="img" aria-label="Café Vue Grandige"><span class="vue-cafe">CAFÉ</span><span class="vue-script">Vue</span><span class="vue-script vue-script-bottom">Grandige</span></div>' : (loc.logo ? '<img class="logo" alt="Logo ' + esc(loc.naam) + '" src="' + esc(loc.logo) + '">' : '<span class="logo-bal" aria-hidden="true">' + ((THEMAS[loc.thema] || {}).icoon || '🎱') + '</span>');
   const st = backupStatus();
   const o = window.POOL_ONLINE, os = o && o.state || {};
   const onlineChip = UI.viewer || !o ? '' : '<button class="chip ' + (os.user ? 'ok' : (os.status === 'fout' ? 'bad' : 'warn')) + '" data-act="ga-gegevens" title="Naar Instellingen → Online versie">' + (os.user ? '✓ Online aangemeld' : (os.status === 'initialiseren' ? 'Online laden…' : 'Niet aangemeld')) + '</button>';
