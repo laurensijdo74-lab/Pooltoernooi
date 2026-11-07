@@ -4,6 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=0.5, maximum-scale=5, user-scalable=yes">
 <title>Pooltoernooi</title>
+<script>
+/* Alleen de publieke Karroesel-link krijgt het Kar-startschermicoon. */
+if (new URLSearchParams(location.search).get('tournament') === 'tmvocon68k4ij1') {
+  const manifest = document.createElement('link');
+  manifest.rel = 'manifest'; manifest.href = 'kar-manifest.webmanifest';
+  document.head.appendChild(manifest);
+  const icon = document.createElement('link');
+  icon.rel = 'icon'; icon.type = 'image/png'; icon.sizes = '192x192'; icon.href = 'kar-icon-192.png';
+  document.head.appendChild(icon);
+  const apple = document.createElement('link');
+  apple.rel = 'apple-touch-icon'; apple.href = 'kar-icon-192.png';
+  document.head.appendChild(apple);
+  document.title = 'Karroesel Pooltoernooi';
+}
+</script>
+
 <style>
 :root {
   --bg: #eef1ec; --surface: #ffffff; --surface2: #f4f6f2; --ink: #16241c; --muted: #5d6e63; --line: #d3dcd5;
@@ -1882,7 +1898,7 @@ function pasThemaToe(loc) {
     root.style.setProperty(n, val);
   });
   root.setAttribute('data-mode', t.mode);
-  document.title = (T.naam || 'Pooltoernooi') + ' – ' + (loc.naam || '');
+  document.title = new URLSearchParams(location.search).get('tournament') === 'tmvocon68k4ij1' ? 'Karroesel Pooltoernooi' : (T.naam || 'Pooltoernooi') + ' – ' + (loc.naam || '');
 }
 
 /* ---------- opslag ---------- */
