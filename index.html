@@ -297,6 +297,8 @@ table.t select { max-width: 150px; }
 .tabs2 button { border: 1px solid var(--line); background: var(--surface); padding: 6px 14px; border-radius: 99px; cursor: pointer; font-weight: 600; color: var(--muted); }
 .tabs2 button[aria-pressed="true"] { background: var(--brand); border-color: var(--brand); color: var(--brand-ink); }
 
+.admin-tourney-group{display:grid;gap:8px;margin-bottom:16px}.admin-tourney-group h4{padding:8px 4px;border-bottom:2px solid var(--line)}
+.admin-tourneys article .row{flex-wrap:wrap}.admin-tourneys article .row.between{justify-content:space-between}
 /* ---------- Scorebord ---------- */
 .scorebord { position: fixed; inset: 0; z-index: 90; background: var(--bg); color: var(--ink); padding: 3vh 4vw; overflow: auto; display: flex; flex-direction: column; gap: 3vh; }
 .scorebord h2 { font-size: clamp(1.6rem, 4vw, 3.2rem); }
@@ -3730,8 +3732,42 @@ function adminWizard(){
  document.getElementById('wiz-next').onclick=()=>{if(!save())return;if(w.step<5){w.step++;draw();return}adminRemember();stopOnlineSynchronisatie();const nieuw=P.nieuwToernooi({naam:w.naam,startdatum:w.datum,locatieNaam:w.locatie||'Hoofdlocatie'});nieuw.locaties[0].thema=w.thema;nieuw.instellingen.pauzeNa=w.pauze;nieuw.instellingen.derden={0:w.derden};nieuw.instellingen.breakRun=w.breakRun;nieuw.instellingen.starttijdVoorkeur=w.starttijd;nieuw.deelnemersvorm=w.type;nieuw.verwachtAantal=w.aantal;nieuw.online.toegang=w.openbaar?'openbaar':'besloten';nieuw.online.gepubliceerd=w.openbaar;w.namen.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).forEach(n=>nieuw.spelers.push(P.nieuweSpeler(n)));P.herplan(nieuw);T=nieuw;UI.dag=null;UI.lotingKey=null;UI.tab='overzicht';ov.remove();commit();adminRemember();startOnlineSynchronisatie();toast('Nieuw toernooi aangemaakt. Vul zo nodig de overige deelnemers in en start daarna de loting.');};}
  draw();
 }
-function adminAll(){adminCloseMenu();adminRemember();const local=adminCatalog();const online=(window.POOL_ONLINE?.state?.tournaments||[]);const all={...local};online.forEach(x=>{all[x.id]={...(all[x.id]||{}),...x,online:true}});const rows=Object.values(all).sort((a,b)=>String(b.gewijzigd||'').localeCompare(String(a.gewijzigd||'')));
- dialoog({titel:'Alle toernooien',breed:true,annuleer:false,html:'<div class="admin-tourneys">'+(rows.length?rows.map(x=>'<article><b>'+esc(x.naam||'Pooltoernooi')+'</b> '+(x.id===T.id?'<span class="chip ok">Actief</span>':'')+'<div class="small muted">'+esc(x.datum||x.startdatum||'')+' · '+esc(x.locatie||x.locatieNaam||'')+'</div><div class="row"><button class="btn sec sm" data-act="admin-open" data-id="'+esc(x.id)+'"'+(x.id===T.id?' disabled':'')+'>Openen</button><button class="btn sec sm" data-act="admin-duplicate" data-id="'+esc(x.id)+'">Dupliceren</button></div></article>').join(''):'<p>Geen toernooien gevonden.</p>')+'</div><p class="small muted">Lokale toernooien zijn beschikbaar op dit apparaat. Online toernooien verschijnen wanneer je bent aangemeld en de lijst is geladen. Verwijderen en archiveren zijn bewust nog niet actief om uitslagen te beschermen.</p>',knoppen:[{label:'Sluiten',val:'sluit',cls:'sec'}]});}
+function adminTournamentStatus(item){
+ const rounds=Object.values(item?.rondes||{});
+ if(rounds.some(r=>r?.geloot))return 'actief';
+ return 'concept';
+}
+function adminTournamentData(id){
+ if(T&&T.id===id)return T;
+ try{return JSON.parse(localStorage.getItem('pooltoernooi.admin.data.'+id)||'null')}catch(e){return null}
+}
+function adminAll(){
+ adminCloseMenu();adminRemember();
+ const local=adminCatalog(),online=(window.POOL_ONLINE?.state?.tournaments||[]),all={...local};
+ online.forEach(x=>{all[x.id]={...(all[x.id]||{}),...x,online:true}});
+ const rows=Object.values(all).sort((a,b)=>String(a.datum||a.startdatum||'9999').localeCompare(String(b.datum||b.startdatum||'9999'))||String(a.naam||'').localeCompare(String(b.naam||''),'nl'));
+ const groepen=new Map();
+ rows.forEach(x=>{const naam=x.locatie||x.locatieNaam||adminTournamentData(x.id)?.locaties?.[0]?.naam||'Locatie onbekend';if(!groepen.has(naam))groepen.set(naam,[]);groepen.get(naam).push(x)});
+ const html=[...groepen.entries()].sort((a,b)=>a[0].localeCompare(b[0],'nl')).map(([loc,items])=>'<section class="admin-tourney-group"><h4>📍 '+esc(loc)+' <span class="muted small">('+items.length+')</span></h4>'+items.map(x=>{
+ const data=adminTournamentData(x.id),status=data?adminTournamentStatus(data):'onbekend';
+ const magWeg=!!data&&status==='concept'&&!x.online;
+ const uitleg=x.online?'Online toernooi: verwijderen is niet beschikbaar zonder veilige verwijdering in Firebase.':!data?'Gegevens niet lokaal beschikbaar.':status!=='concept'?'Een geloot of gestart toernooi kan niet worden verwijderd.':'';
+ return '<article><div class="row between"><b>'+esc(x.naam||'Pooltoernooi')+'</b><span class="chip '+(status==='concept'?'info':'')+'">'+(status==='concept'?'Concept':status==='actief'?'Geloot / actief':'Status onbekend')+'</span></div><div class="small muted">Start: '+esc(x.datum||x.startdatum||'onbekend')+'</div><div class="row"><button class="btn sec sm" data-act="admin-open" data-id="'+esc(x.id)+'"'+(x.id===T.id?' disabled':'')+'>Openen</button><button class="btn sec sm" data-act="admin-duplicate" data-id="'+esc(x.id)+'">Dupliceren</button><button class="btn danger sm" data-act="admin-delete" data-id="'+esc(x.id)+'"'+(magWeg?'':' disabled title="'+esc(uitleg)+'"')+'>Verwijderen</button></div></article>';
+ }).join('')+'</section>').join('');
+ dialoog({titel:'Alle toernooien',breed:true,annuleer:false,html:'<div class="admin-tourneys">'+(html||'<p>Geen toernooien gevonden.</p>')+'</div><p class="small muted">Gesorteerd op startdatum (oud naar nieuw), gegroepeerd per locatie. Alleen lokale concepttoernooien zonder loting kunnen worden verwijderd. Online toernooien blijven beschermd.</p>',knoppen:[{label:'Sluiten',val:'sluit',cls:'sec'}]});
+}
+async function adminDelete(id){
+ const data=adminTournamentData(id),catalog=adminCatalog(),item=catalog[id];
+ if(!data||!item||adminTournamentStatus(data)!=='concept'){toast('Verwijderen is alleen toegestaan bij concepttoernooien zonder loting.',true);return}
+ const online=(window.POOL_ONLINE?.state?.tournaments||[]).some(x=>x.id===id);
+ if(online){toast('Online toernooien kunnen hier niet veilig worden verwijderd.',true);return}
+ const ok=await bevestig('Concepttoernooi <b>'+esc(data.naam)+'</b> definitief van dit apparaat verwijderen? Dit kan niet ongedaan worden gemaakt.',{titel:'Concepttoernooi verwijderen',ja:'Definitief verwijderen',gevaar:true});
+ if(!ok)return;
+ // Het huidige toernooi blijft beschikbaar totdat een ander toernooi is geopend.
+ if(T&&T.id===id){toast('Open eerst een ander toernooi voordat je dit concept verwijdert.',true);return}
+ delete catalog[id];localStorage.setItem(ADMIN_CATALOG_KEY,JSON.stringify(catalog));localStorage.removeItem('pooltoernooi.admin.data.'+id);
+ document.querySelector('.overlay')?.remove();toast('Concepttoernooi verwijderd');adminAll();
+}
 async function adminLoad(id,duplicate){let item=null;try{item=JSON.parse(localStorage.getItem('pooltoernooi.admin.data.'+id)||'null')}catch(e){}if(!item&&window.POOL_ONLINE?.loadTournament){try{item=await window.POOL_ONLINE.loadTournament(id)}catch(e){}}if(!item){toast('Toernooi niet beschikbaar. Meld je aan voor online toernooien.',true);return}if(!duplicate&&!(await bevestig('Open '+esc(item.naam)+'? De huidige stand wordt apart bewaard.',{titel:'Toernooi wisselen',ja:'Openen'})))return;adminRemember();stopOnlineSynchronisatie();if(duplicate){item=JSON.parse(JSON.stringify(item));item.id=P.uid('t');item.naam+=' (kopie)';item.online={toegang:'besloten',synchroniseren:true,gepubliceerd:false};item.gewijzigd=new Date().toISOString()}T=item;migreerNaLaden();UI.tab='overzicht';UI.dag=null;UI.lotingKey=null;commit();adminRemember();startOnlineSynchronisatie();toast(duplicate?'Kopie gemaakt':'Toernooi geopend');}
 function adminTheme(){adminCloseMenu();const loc=locatieVoorWeergave();dialoog({titel:'Thema huidig toernooi',html:'<p>Wijzig het uiterlijk zonder loting of uitslagen te veranderen.</p><label class="f">Thema<select id="admin-theme">'+Object.keys(THEMAS).map(k=>'<option value="'+k+'"'+(loc.thema===k?' selected':'')+'>'+esc(THEMAS[k].naam)+'</option>').join('')+'</select></label>',knoppen:[{label:'Annuleren',val:null,cls:'sec'},{label:'Thema toepassen',val:'apply'}],lees:ov=>$('#admin-theme',ov).value}).then(v=>{if(!v)return;loc.thema=v;commit();toast('Thema aangepast');});}
 function adminChangelog(){adminCloseMenu();melding('Changelog',ADMIN_CHANGELOG.map(([d,t])=>'<p><b>'+esc(d)+'</b> · '+esc(t)+'</p>').join('')+'<p class="small muted">Alleen wijzigingen die betrouwbaar zijn vastgelegd worden getoond.</p>');}
@@ -3745,6 +3781,7 @@ const ACT = {
   'admin-faq'(){adminFaq()},
   'admin-open'(b){document.querySelector('.overlay')?.remove();adminLoad(b.dataset.id,false)},
   'admin-duplicate'(b){document.querySelector('.overlay')?.remove();adminLoad(b.dataset.id,true)},
+  'admin-delete'(b){adminDelete(b.dataset.id)},
   'br-adjust'(b) { const matches=brMatches(UI.dag.key,UI.dag.nr); const m=matches.find(x=>x.id===b.dataset.match); if(!m||![m.g.a,m.g.b].includes(b.dataset.id))return; T.breakRuns=T.breakRuns||{}; const v=T.breakRuns[m.id]||(T.breakRuns[m.id]={}); v[b.dataset.id]=Math.max(0,(Number(v[b.dataset.id])||0)+Number(b.dataset.delta)); if(!v[b.dataset.id])delete v[b.dataset.id]; UI.brSelected=m.id;UI.brOpen=true;commit(); },
   'dag-lijst'() { UI.dagLijst = UI.dagLijst === false; render(); },
   tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = mobielWeergave() ? false : true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
