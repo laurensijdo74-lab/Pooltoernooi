@@ -899,6 +899,17 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  html.viewer-tv .viewer-day-cols .games.public-match-list>.pauze.tv-second-half-bar{display:block!important;visibility:visible!important;flex:0 0 auto;background:#ff3fa4!important;color:white!important;padding:6px 10px!important;font-size:15px!important;letter-spacing:.14em;text-align:center}
  html.viewer-tv .viewer-day-cols .tv-pause-panel{flex:1;min-height:0!important}
 }
+
+/* TV: uitslagviering en aankondiging, uitsluitend in de linker wedstrijdkolom. */
+@media screen and (min-width:981px){
+ html.viewer-tv .viewer-day-cols .games.public-match-list.tv-announcing{position:relative;min-height:390px}
+ html.viewer-tv .tv-announcement{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(12px,3vh,28px);padding:24px;text-align:center;background:var(--surface);color:var(--ink);min-height:320px}
+ html.viewer-tv .tv-announcement .tv-person{font-size:clamp(30px,4.3vw,76px);font-weight:900;line-height:1.12;overflow-wrap:anywhere}
+ html.viewer-tv .tv-announcement .tv-word{font-size:clamp(28px,3.5vw,58px);font-weight:900;color:#ff3fa4;letter-spacing:.08em}
+ html.viewer-tv .tv-announcement .tv-caption{font-size:clamp(16px,1.7vw,27px);font-weight:750;color:var(--muted)}
+ html.viewer-tv .tv-announcing>.game,html.viewer-tv .tv-announcing>.ghead,html.viewer-tv .tv-announcing>.pauze{display:none!important}
+}
+@media screen and (max-width:980px){.tv-announcement{display:none!important}}
 </style>
 </head>
 <body>
@@ -2704,6 +2715,28 @@ document.addEventListener('fullscreenchange',updateViewerFullscreenButton);
 document.addEventListener('webkitfullscreenchange',updateViewerFullscreenButton);
 /* TV-pauze volgt de echte uitslagen, niet een vaste wisseltimer. */
 let tvHalf=0;
+let tvAnnouncement=null;
+function tvRecordResult(oldT,newT){
+ if(!UI.viewer||!oldT||!newT||!UI.dag||!document.documentElement.classList.contains('viewer-tv'))return;
+ const {key,nr}=UI.dag;
+ const oldP=oldT.rondes?.[key]?.poules?.find(p=>p.nr===nr);
+ const newP=newT.rondes?.[key]?.poules?.find(p=>p.nr===nr);
+ if(!oldP||!newP)return;
+ const changes=(newP.schema||[]).filter(g=>g.w&&!(oldP.schema||[]).find(x=>x.nr===g.nr&&x.w===g.w));
+ if(!changes.length)return;
+ const g=changes[changes.length-1];
+ const winner=newT.spelers?.find(x=>x.id===g.w)?.naam||'';
+ const next=(newP.schema||[]).find(x=>!x.w);
+ const name=id=>newT.spelers?.find(x=>x.id===id)?.naam||'Nog onbekend';
+ tvAnnouncement={at:Date.now(),key,nr,winner,next:next?{a:name(next.a),b:name(next.b)}:null};
+}
+function tvAnnouncementMarkup(a){
+ const safe=x=>esc(x);
+ if(Date.now()-a.at<10000)return '<div class="tv-announcement" role="status"><div class="tv-person">'+safe(a.winner)+'</div><div class="tv-word">WINT!</div></div>';
+ if(a.next)return '<div class="tv-announcement" role="status"><div class="tv-caption">VOLGENDE WEDSTRIJD</div><div class="tv-person">'+safe(a.next.a)+'</div><div class="tv-word">VS</div><div class="tv-person">'+safe(a.next.b)+'</div></div>';
+ return '';
+}
+
 function toggleViewerTv(){
  if(!UI.viewer || mobielWeergave())return;
  document.documentElement.classList.toggle('viewer-tv');
@@ -3416,6 +3449,7 @@ function pasPubliekeStandToe(remote, melding) {
   const huidigeTab = UI.tab;
   const huidigeDag = UI.dag && { key: UI.dag.key, nr: UI.dag.nr };
   const huidigeStand = UI.stand;
+  tvRecordResult(T,remote);
   T = remote; migreerNaLaden(); UI.viewer = true; UI.tab = huidigeTab;
   UI.dag = huidigeDag && P.planDag(T, huidigeDag.key, huidigeDag.nr) ? huidigeDag : null;
   UI.stand = huidigeStand && P.planRonde(T, huidigeStand) ? huidigeStand : null;
