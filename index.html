@@ -299,6 +299,8 @@ table.t select { max-width: 150px; }
 
 .admin-tourney-group{display:grid;gap:8px;margin-bottom:16px}.admin-tourney-group h4{padding:8px 4px;border-bottom:2px solid var(--line)}
 .admin-tourneys article .row{flex-wrap:wrap}.admin-tourneys article .row.between{justify-content:space-between}
+.admin-app-links{padding-top:7px;border-top:1px solid var(--line);margin-top:12px!important}
+.admin-app-links a{text-align:center;justify-content:center;white-space:normal}
 /* ---------- Scorebord ---------- */
 .scorebord { position: fixed; inset: 0; z-index: 90; background: var(--bg); color: var(--ink); padding: 3vh 4vw; overflow: auto; display: flex; flex-direction: column; gap: 3vh; }
 .scorebord h2 { font-size: clamp(1.6rem, 4vw, 3.2rem); }
@@ -3793,6 +3795,16 @@ function adminTournamentData(id){
  if(T&&T.id===id)return T;
  try{return JSON.parse(localStorage.getItem('pooltoernooi.admin.data.'+id)||'null')}catch(e){return null}
 }
+/* Directe links per toernooi; publieke modus is altijd expliciet. */
+function adminTournamentLinks(x){
+ const id=encodeURIComponent(String(x.id||''));
+ const loc=String(x.locatie||x.locatieNaam||adminTournamentData(x.id)?.locaties?.[0]?.naam||'');
+ const kar=/karroesel/i.test(loc+' '+(x.naam||''));
+ const vue=/vue/i.test(loc+' '+(x.naam||''));
+ const root='https://laurensijdo74-lab.github.io/Pooltoernooi/';
+ const viewerBase=kar?root+'Karroesel/':vue?root+'vue/':root;
+ return {viewer:viewerBase+'?tournament='+id+'&view=public',admin:root+'?tournament='+id};
+}
 function adminAll(){
  adminCloseMenu();adminRemember();
  const local=adminCatalog(),online=(window.POOL_ONLINE?.state?.tournaments||[]),all={...local};
@@ -3803,8 +3815,9 @@ function adminAll(){
  const html=[...groepen.entries()].sort((a,b)=>a[0].localeCompare(b[0],'nl')).map(([loc,items])=>'<section class="admin-tourney-group"><h4>📍 '+esc(loc)+' <span class="muted small">('+items.length+')</span></h4>'+items.map(x=>{
  const data=adminTournamentData(x.id),status=data?adminTournamentStatus(data):'onbekend';
  const magWeg=!!data&&status==='concept'&&!x.online;
+ const links=adminTournamentLinks(x);
  const uitleg=x.online?'Online toernooi: verwijderen is niet beschikbaar zonder veilige verwijdering in Firebase.':!data?'Gegevens niet lokaal beschikbaar.':status!=='concept'?'Een geloot of gestart toernooi kan niet worden verwijderd.':'';
- return '<article><div class="row between"><b>'+esc(x.naam||'Pooltoernooi')+'</b><span class="chip '+(status==='concept'?'info':'')+'">'+(status==='concept'?'Concept':status==='actief'?'Geloot / actief':'Status onbekend')+'</span></div><div class="small muted">Start: '+esc(x.datum||x.startdatum||'onbekend')+'</div><div class="row"><button class="btn sec sm" data-act="admin-open" data-id="'+esc(x.id)+'"'+(x.id===T.id?' disabled':'')+'>Openen</button><button class="btn sec sm" data-act="admin-duplicate" data-id="'+esc(x.id)+'">Dupliceren</button><button class="btn danger sm" data-act="admin-delete" data-id="'+esc(x.id)+'"'+(magWeg?'':' disabled title="'+esc(uitleg)+'"')+'>Verwijderen</button></div></article>';
+ return '<article><div class="row between"><b>'+esc(x.naam||'Pooltoernooi')+'</b><span class="chip '+(status==='concept'?'info':'')+'">'+(status==='concept'?'Concept':status==='actief'?'Geloot / actief':'Status onbekend')+'</span></div><div class="small muted">Start: '+esc(x.datum||x.startdatum||'onbekend')+'</div><div class="row"><button class="btn sec sm" data-act="admin-open" data-id="'+esc(x.id)+'"'+(x.id===T.id?' disabled':'')+'>Openen</button><button class="btn sec sm" data-act="admin-duplicate" data-id="'+esc(x.id)+'">Dupliceren</button><button class="btn danger sm" data-act="admin-delete" data-id="'+esc(x.id)+'"'+(magWeg?'':' disabled title="'+esc(uitleg)+'"')+'>Verwijderen</button></div><div class="row admin-app-links"><a class="btn sec sm" href="'+esc(links.viewer)+'" target="_blank" rel="noopener noreferrer">👁 Toeschouwersapp ↗</a><a class="btn sec sm" href="'+esc(links.admin)+'" target="_blank" rel="noopener noreferrer">⚙ Beheerdersapp ↗</a></div></article>';
  }).join('')+'</section>').join('');
  dialoog({titel:'Alle toernooien',breed:true,annuleer:false,html:'<div class="admin-tourneys">'+(html||'<p>Geen toernooien gevonden.</p>')+'</div><p class="small muted">Gesorteerd op startdatum (oud naar nieuw), gegroepeerd per locatie. Alleen lokale concepttoernooien zonder loting kunnen worden verwijderd. Online toernooien blijven beschermd.</p>',knoppen:[{label:'Sluiten',val:'sluit',cls:'sec'}]});
 }
