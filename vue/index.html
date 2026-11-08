@@ -827,6 +827,31 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 .viewer-fullscreen-btn{margin-left:auto;align-self:center;border:1px solid var(--line)!important;border-radius:7px;background:var(--surface2)!important;padding:7px 12px!important;color:var(--ink)!important;font-weight:700;cursor:pointer;white-space:nowrap}
 @media screen and (max-width:980px){.viewer-fullscreen-btn{display:none!important}}
 @media print{.viewer-fullscreen-btn{display:none!important}}
+
+/* Optionele TV-modus: uitsluitend desktop, bestaande weergave blijft standaard. */
+.viewer-tv-btn{align-self:center;border:1px solid var(--line)!important;border-radius:7px;background:var(--surface2)!important;padding:7px 12px!important;color:var(--ink)!important;font-weight:700;cursor:pointer;white-space:nowrap}
+@media screen and (max-width:980px){.viewer-tv-btn{display:none!important}}
+@media print{.viewer-tv-btn{display:none!important}}
+@media screen and (min-width:981px){
+ html.viewer-tv #main.wrap{max-width:none;padding:12px 20px 28px}
+ html.viewer-tv .hero-public .hero-in,html.viewer-tv .nav-in{max-width:none}
+ html.viewer-tv .dagview:not(.collapsed){grid-template-columns:minmax(0,1fr)}
+ html.viewer-tv .dagview:not(.collapsed)>aside{display:none}
+ html.viewer-tv .dagview .cols{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px}
+ html.viewer-tv .dagview .cols>.stack:last-child{position:static;max-height:none;overflow:visible}
+ html.viewer-tv .game.viewer-game .pl .nm{font-size:clamp(17px,1.35vw,24px);white-space:normal;overflow:visible;text-overflow:clip;line-height:1.18}
+ html.viewer-tv .game.viewer-game .pl{padding:7px 10px;min-height:37px}
+ html.viewer-tv .game.viewer-game .vs{font-size:15px}
+ html.viewer-tv .viewer-stand-table .viewer-team-inner strong{font-size:clamp(17px,1.4vw,24px)}
+ html.viewer-tv .viewer-stand-table .num{font-size:clamp(17px,1.4vw,24px)}
+ html.viewer-tv .viewer-stand-table th{font-size:clamp(13px,1vw,17px)!important}
+ html.viewer-tv .viewer-stand-table td{padding-top:11px!important;padding-bottom:11px!important}
+ html.viewer-tv .viewer-stand-table .viewer-status{font-size:clamp(12px,.95vw,16px)}
+ html.viewer-tv .public-dag-datum{font-size:clamp(22px,1.7vw,30px)}
+ html.viewer-tv .sect>header h3{font-size:clamp(20px,1.5vw,27px)}
+ html.viewer-tv .viewer-day-cols .stack:last-child .small{font-size:15px}
+ html.viewer-tv .nav button{font-size:16px}
+}
 </style>
 </head>
 <body>
@@ -2629,10 +2654,21 @@ function toggleViewerFullscreen(){
 }
 document.addEventListener('fullscreenchange',updateViewerFullscreenButton);
 document.addEventListener('webkitfullscreenchange',updateViewerFullscreenButton);
+function toggleViewerTv(){
+ if(!UI.viewer || mobielWeergave())return;
+ document.documentElement.classList.toggle('viewer-tv');
+ updateViewerTvButton();
+}
+function updateViewerTvButton(){
+ const b=document.getElementById('viewerTvBtn');if(!b)return;
+ const active=document.documentElement.classList.contains('viewer-tv');
+ b.textContent=active?'TV-weergave uit':'TV-weergave aan';
+ b.setAttribute('aria-pressed',String(active));
+}
 function navHtml() {
   const open = alleDagen().filter(d => P.rondeGeloot(T, d.ronde) && dagStatus(d.ronde, d.poule).code === 'playoff').length;
   return '<nav class="nav noprint" aria-label="Hoofdmenu"><div class="nav-in">' + tabsVoorWeergave().map(t =>
-    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + (UI.viewer ? '<button type="button" id="viewerFullscreenBtn" class="viewer-fullscreen-btn" data-act="viewer-fullscreen" aria-label="Volledig scherm openen">⛶ Volledig scherm</button>' : '') + '</div></nav>';
+    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + (UI.viewer ? '<button type="button" id="viewerTvBtn" class="viewer-tv-btn" data-act="viewer-tv" aria-pressed="false">TV-weergave aan</button><button type="button" id="viewerFullscreenBtn" class="viewer-fullscreen-btn" data-act="viewer-fullscreen" aria-label="Volledig scherm openen">⛶ Volledig scherm</button>' : '') + '</div></nav>';
 }
 
 /* ---------- Overzicht ---------- */
@@ -3814,6 +3850,7 @@ async function kiesSpeler(id) {
 const ACT = {
   'br-adjust'(b) { const matches=brMatches(UI.dag.key,UI.dag.nr); const m=matches.find(x=>x.id===b.dataset.match); if(!m||![m.g.a,m.g.b].includes(b.dataset.id))return; T.breakRuns=T.breakRuns||{}; const v=T.breakRuns[m.id]||(T.breakRuns[m.id]={}); v[b.dataset.id]=Math.max(0,(Number(v[b.dataset.id])||0)+Number(b.dataset.delta)); if(!v[b.dataset.id])delete v[b.dataset.id]; UI.brSelected=m.id;UI.brOpen=true;commit(); },
   'viewer-fullscreen'() { toggleViewerFullscreen(); },
+  'viewer-tv'() { toggleViewerTv(); },
   'dag-lijst'() { UI.dagLijst = UI.dagLijst === false; render(); },
   tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = mobielWeergave() ? false : true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
   'ga-gegevens'() { UI.tab = 'instellingen'; UI.inst = 'gegevens'; render(); },
@@ -4093,7 +4130,7 @@ function koppelEvents() {
   });
   document.addEventListener('click', e => { if(e.target.closest('[data-br-summary]')) UI.brOpen=!e.target.closest('details').open;
     const b = e.target.closest('[data-act]'); if (!b || b.disabled || b.classList.contains('off')) return;
-    if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'dag-lijst', 'viewer-refresh', 'stand-ronde', 'viewer-fullscreen'].indexOf(b.dataset.act) < 0) return;
+    if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'dag-lijst', 'viewer-refresh', 'stand-ronde', 'viewer-fullscreen', 'viewer-tv'].indexOf(b.dataset.act) < 0) return;
     const f = ACT[b.dataset.act]; if (f) { e.preventDefault(); f(b, e); }
   });
   document.addEventListener('change', e => {
