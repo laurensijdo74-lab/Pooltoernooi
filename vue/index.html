@@ -899,43 +899,6 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  html.viewer-tv .viewer-day-cols .games.public-match-list>.pauze.tv-second-half-bar{display:block!important;visibility:visible!important;flex:0 0 auto;background:#ff3fa4!important;color:white!important;padding:6px 10px!important;font-size:15px!important;letter-spacing:.14em;text-align:center}
  html.viewer-tv .viewer-day-cols .tv-pause-panel{flex:1;min-height:0!important}
 }
-
-/* TV: uitslagviering en aankondiging, uitsluitend in de linker wedstrijdkolom. */
-@media screen and (min-width:981px){
- html.viewer-tv .viewer-day-cols .games.public-match-list.tv-announcing{position:relative;min-height:390px}
- html.viewer-tv .tv-announcement{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:clamp(12px,3vh,28px);padding:24px;text-align:center;background:var(--surface);color:var(--ink);min-height:320px}
- html.viewer-tv .tv-announcement .tv-person{font-size:clamp(30px,4.3vw,76px);font-weight:900;line-height:1.12;overflow-wrap:anywhere}
- html.viewer-tv .tv-announcement .tv-word{font-size:clamp(28px,3.5vw,58px);font-weight:900;color:#ff3fa4;letter-spacing:.08em}
- html.viewer-tv .tv-announcement .tv-caption{font-size:clamp(16px,1.7vw,27px);font-weight:750;color:var(--muted)}
- html.viewer-tv .tv-announcing>.game,html.viewer-tv .tv-announcing>.ghead{display:none!important}
-  html.viewer-tv .tv-announcing>.pauze{display:block!important;visibility:visible!important;flex:0 0 auto!important;color:transparent!important;font-size:0!important;line-height:0!important;min-height:25px!important}
-  html.viewer-tv .tv-announcing>.pauze.tv-half-hidden{display:none!important}
-}
-/* TV: roze balk zonder opschrift bij uitslag en aankondiging. */
-@media screen and (min-width:981px){
- html.viewer-tv .viewer-day-cols .games.public-match-list.tv-announcing>.pauze:not(.tv-half-hidden){
-   display:block!important;visibility:visible!important;color:transparent!important;
-   font-size:0!important;line-height:0!important;min-height:25px!important;
- }
-}
-/* TV: navigatie volledig buiten de layout, uitsluitend openen via bovenrand. */
-@media screen and (min-width:981px){
-  html.viewer-tv .nav{
-    position:fixed!important;top:0!important;left:0!important;right:0!important;
-    z-index:85!important;margin:0!important;
-    transform:translate3d(0,-110%,0)!important;
-    visibility:hidden!important;opacity:0!important;pointer-events:none!important;
-    transition:transform .2s ease,opacity .2s ease,visibility 0s linear .2s!important;
-    box-shadow:0 5px 18px rgba(0,0,0,.3)
-  }
-  html.viewer-tv.tv-nav-open .nav{
-    transform:translate3d(0,0,0)!important;visibility:visible!important;
-    opacity:1!important;pointer-events:auto!important;
-    transition:transform .2s ease,opacity .2s ease,visibility 0s!important
-  }
-  html.viewer-tv .public-dag-controls{display:none!important}
-}
-@media screen and (max-width:980px){.tv-announcement{display:none!important}}
 </style>
 </head>
 <body>
@@ -2741,58 +2704,11 @@ document.addEventListener('fullscreenchange',updateViewerFullscreenButton);
 document.addEventListener('webkitfullscreenchange',updateViewerFullscreenButton);
 /* TV-pauze volgt de echte uitslagen, niet een vaste wisseltimer. */
 let tvHalf=0;
-let tvAnnouncement=null;
-function tvRecordResult(oldT,newT){
- if(!UI.viewer||!oldT||!newT||!UI.dag||!document.documentElement.classList.contains('viewer-tv'))return;
- const {key,nr}=UI.dag;
- const oldP=oldT.rondes?.[key]?.poules?.find(p=>p.nr===nr);
- const newP=newT.rondes?.[key]?.poules?.find(p=>p.nr===nr);
- if(!oldP||!newP)return;
- const changes=(newP.schema||[]).filter(g=>g.w&&!(oldP.schema||[]).find(x=>x.nr===g.nr&&x.w===g.w));
- if(!changes.length)return;
- const g=changes[changes.length-1];
- const winner=newT.spelers?.find(x=>x.id===g.w)?.naam||'';
- const next=(newP.schema||[]).find(x=>!x.w);
- const name=id=>newT.spelers?.find(x=>x.id===id)?.naam||'Nog onbekend';
- tvAnnouncement={at:Date.now(),key,nr,winner,next:next?{a:name(next.a),b:name(next.b)}:null};
-}
-function tvAnnouncementMarkup(a){
- const safe=x=>esc(x);
- if(Date.now()-a.at<10000)return '<div class="tv-announcement" role="status"><div class="tv-person">'+safe(a.winner)+'</div><div class="tv-word">'+(/&/.test(a.winner)?'WINNEN!':'WINT!')+'</div></div>';
- if(Date.now()-a.at<70000&&a.next)return '<div class="tv-announcement" role="status"><div class="tv-caption">VOLGENDE WEDSTRIJD</div><div class="tv-person">'+safe(a.next.a)+'</div><div class="tv-word">VS</div><div class="tv-person">'+safe(a.next.b)+'</div></div>';
- return '';
-}
-
 function toggleViewerTv(){
  if(!UI.viewer || mobielWeergave())return;
  document.documentElement.classList.toggle('viewer-tv');
  updateViewerTvButton();applyTvHalf();
 }
-/* Samsung Smart Remote en desktop: toon het TV-menu alleen bij de bovenrand.
-   Sluit het ook wanneer de cursor stil blijft staan (bijv. na TV-modus aanzetten). */
-let tvNavHideTimer=null;
-function tvNavClose(){
-  document.documentElement.classList.remove('tv-nav-open');
-  if(tvNavHideTimer){clearTimeout(tvNavHideTimer);tvNavHideTimer=null;}
-}
-function tvNavShow(){
-  const root=document.documentElement;
-  if(!root.classList.contains('viewer-tv'))return;
-  root.classList.add('tv-nav-open');
-  if(tvNavHideTimer)clearTimeout(tvNavHideTimer);
-  tvNavHideTimer=setTimeout(tvNavClose,4500);
-}
-function tvNavPointer(e){
-  if(!document.documentElement.classList.contains('viewer-tv'))return;
-  const nav=document.querySelector('.nav');
-  if(e.clientY<=22 || (nav && nav.contains(e.target)))tvNavShow();
-  else tvNavClose();
-}
-document.addEventListener('mousemove',tvNavPointer,{passive:true});
-document.addEventListener('pointermove',tvNavPointer,{passive:true});
-document.addEventListener('keydown',e=>{
-  if(document.documentElement.classList.contains('viewer-tv') && (e.key==='Escape'||e.key==='ArrowDown'))tvNavShow();
-});
 function updateViewerTvButton(){
  const b=document.getElementById('viewerTvBtn');if(!b)return;
  const active=document.documentElement.classList.contains('viewer-tv');
@@ -2840,26 +2756,6 @@ function applyTvHalf(){
   if(!panel){panel=document.createElement('div');panel.className='tv-pause-panel';panel.setAttribute('role','status');games.appendChild(panel);}
   panel.innerHTML='<div class="tv-pause-title">PAUZE</div>';
  }else if(panel)panel.remove();
- // Winnaar 10 sec, volgende wedstrijd 60 sec; pauze heeft voorrang.
- let announcement=games.querySelector('.tv-announcement');
- const activeAnnouncement=enabled&&staged&&state.phase!=='pause'&&tvAnnouncement&&
-   tvAnnouncement.key===UI.dag.key&&tvAnnouncement.nr===UI.dag.nr&&
-   Date.now()-tvAnnouncement.at<70000;
- games.classList.toggle('tv-announcing',!!activeAnnouncement);
- if(activeAnnouncement){
-   const markup=tvAnnouncementMarkup(tvAnnouncement);
-   if(markup){
-     if(!announcement){announcement=document.createElement('div');announcement.className='tv-announcement';games.appendChild(announcement);}
-     const temp=document.createElement('div');temp.innerHTML=markup;
-     announcement.innerHTML=temp.firstElementChild.innerHTML;
-     rows.forEach(el=>el.style.display='none');
-     Array.from(games.children).filter(el=>el.classList.contains('pauze')).forEach(el=>{el.style.removeProperty('display');el.textContent='';});
-   }
- }else{
-   if(announcement)announcement.remove();
-   rows.forEach(el=>el.style.removeProperty('display'));
-   Array.from(games.children).filter(el=>el.classList.contains('pauze')).forEach(el=>{el.style.removeProperty('display');el.textContent=el.classList.contains('tv-second-half-bar')?'2E HELFT':'PAUZE';});
- }
  const nextMatch=document.getElementById('viewerNextMatch');
  if(nextMatch){const label=staged&&state.phase==='pause'?'Eerstvolgende partij:':'Nu aan tafel:';const first=nextMatch.firstChild;if(first&&first.nodeType===3)first.textContent=label+' ';}
  if(badge){badge.style.display=staged?'inline-flex':'none';badge.textContent=state.phase==='pause'?'Pauze · 10 minuten':state.phase==='second'?'2e helft · blijft in beeld':state.remaining?'1e helft · pauze over '+state.remaining+' sec':'1e helft';}
@@ -3142,6 +3038,10 @@ function rijStatus(key, p, rows, r, idx) {
   if (!klaarReg) {
     if (!r.gespeeld) return { cls: '', chip: '' };
     if (r.max < geenKansDrempel(key, p, rows, r)) return { cls: 'uit', chip: '<span class="chip bad">Geen kans</span>' };
+    // Zeker top 2 zodra hooguit een andere partij nog gelijk kan komen of hoger kan eindigen.
+    // Gelijke punten tellen mee: een gedeelde tweede plek kan nog een play-off vereisen.
+    const mogelijkeConcurrenten = rows.filter(andere => andere.id !== r.id && andere.max >= r.punten).length;
+    if (mogelijkeConcurrenten < P.DOORGAAN) return { cls: 'door', chip: '<span class="chip ok">Zeker door</span>' };
     if (idx < 2) return { cls: 'door', chip: '<span class="chip ok">Op koers</span>' };
     return { cls: '', chip: '<span class="chip">In de race</span>' };
   }
@@ -3520,7 +3420,6 @@ function pasPubliekeStandToe(remote, melding) {
   const huidigeTab = UI.tab;
   const huidigeDag = UI.dag && { key: UI.dag.key, nr: UI.dag.nr };
   const huidigeStand = UI.stand;
-  tvRecordResult(T,remote);
   T = remote; migreerNaLaden(); UI.viewer = true; UI.tab = huidigeTab;
   UI.dag = huidigeDag && P.planDag(T, huidigeDag.key, huidigeDag.nr) ? huidigeDag : null;
   UI.stand = huidigeStand && P.planRonde(T, huidigeStand) ? huidigeStand : null;
