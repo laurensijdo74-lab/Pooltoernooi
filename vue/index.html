@@ -883,6 +883,22 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  html.viewer-tv .ghead span{padding-top:3px;padding-bottom:3px}
  html.viewer-tv .viewer-day-cols .pauze.tv-first-pause-bar{padding:5px 8px!important}
 }
+
+/* TV: gelijke onderlijn van wedstrijdenbalk en stand; mobiele layout blijft intact. */
+@media screen and (min-width:981px){
+ html.viewer-tv .viewer-day-cols{align-items:stretch;min-height:390px}
+ html.viewer-tv .viewer-day-cols>div:first-child{display:flex;min-width:0}
+ html.viewer-tv .viewer-day-cols>div:first-child>.games.public-match-list{display:flex;flex-direction:column;flex:1;min-height:390px}
+ html.viewer-tv .viewer-day-cols>.stack:last-child{display:flex;flex-direction:column;min-width:0}
+ html.viewer-tv .viewer-day-cols>.stack:last-child>.sect:first-child{flex:1;display:flex;flex-direction:column}
+ html.viewer-tv .viewer-day-cols>.stack:last-child>.sect:first-child>.body{flex:1}
+ html.viewer-tv .viewer-day-cols .games.public-match-list>.game:not(.tv-half-hidden){flex:1;min-height:31px}
+ html.viewer-tv .viewer-day-cols .games.public-match-list>.game .pl{min-height:0;padding:5px 9px}
+ html.viewer-tv .viewer-day-cols .games.public-match-list>.game .pl .nm{font-size:clamp(16px,1.3vw,23px)}
+ html.viewer-tv .viewer-day-cols .games.public-match-list>.pauze.tv-first-pause-bar,
+ html.viewer-tv .viewer-day-cols .games.public-match-list>.pauze.tv-second-half-bar{display:block!important;visibility:visible!important;flex:0 0 auto;background:#ff3fa4!important;color:white!important;padding:6px 10px!important;font-size:15px!important;letter-spacing:.14em;text-align:center}
+ html.viewer-tv .viewer-day-cols .tv-pause-panel{flex:1;min-height:0!important}
+}
 </style>
 </head>
 <body>
@@ -2729,7 +2745,12 @@ function applyTvHalf(){
  Array.from(games.children).filter(el=>el.classList.contains('pauze')).forEach(el=>{
    el.classList.toggle('tv-half-hidden',staged && state.phase!=='first');
    el.classList.toggle('tv-first-pause-bar',staged && state.phase==='first');
-  });
+ });
+ let secondBar=games.querySelector('.tv-second-half-bar');
+ if(staged&&state.phase==='second'){
+   if(!secondBar){secondBar=document.createElement('div');secondBar.className='pauze tv-second-half-bar';games.appendChild(secondBar);}
+   secondBar.textContent='2E HELFT';
+ }else if(secondBar)secondBar.remove();
  let panel=games.querySelector('.tv-pause-panel');
  if(staged&&state.phase==='pause'){
   if(!panel){panel=document.createElement('div');panel.className='tv-pause-panel';panel.setAttribute('role','status');games.appendChild(panel);}
