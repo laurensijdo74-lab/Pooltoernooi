@@ -852,6 +852,22 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  html.viewer-tv .viewer-day-cols .stack:last-child .small{font-size:15px}
  html.viewer-tv .nav button{font-size:16px}
 }
+
+/* TV: afwisselend eerste en tweede wedstrijdhelft; overige schermen ongewijzigd. */
+@media screen and (min-width:981px){
+ html.viewer-tv .tv-half-hidden{display:none!important}
+ html.viewer-tv .tv-half-indicator{display:inline-flex;align-items:center;align-self:center;padding:5px 10px;border-radius:7px;border:1px solid var(--line);background:var(--surface2);font-weight:700;white-space:nowrap}
+}
+.tv-half-indicator{display:none}
+
+/* TV: groot pauzescherm in de wedstrijdkolom; stand blijft rechts staan. */
+@media screen and (min-width:981px){
+ html.viewer-tv .tv-pause-panel{display:flex;min-height:clamp(310px,53vh,700px);flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--surface);color:var(--ink);text-align:center;padding:30px;border-radius:10px}
+ html.viewer-tv .tv-pause-title{font-size:clamp(70px,10vw,170px);font-weight:900;letter-spacing:.08em;line-height:1;color:var(--accent)}
+ html.viewer-tv .tv-pause-clock{font-size:clamp(44px,6vw,90px);font-weight:800;font-variant-numeric:tabular-nums}
+ html.viewer-tv .tv-pause-caption{font-size:clamp(20px,2vw,32px);color:var(--muted);font-weight:700}
+}
+@media screen and (max-width:980px){.tv-pause-panel{display:none!important}}
 </style>
 </head>
 <body>
@@ -2654,10 +2670,12 @@ function toggleViewerFullscreen(){
 }
 document.addEventListener('fullscreenchange',updateViewerFullscreenButton);
 document.addEventListener('webkitfullscreenchange',updateViewerFullscreenButton);
+/* TV-pauze volgt de echte uitslagen, niet een vaste wisseltimer. */
+let tvHalf=0;
 function toggleViewerTv(){
  if(!UI.viewer || mobielWeergave())return;
  document.documentElement.classList.toggle('viewer-tv');
- updateViewerTvButton();
+ updateViewerTvButton();applyTvHalf();
 }
 function updateViewerTvButton(){
  const b=document.getElementById('viewerTvBtn');if(!b)return;
@@ -2665,10 +2683,49 @@ function updateViewerTvButton(){
  b.textContent=active?'TV-weergave uit':'TV-weergave aan';
  b.setAttribute('aria-pressed',String(active));
 }
+function tvPauseState(){
+ if(!UI.dag||!T)return {phase:'first'};
+ const p=P.zoekPoule(T,UI.dag.key,UI.dag.nr);
+ if(!p||!p.schema||!p.schema.length)return {phase:'first'};
+ const split0=P.pauzeIndex(T,p);
+ const split=split0>0&&split0<p.schema.length?split0:Math.ceil(p.schema.length/2);
+ const first=p.schema.slice(0,split);
+ if(!first.length||!first.every(g=>!!g.w))return {phase:'first',split};
+ // g.t is the recorded result time. A missing timestamp must not trigger a false pause.
+ const last=Math.max(...first.map(g=>Number(g.t)||0));
+ if(!last)return {phase:'first',split};
+ const elapsed=Date.now()-last;
+ if(elapsed<30000)return {phase:'first',split,remaining:Math.ceil((30000-elapsed)/1000)};
+ if(elapsed<330000)return {phase:'pause',split,remaining:Math.ceil((330000-elapsed)/1000)};
+ return {phase:'second',split};
+}
+function applyTvHalf(){
+ const enabled=UI.viewer&&!mobielWeergave()&&document.documentElement.classList.contains('viewer-tv')&&UI.tab==='dag';
+ const games=document.querySelector('.viewer-day-cols .games.public-match-list');
+ const badge=document.getElementById('tvHalfIndicator');
+ if(!games){if(badge)badge.style.display='none';return;}
+ const rows=Array.from(games.children).filter(el=>el.classList.contains('game'));
+ const state=enabled?tvPauseState():{phase:'first'};
+ const split=state.split||Math.ceil(rows.length/2);
+ const staged=enabled&&rows.length>split&&split>0;
+ tvHalf=state.phase==='second'?1:0;
+ rows.forEach((el,i)=>el.classList.toggle('tv-half-hidden',staged&&(state.phase==='pause'||(tvHalf===0?i>=split:i<split))));
+ Array.from(games.children).filter(el=>el.classList.contains('pauze')).forEach(el=>el.classList.toggle('tv-half-hidden',staged));
+ let panel=games.querySelector('.tv-pause-panel');
+ if(staged&&state.phase==='pause'){
+  if(!panel){panel=document.createElement('div');panel.className='tv-pause-panel';panel.setAttribute('role','status');games.appendChild(panel);}
+  panel.innerHTML='<div class="tv-pause-title">PAUZE</div>';
+ }else if(panel)panel.remove();
+ if(badge){badge.style.display=staged?'inline-flex':'none';badge.textContent=state.phase==='pause'?'Pauze · 5 minuten':state.phase==='second'?'2e helft · blijft in beeld':state.remaining?'1e helft · pauze over '+state.remaining+' sec':'1e helft';}
+}
+setInterval(()=>{
+ if(!UI.viewer||mobielWeergave()||!document.documentElement.classList.contains('viewer-tv')||UI.tab!=='dag'||document.hidden)return;
+ applyTvHalf();
+},1000);
 function navHtml() {
   const open = alleDagen().filter(d => P.rondeGeloot(T, d.ronde) && dagStatus(d.ronde, d.poule).code === 'playoff').length;
   return '<nav class="nav noprint" aria-label="Hoofdmenu"><div class="nav-in">' + tabsVoorWeergave().map(t =>
-    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + (UI.viewer ? '<button type="button" id="viewerTvBtn" class="viewer-tv-btn" data-act="viewer-tv" aria-pressed="false">TV-weergave aan</button><button type="button" id="viewerFullscreenBtn" class="viewer-fullscreen-btn" data-act="viewer-fullscreen" aria-label="Volledig scherm openen">⛶ Volledig scherm</button>' : '') + '</div></nav>';
+    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + (UI.viewer ? '<span id="tvHalfIndicator" class="tv-half-indicator" aria-live="off"></span><button type="button" id="viewerTvBtn" class="viewer-tv-btn" data-act="viewer-tv" aria-pressed="false">TV-weergave aan</button><button type="button" id="viewerFullscreenBtn" class="viewer-fullscreen-btn" data-act="viewer-fullscreen" aria-label="Volledig scherm openen">⛶ Volledig scherm</button>' : '') + '</div></nav>';
 }
 
 /* ---------- Overzicht ---------- */
@@ -3665,6 +3722,8 @@ function render() {
   window.scrollTo(0, UI.resetScroll ? 0 : y); UI.resetScroll = false;
   updateViewerCountdown();
   updateViewerFullscreenButton();
+  updateViewerTvButton();
+  applyTvHalf();
   updateViewerFrozenStand();
   /* Standnamen mogen op meerdere regels, niet kleiner worden gemaakt. */
   ververscScorebordVenster();
