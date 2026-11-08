@@ -815,6 +815,32 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
   .loting-pref-list table.t select, .loting-pref-list table.t input[type=date] { width:100%; max-width:100%; min-width:0; font-size:16px; }
   .loting-pref-list table.t td[colspan] { grid-column:2; grid-row:2; color:var(--muted); }
 }
+
+/* Karroesel 2027: cafégevoel, uitsluitend bij het Karroesel-thema. */
+:root[data-theme="karroesel"] body {
+ background: radial-gradient(ellipse at 92% 8%,rgba(180,93,21,.16),transparent 35%),
+ radial-gradient(ellipse at 0% 70%,rgba(5,92,63,.13),transparent 44%),
+ repeating-linear-gradient(90deg,rgba(255,185,75,.018) 0 1px,transparent 1px 44px),var(--bg);
+}
+:root[data-theme="karroesel"] .hero {border-bottom:1px solid rgba(255,198,84,.3);box-shadow:inset 0 1px rgba(255,213,120,.17),0 7px 25px #0005}
+:root[data-theme="karroesel"] .hero h1,:root[data-theme="karroesel"] .hero-tournament {text-shadow:0 2px 12px #0008}
+:root[data-theme="karroesel"] .hero .logo-bal {filter:drop-shadow(0 0 9px #f4b83d77)}
+:root[data-theme="karroesel"] .sect,:root[data-theme="karroesel"] .card {
+ border-color:#78502b;box-shadow:0 5px 18px #0005,inset 0 1px 0 rgba(255,205,105,.08);
+}
+:root[data-theme="karroesel"] .sect>header {background:linear-gradient(95deg,rgba(146,87,32,.22),transparent 85%);border-bottom-color:#76512c}
+:root[data-theme="karroesel"] .sect>header h3,:root[data-theme="karroesel"] .card>.ch h4 {color:#ffca68}
+:root[data-theme="karroesel"] .card>.ch {background:linear-gradient(105deg,#71421c,#3b2516);border-bottom:1px solid #a56c2c}
+:root[data-theme="karroesel"] .nav {background:#1c120c;border-bottom-color:#8d5b28}
+:root[data-theme="karroesel"] .nav button[aria-current="page"] {color:#ffd47c;border-bottom-color:#ffbd43}
+:root[data-theme="karroesel"] .btn:not(.sec):not(.danger):not(.accent) {background:linear-gradient(180deg,#ffd06b,#e9a92f);border-color:#f6c15d;color:#211408}
+:root[data-theme="karroesel"] .games,:root[data-theme="karroesel"] .viewer-stand-scroll {border-color:#78502b}
+:root[data-theme="karroesel"] .game.actief {box-shadow:inset 5px 0 0 #ffbe43;background:#3c2c1d}
+:root[data-theme="karroesel"] .game.actief .gnr {background:#ffbd43;color:#241408}
+:root[data-theme="karroesel"] .rail {box-shadow:0 2px 8px #0007}
+:root[data-theme="karroesel"] .big-winner .naam {color:#ffcb64}
+@media print { :root[data-theme="karroesel"] body {background:#fff!important} :root[data-theme="karroesel"] .sect,:root[data-theme="karroesel"] .card {box-shadow:none!important} }
+
 </style>
 </head>
 <body>
@@ -2099,11 +2125,11 @@ const FONTS = {
 const FONT_NAMEN = { '': 'Zoals het thema', serif: 'Klassiek (serif)', sans: 'Modern (sans)', condensed: 'Smal en sterk', slab: 'Stevig (slab)', mono: 'Scorebord (mono)' };
 const THEMAS = {
   karroesel: {
-    naam: 'Karroesel', tekst: 'Warme cafésfeer met donker hout, koper en amber', mode: 'dark', icoon: '🎱',
-    v: { '--bg': '#160f0d', '--surface': '#291b17', '--surface2': '#37251e', '--ink': '#f8ead6', '--muted': '#c4a88c', '--line': '#62432f', '--brand': '#dba34e', '--brand-ink': '#21130c', '--brand-soft': '#49301d',
-      '--accent': '#efb76b', '--accent-soft': '#513520',
-      '--hero': 'radial-gradient(ellipse at 70% 10%, rgba(242,173,83,.22), transparent 52%), repeating-linear-gradient(90deg, rgba(12,6,4,.18) 0 3px, transparent 3px 32px), linear-gradient(135deg,#51311f 0%,#301d16 48%,#1b1110 100%)',
-      '--hero-ink': '#fff1d8', '--rail': 'linear-gradient(180deg,#d6a85c 0%,#7b4b27 48%,#382119 100%)', '--radius': '9px',
+    naam: 'Karroesel', tekst: 'Sfeervol bruin café met goud, biljartgroen en warme verlichting', mode: 'dark', icoon: '🎱',
+    v: { '--bg': '#130c09', '--surface': '#261810', '--surface2': '#342319', '--ink': '#fff0d8', '--muted': '#d1b48e', '--line': '#76512c', '--brand': '#ffbd43', '--brand-ink': '#241408', '--brand-soft': '#4a3014',
+      '--accent': '#f5b843', '--accent-soft': '#493019',
+      '--hero': 'radial-gradient(ellipse at 70% -20%, rgba(255,190,70,.34), transparent 58%), radial-gradient(ellipse at 10% 100%, rgba(0,104,72,.32), transparent 55%), linear-gradient(130deg,#4a2916 0%,#23140e 65%,#130c09 100%)',
+      '--hero-ink': '#fff1d8', '--rail': 'linear-gradient(180deg,#ffc34b 0%,#b97920 52%,#503018 100%)', '--radius': '12px',
       '--font-display': FONTS.serif, '--display-weight': '800', '--display-tracking': '.012em', '--display-case': 'none' }
   },
   biljartgroen: {
@@ -2188,6 +2214,7 @@ function pasThemaToe(loc) {
     root.style.setProperty(n, val);
   });
   root.setAttribute('data-mode', t.mode);
+   root.setAttribute('data-theme', loc.thema || 'biljartgroen');
   document.title = (T.naam || 'Pooltoernooi') + ' – ' + (loc.naam || '');
 }
 
