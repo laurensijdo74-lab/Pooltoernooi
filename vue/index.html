@@ -868,6 +868,21 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  html.viewer-tv .tv-pause-caption{font-size:clamp(20px,2vw,32px);color:var(--muted);font-weight:700}
 }
 @media screen and (max-width:980px){.tv-pause-panel{display:none!important}}
+/* TV: de pauzebalk blijft onder de eerste tien wedstrijden zichtbaar. */
+@media screen and (min-width:981px){
+ html.viewer-tv .viewer-day-cols .pauze.tv-first-pause-bar{display:block!important;visibility:visible!important;background:#ff3fa4!important;color:#fff!important;padding:7px 10px!important;font-size:15px!important;letter-spacing:.14em;text-align:center}
+ .viewer-fullscreen-btn{min-width:36px;padding:6px 9px!important;font-size:20px!important;line-height:1!important}
+}
+@media screen and (min-width:981px) and (max-height:800px){
+ html.viewer-tv #main.wrap{padding-top:7px;padding-bottom:8px}
+ html.viewer-tv .dag-detail-stack.stack-l>.cols{margin-top:8px}
+ html.viewer-tv .public-dag-kop .body{padding:9px 12px}
+ html.viewer-tv .game.viewer-game .pl{padding:4px 8px;min-height:29px}
+ html.viewer-tv .game.viewer-game .pl .nm{font-size:clamp(15px,1.25vw,21px);line-height:1.12}
+ html.viewer-tv .game.viewer-game .pl .sc{font-size:1rem}
+ html.viewer-tv .ghead span{padding-top:3px;padding-bottom:3px}
+ html.viewer-tv .viewer-day-cols .pauze.tv-first-pause-bar{padding:5px 8px!important}
+}
 </style>
 </head>
 <body>
@@ -2654,7 +2669,8 @@ function viewerFullscreenActive(){ return !!(document.fullscreenElement || docum
 function updateViewerFullscreenButton(){
   const b=document.getElementById('viewerFullscreenBtn');if(!b)return;
   const active=viewerFullscreenActive();
-  b.textContent=active?'⤢ Volledig scherm verlaten':'⛶ Volledig scherm';
+  b.textContent=active?'⤢':'⛶';
+   b.title=active?'Volledig scherm verlaten':'Volledig scherm openen';
   b.setAttribute('aria-label',active?'Volledig scherm verlaten':'Volledig scherm openen');
   b.setAttribute('aria-pressed',String(active));
 }
@@ -2710,7 +2726,10 @@ function applyTvHalf(){
  const staged=enabled&&rows.length>split&&split>0;
  tvHalf=state.phase==='second'?1:0;
  rows.forEach((el,i)=>el.classList.toggle('tv-half-hidden',staged&&(state.phase==='pause'||(tvHalf===0?i>=split:i<split))));
- Array.from(games.children).filter(el=>el.classList.contains('pauze')).forEach(el=>el.classList.toggle('tv-half-hidden',staged));
+ Array.from(games.children).filter(el=>el.classList.contains('pauze')).forEach(el=>{
+   el.classList.toggle('tv-half-hidden',staged && state.phase!=='first');
+   el.classList.toggle('tv-first-pause-bar',staged && state.phase==='first');
+  });
  let panel=games.querySelector('.tv-pause-panel');
  if(staged&&state.phase==='pause'){
   if(!panel){panel=document.createElement('div');panel.className='tv-pause-panel';panel.setAttribute('role','status');games.appendChild(panel);}
@@ -2725,7 +2744,7 @@ setInterval(()=>{
 function navHtml() {
   const open = alleDagen().filter(d => P.rondeGeloot(T, d.ronde) && dagStatus(d.ronde, d.poule).code === 'playoff').length;
   return '<nav class="nav noprint" aria-label="Hoofdmenu"><div class="nav-in">' + tabsVoorWeergave().map(t =>
-    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + (UI.viewer ? '<span id="tvHalfIndicator" class="tv-half-indicator" aria-live="off"></span><button type="button" id="viewerTvBtn" class="viewer-tv-btn" data-act="viewer-tv" aria-pressed="false">TV-weergave aan</button><button type="button" id="viewerFullscreenBtn" class="viewer-fullscreen-btn" data-act="viewer-fullscreen" aria-label="Volledig scherm openen">⛶ Volledig scherm</button>' : '') + '</div></nav>';
+    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + (UI.viewer ? '<span id="tvHalfIndicator" class="tv-half-indicator" aria-live="off"></span><button type="button" id="viewerTvBtn" class="viewer-tv-btn" data-act="viewer-tv" aria-pressed="false">TV-weergave aan</button><button type="button" id="viewerFullscreenBtn" class="viewer-fullscreen-btn" data-act="viewer-fullscreen" aria-label="Volledig scherm openen">⛶</button>' : '') + '</div></nav>';
 }
 
 /* ---------- Overzicht ---------- */
@@ -3350,7 +3369,7 @@ function dagDetailHtml(key, nr) {
   const wachtPh = p.spelers.some(P.isPh);
   const actief = actieveActie(key, p);
   const laatste = P.laatsteGame(p), kanHerstel = !!laatste || (p.pp && p.pp.stappen.some(x => x.games.some(g => g.w)));
-  const viewerRefresh = UI.viewer ? '<button class="btn accent viewer-refresh" data-act="viewer-refresh" aria-label="Vernieuwen" title="Haal de actuele stand op">↻</button>' : '';
+  const viewerRefresh = '';
   const beheerKnoppen = '<button class="btn sec sm" data-act="scorebord">Scorebord</button><button class="btn sec sm" data-act="scorebord-venster" title="Opent het scorebord in een eigen venster, bijvoorbeeld voor een tweede scherm of tv">Scorebord in eigen venster</button><button class="btn sec sm" data-act="print">Afdrukken</button>';
   const ondertitel = UI.viewer ? P.datumLang(d.datum) : P.datumLang(d.datum) + ' · ' + locNaam(dagLocatie(key, nr));
   const navigatie = '<button class="btn sec sm" data-act="dag-nav" data-d="-1"' + (vorige ? '' : ' disabled') + '>← Vorige</button><button class="btn sec sm" data-act="dag-nav" data-d="1"' + (volgendeOpenbaar ? '' : ' disabled') + '>Volgende →</button>' + (UI.viewer ? viewerRefresh : beheerKnoppen);
