@@ -823,6 +823,10 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
   .viewer-standings-page .viewer-stand-table .viewer-status,.viewer-standings-page .viewer-stand-table .viewer-status .chip{font-size:clamp(10px,2.7vw,12px)!important;white-space:normal!important;overflow-wrap:break-word!important}
   .viewer-standings-page .viewer-stand-table .num{font-size:clamp(13px,3.65vw,17px)!important}
 }
+/* Fullscreen uitsluitend openbare desktop/TV-weergave; mobiel ongewijzigd. */
+.viewer-fullscreen-btn{margin-left:auto;align-self:center;border:1px solid var(--line)!important;border-radius:7px;background:var(--surface2)!important;padding:7px 12px!important;color:var(--ink)!important;font-weight:700;cursor:pointer;white-space:nowrap}
+@media screen and (max-width:980px){.viewer-fullscreen-btn{display:none!important}}
+@media print{.viewer-fullscreen-btn{display:none!important}}
 </style>
 </head>
 <body>
@@ -2605,10 +2609,30 @@ function tabsVoorWeergave() {
   const openbaar = ['standen', 'dag', 'statistieken'];
   return openbaar.map(k => TABS.find(t => t[0] === k)).filter(Boolean);
 }
+function viewerFullscreenActive(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
+function updateViewerFullscreenButton(){
+  const b=document.getElementById('viewerFullscreenBtn');if(!b)return;
+  const active=viewerFullscreenActive();
+  b.textContent=active?'⤢ Volledig scherm verlaten':'⛶ Volledig scherm';
+  b.setAttribute('aria-label',active?'Volledig scherm verlaten':'Volledig scherm openen');
+  b.setAttribute('aria-pressed',String(active));
+}
+function toggleViewerFullscreen(){
+  if(!UI.viewer || mobielWeergave())return;
+  const el=document.documentElement;
+  try{
+    const fn=viewerFullscreenActive()?(document.exitFullscreen||document.webkitExitFullscreen):(el.requestFullscreen||el.webkitRequestFullscreen);
+    if(!fn){toast('Deze browser ondersteunt geen volledig scherm.',true);return;}
+    const result=fn.call(viewerFullscreenActive()?document:el);
+    if(result && typeof result.catch==='function')result.catch(()=>toast('Samsung staat volledig scherm vanuit deze website niet toe.',true));
+  }catch(e){toast('Volledig scherm wordt door deze browser niet toegestaan.',true);}
+}
+document.addEventListener('fullscreenchange',updateViewerFullscreenButton);
+document.addEventListener('webkitfullscreenchange',updateViewerFullscreenButton);
 function navHtml() {
   const open = alleDagen().filter(d => P.rondeGeloot(T, d.ronde) && dagStatus(d.ronde, d.poule).code === 'playoff').length;
   return '<nav class="nav noprint" aria-label="Hoofdmenu"><div class="nav-in">' + tabsVoorWeergave().map(t =>
-    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + '</div></nav>';
+    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + (UI.viewer ? '<button type="button" id="viewerFullscreenBtn" class="viewer-fullscreen-btn" data-act="viewer-fullscreen" aria-label="Volledig scherm openen">⛶ Volledig scherm</button>' : '') + '</div></nav>';
 }
 
 /* ---------- Overzicht ---------- */
@@ -3604,6 +3628,7 @@ function render() {
   app.innerHTML = heroHtml() + navHtml() + '<main class="wrap" id="main">' + view() + '</main>' + (UI.scorebord ? scorebordHtml() : '');
   window.scrollTo(0, UI.resetScroll ? 0 : y); UI.resetScroll = false;
   updateViewerCountdown();
+  updateViewerFullscreenButton();
   updateViewerFrozenStand();
   /* Standnamen mogen op meerdere regels, niet kleiner worden gemaakt. */
   ververscScorebordVenster();
@@ -3788,6 +3813,7 @@ async function kiesSpeler(id) {
 /* ---------- acties ---------- */
 const ACT = {
   'br-adjust'(b) { const matches=brMatches(UI.dag.key,UI.dag.nr); const m=matches.find(x=>x.id===b.dataset.match); if(!m||![m.g.a,m.g.b].includes(b.dataset.id))return; T.breakRuns=T.breakRuns||{}; const v=T.breakRuns[m.id]||(T.breakRuns[m.id]={}); v[b.dataset.id]=Math.max(0,(Number(v[b.dataset.id])||0)+Number(b.dataset.delta)); if(!v[b.dataset.id])delete v[b.dataset.id]; UI.brSelected=m.id;UI.brOpen=true;commit(); },
+  'viewer-fullscreen'() { toggleViewerFullscreen(); },
   'dag-lijst'() { UI.dagLijst = UI.dagLijst === false; render(); },
   tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = mobielWeergave() ? false : true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
   'ga-gegevens'() { UI.tab = 'instellingen'; UI.inst = 'gegevens'; render(); },
@@ -4067,7 +4093,7 @@ function koppelEvents() {
   });
   document.addEventListener('click', e => { if(e.target.closest('[data-br-summary]')) UI.brOpen=!e.target.closest('details').open;
     const b = e.target.closest('[data-act]'); if (!b || b.disabled || b.classList.contains('off')) return;
-    if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'dag-lijst', 'viewer-refresh', 'stand-ronde'].indexOf(b.dataset.act) < 0) return;
+    if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'dag-lijst', 'viewer-refresh', 'stand-ronde', 'viewer-fullscreen'].indexOf(b.dataset.act) < 0) return;
     const f = ACT[b.dataset.act]; if (f) { e.preventDefault(); f(b, e); }
   });
   document.addEventListener('change', e => {
