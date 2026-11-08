@@ -911,6 +911,13 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
   html.viewer-tv .tv-announcing>.pauze{display:block!important;visibility:visible!important;flex:0 0 auto!important;color:transparent!important;font-size:0!important;line-height:0!important;min-height:25px!important}
   html.viewer-tv .tv-announcing>.pauze.tv-half-hidden{display:none!important}
 }
+/* TV: roze balk zonder opschrift bij uitslag en aankondiging. */
+@media screen and (min-width:981px){
+ html.viewer-tv .viewer-day-cols .games.public-match-list.tv-announcing>.pauze:not(.tv-half-hidden){
+   display:block!important;visibility:visible!important;color:transparent!important;
+   font-size:0!important;line-height:0!important;min-height:25px!important;
+ }
+}
 /* TV: navigatie volledig buiten de layout, uitsluitend openen via bovenrand. */
 @media screen and (min-width:981px){
   html.viewer-tv .nav{
@@ -2751,7 +2758,7 @@ function tvRecordResult(oldT,newT){
 }
 function tvAnnouncementMarkup(a){
  const safe=x=>esc(x);
- if(Date.now()-a.at<10000)return '<div class="tv-announcement" role="status"><div class="tv-person">'+safe(a.winner)+'</div><div class="tv-word">WINT!</div></div>';
+ if(Date.now()-a.at<10000)return '<div class="tv-announcement" role="status"><div class="tv-person">'+safe(a.winner)+'</div><div class="tv-word">'+(/&/.test(a.winner)?'WINNEN!':'WINT!')+'</div></div>';
  if(Date.now()-a.at<70000&&a.next)return '<div class="tv-announcement" role="status"><div class="tv-caption">VOLGENDE WEDSTRIJD</div><div class="tv-person">'+safe(a.next.a)+'</div><div class="tv-word">VS</div><div class="tv-person">'+safe(a.next.b)+'</div></div>';
  return '';
 }
@@ -2838,6 +2845,7 @@ function applyTvHalf(){
  const activeAnnouncement=enabled&&staged&&state.phase!=='pause'&&tvAnnouncement&&
    tvAnnouncement.key===UI.dag.key&&tvAnnouncement.nr===UI.dag.nr&&
    Date.now()-tvAnnouncement.at<70000;
+ games.classList.toggle('tv-announcing',!!activeAnnouncement);
  if(activeAnnouncement){
    const markup=tvAnnouncementMarkup(tvAnnouncement);
    if(markup){
@@ -2845,12 +2853,12 @@ function applyTvHalf(){
      const temp=document.createElement('div');temp.innerHTML=markup;
      announcement.innerHTML=temp.firstElementChild.innerHTML;
      rows.forEach(el=>el.style.display='none');
-     Array.from(games.children).filter(el=>el.classList.contains('pauze')).forEach(el=>el.style.display='none');
+     Array.from(games.children).filter(el=>el.classList.contains('pauze')).forEach(el=>{el.style.removeProperty('display');el.textContent='';});
    }
  }else{
    if(announcement)announcement.remove();
    rows.forEach(el=>el.style.removeProperty('display'));
-   Array.from(games.children).filter(el=>el.classList.contains('pauze')).forEach(el=>el.style.removeProperty('display'));
+   Array.from(games.children).filter(el=>el.classList.contains('pauze')).forEach(el=>{el.style.removeProperty('display');el.textContent=el.classList.contains('tv-second-half-bar')?'2E HELFT':'PAUZE';});
  }
  const nextMatch=document.getElementById('viewerNextMatch');
  if(nextMatch){const label=staged&&state.phase==='pause'?'Eerstvolgende partij:':'Nu aan tafel:';const first=nextMatch.firstChild;if(first&&first.nodeType===3)first.textContent=label+' ';}
