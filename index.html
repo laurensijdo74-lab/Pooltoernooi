@@ -2043,6 +2043,14 @@ const FONTS = {
 };
 const FONT_NAMEN = { '': 'Zoals het thema', serif: 'Klassiek (serif)', sans: 'Modern (sans)', condensed: 'Smal en sterk', slab: 'Stevig (slab)', mono: 'Scorebord (mono)' };
 const THEMAS = {
+  karroesel: {
+    naam: 'Karroesel', tekst: 'Warme cafésfeer met donker hout, koper en amber', mode: 'dark', icoon: '🎱',
+    v: { '--bg': '#160f0d', '--surface': '#291b17', '--surface2': '#37251e', '--ink': '#f8ead6', '--muted': '#c4a88c', '--line': '#62432f', '--brand': '#dba34e', '--brand-ink': '#21130c', '--brand-soft': '#49301d',
+      '--accent': '#efb76b', '--accent-soft': '#513520',
+      '--hero': 'radial-gradient(ellipse at 70% 10%, rgba(242,173,83,.22), transparent 52%), repeating-linear-gradient(90deg, rgba(12,6,4,.18) 0 3px, transparent 3px 32px), linear-gradient(135deg,#51311f 0%,#301d16 48%,#1b1110 100%)',
+      '--hero-ink': '#fff1d8', '--rail': 'linear-gradient(180deg,#d6a85c 0%,#7b4b27 48%,#382119 100%)', '--radius': '9px',
+      '--font-display': FONTS.serif, '--display-weight': '800', '--display-tracking': '.012em', '--display-case': 'none' }
+  },
   biljartgroen: {
     naam: 'Biljartgroen', tekst: 'Groen laken met houten band', mode: 'light', icoon: '🎱',
     v: { '--bg': '#e9eee8', '--surface': '#ffffff', '--surface2': '#f2f5f0', '--ink': '#15231b', '--muted': '#566a5d', '--line': '#cfdacf', '--brand': '#17613f', '--brand-ink': '#ffffff', '--brand-soft': '#d6e9dd',
@@ -3657,7 +3665,7 @@ function adminFaq(){
  input.addEventListener('input',draw);overlay.querySelector('#faq-close').onclick=()=>overlay.remove();overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});const onKey=e=>{if(e.key==='Escape'){overlay.remove();document.removeEventListener('keydown',onKey)}};document.addEventListener('keydown',onKey);overlay.querySelector('#faq-close').addEventListener('click',()=>document.removeEventListener('keydown',onKey));draw();input.focus();
 }
 const ADMIN_CATALOG_KEY='pooltoernooi.admin.catalog.v1';
-const ADMIN_CHANGELOG=[['2026-11-08','Uitgebreide doorzoekbare Hulp & FAQ voor beheerders toegevoegd.'],['2026-11-07','Beheermenu, toernooiwizard, themawissel en toernooioverzicht toegevoegd.'],['2026-11-07','Mobiele wedstrijdnamen en desktopindeling verbeterd.'],['2026-11-07','LIVE-indicator en mobiele standen verbeterd.'],['2026-11-03','Break & Run registratie en toernooiranglijst toegevoegd.']];
+const ADMIN_CHANGELOG=[['2026-11-08','Karroesel-thema opnieuw toegevoegd aan de themakeuze, inclusief beheer en toeschouwersweergave.'],['2026-11-08','Uitgebreide doorzoekbare Hulp & FAQ voor beheerders toegevoegd.'],['2026-11-07','Beheermenu, toernooiwizard, themawissel en toernooioverzicht toegevoegd.'],['2026-11-07','Mobiele wedstrijdnamen en desktopindeling verbeterd.'],['2026-11-07','LIVE-indicator en mobiele standen verbeterd.'],['2026-11-03','Break & Run registratie en toernooiranglijst toegevoegd.']];
 function adminCatalog(){try{return JSON.parse(localStorage.getItem(ADMIN_CATALOG_KEY)||'{}')}catch(e){return {}}}
 function adminRemember(){if(!T||!T.id||UI.viewer)return;const all=adminCatalog();all[T.id]={id:T.id,naam:T.naam,datum:T.instellingen.startdatum,gewijzigd:T.gewijzigd,locatie:locatieVoorWeergave().naam};try{localStorage.setItem(ADMIN_CATALOG_KEY,JSON.stringify(all));localStorage.setItem('pooltoernooi.admin.data.'+T.id,JSON.stringify(T))}catch(e){}}
 function adminCloseMenu(){UI.adminMenu=false}
