@@ -2733,7 +2733,7 @@ function tvRecordResult(oldT,newT){
 function tvAnnouncementMarkup(a){
  const safe=x=>esc(x);
  if(Date.now()-a.at<10000)return '<div class="tv-announcement" role="status"><div class="tv-person">'+safe(a.winner)+'</div><div class="tv-word">WINT!</div></div>';
- if(a.next)return '<div class="tv-announcement" role="status"><div class="tv-caption">VOLGENDE WEDSTRIJD</div><div class="tv-person">'+safe(a.next.a)+'</div><div class="tv-word">VS</div><div class="tv-person">'+safe(a.next.b)+'</div></div>';
+ if(Date.now()-a.at<70000&&a.next)return '<div class="tv-announcement" role="status"><div class="tv-caption">VOLGENDE WEDSTRIJD</div><div class="tv-person">'+safe(a.next.a)+'</div><div class="tv-word">VS</div><div class="tv-person">'+safe(a.next.b)+'</div></div>';
  return '';
 }
 
@@ -2789,6 +2789,25 @@ function applyTvHalf(){
   if(!panel){panel=document.createElement('div');panel.className='tv-pause-panel';panel.setAttribute('role','status');games.appendChild(panel);}
   panel.innerHTML='<div class="tv-pause-title">PAUZE</div>';
  }else if(panel)panel.remove();
+ // Winnaar 10 sec, volgende wedstrijd 60 sec; pauze heeft voorrang.
+ let announcement=games.querySelector('.tv-announcement');
+ const activeAnnouncement=enabled&&staged&&state.phase!=='pause'&&tvAnnouncement&&
+   tvAnnouncement.key===UI.dag.key&&tvAnnouncement.nr===UI.dag.nr&&
+   Date.now()-tvAnnouncement.at<70000;
+ if(activeAnnouncement){
+   const markup=tvAnnouncementMarkup(tvAnnouncement);
+   if(markup){
+     if(!announcement){announcement=document.createElement('div');announcement.className='tv-announcement';games.appendChild(announcement);}
+     const temp=document.createElement('div');temp.innerHTML=markup;
+     announcement.innerHTML=temp.firstElementChild.innerHTML;
+     rows.forEach(el=>el.style.display='none');
+     Array.from(games.children).filter(el=>el.classList.contains('pauze')).forEach(el=>el.style.display='none');
+   }
+ }else{
+   if(announcement)announcement.remove();
+   rows.forEach(el=>el.style.removeProperty('display'));
+   Array.from(games.children).filter(el=>el.classList.contains('pauze')).forEach(el=>el.style.removeProperty('display'));
+ }
  const nextMatch=document.getElementById('viewerNextMatch');
  if(nextMatch){const label=staged&&state.phase==='pause'?'Eerstvolgende partij:':'Nu aan tafel:';const first=nextMatch.firstChild;if(first&&first.nodeType===3)first.textContent=label+' ';}
  if(badge){badge.style.display=staged?'inline-flex':'none';badge.textContent=state.phase==='pause'?'Pauze · 10 minuten':state.phase==='second'?'2e helft · blijft in beeld':state.remaining?'1e helft · pauze over '+state.remaining+' sec':'1e helft';}
