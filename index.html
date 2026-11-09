@@ -2809,7 +2809,7 @@ function viewLoting() {
       '</div></div><div class="stack"><div class="sect"><header><h3>Poules en speeldagen</h3></header><div class="body stack"><p class="small">' + plural(r.sizes.length, 'poule', 'poules') + ': ' + esc(r.sizes.join(' + ')) + ' spelers.' + (r.derden ? ' Daarnaast gaat de beste nummer 3 per weekend door.' : '') + '</p>' +
       '<div class="daglist">' + dagen.map(d => '<div class="row between small" style="border-bottom:1px solid var(--line);padding:4px 0"><span>Poule ' + d.poule + ' · ' + esc(P.datumKort(d.datum)) + '</span><span class="muted">' + esc(dagLabelLang(d.dag)) + '</span></div>').join('') + '</div>' +
       (cap && !cap.ok ? '<div class="note bad"><b>Voorkeuren niet haalbaar</b><br>' + cap.meldingen.map(esc).join('<br>') + '</div>' : '') +
-      '<div class="row"><button class="btn lg' + (kan ? '' : ' off') + '" data-act="loot" data-key="' + key + '">Start de loting</button><button class="btn sec' + (kan ? '' : ' off') + '" data-act="loot-manueel" data-key="' + key + '">Handmatig loten</button><button class="btn sec' + (kan ? '' : ' off') + '" data-act="loot-volgorde" data-key="' + key + '" title="Poule 1 krijgt de eerste namen van de lijst, poule 2 de volgende, enzovoort">Indelen in lijstvolgorde</button></div>' +
+      '<div class="row"><button class="btn lg' + (kan ? '' : ' off') + '" data-act="loot" data-key="' + key + '">Start de loting</button><button class="btn sec' + (kan ? '' : ' off') + '" data-act="loot-manueel" data-key="' + key + '">Handmatig loten</button><button class="btn sec' + (kan ? '' : ' off') + '" data-act="loot-volgorde" data-key="' + key + '" title="Poule 1 krijgt de eerste namen van de lijst, poule 2 de volgende, enzovoort">Indelen in lijstvolgorde</button>' + (P.rondeIndex(T, key) > 0 ? '<button class="btn accent" data-act="loot-upload" data-key="' + key + '">Namen uploaden op volgorde</button>' : '') + '</div>' +
       '<p class="tiny muted">De loting plaatst per positie één speler per poule en houdt rekening met voorkeur en verhinderdatum. Bij handmatig loten vul je zelf de getrokken namen in.</p></div></div></div></div></div>';
   }
   const rd = T.rondes[key], gescoord = rd.poules.some(P.heeftScores), opm = rd.opmerkingen || [];
@@ -3616,7 +3616,7 @@ async function uploadRondeVolgorde(key) {
   if (P.rondeIndex(T,key) < 1 || P.rondeGeloot(T,key)) return;
   const fouten=P.controleerLoting(T,key);
   if(fouten.length){await melding('Loting niet beschikbaar','<p>'+fouten.map(esc).join('<br>')+'</p>');return;}
-  const file=await new Promise(resolve=>{const inp=document.createElement('input');inp.type='file';inp.accept='.txt,.csv,.xlsx,.xls';inp.onchange=()=>resolve(inp.files[0]||null);inp.click();});
+  const file=await new Promise(resolve=>{const inp=document.createElement('input');inp.type='file';inp.accept='.txt,.csv,.xlsx';inp.onchange=()=>resolve(inp.files[0]||null);inp.click();});
   if(!file)return;
   let rows=[];
   try {
