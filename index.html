@@ -3341,7 +3341,10 @@ function dagDetailHtml(key, nr) {
   const vorigeOpen = vorige && P.rondeGeloot(T, vorige.ronde) && dagStatus(vorige.ronde, vorige.poule).code !== 'klaar';
   const wachtPh = p.spelers.some(P.isPh);
   const actief = actieveActie(key, p);
-  const laatste = P.laatsteGame(p), kanHerstel = !!laatste || (p.pp && p.pp.stappen.some(x => x.games.some(g => g.w)));
+  const vorigeRondeKey = P.vorigeKey(T, key);
+  const eerdereDerden = vorigeRondeKey ? (T.derden?.[vorigeRondeKey] || []) : [];
+  const herstelbareDerde = eerdereDerden.findIndex(po => po && Array.isArray(po.games) && po.games.some(g => g.w));
+  const laatste = P.laatsteGame(p), kanHerstel = !!laatste || (p.pp && p.pp.stappen.some(x => x.games.some(g => g.w))) || herstelbareDerde >= 0;
   const viewerRefresh = UI.viewer ? '<button class="btn accent viewer-refresh" data-act="viewer-refresh" aria-label="Vernieuwen" title="Haal de actuele stand op">↻</button>' : '';
   const beheerKnoppen = '<button class="btn sec sm" data-act="scorebord">Scorebord</button><button class="btn sec sm" data-act="scorebord-venster" title="Opent het scorebord in een eigen venster, bijvoorbeeld voor een tweede scherm of tv">Scorebord in eigen venster</button><button class="btn sec sm" data-act="print">Afdrukken</button>';
   const ondertitel = UI.viewer ? P.datumLang(d.datum) : P.datumLang(d.datum) + ' · ' + locNaam(dagLocatie(key, nr));
@@ -3821,6 +3824,20 @@ async function actDerdeWin(b) {
 }
 async function herstelVorige(key, nr) {
   if (await volgordeGeblokkeerd()) return;
+  const huidigePoule = P.zoekPoule(T,key,nr);
+  const heeftEigenUitslag = !!(huidigePoule && (P.laatsteGame(huidigePoule) || (huidigePoule.pp && huidigePoule.pp.stappen.some(st => st.games.some(g => g.w)))));
+  if (!heeftEigenUitslag) {
+    const vorige = P.vorigeKey(T,key);
+    const playoffs = vorige ? (T.derden?.[vorige] || []) : [];
+    const i = playoffs.findIndex(po => po && Array.isArray(po.games) && po.games.some(g => g.w));
+    if (i >= 0) {
+      if (!(await bevestig('De laatste play-offwedstrijd uit de vorige ronde herstellen? De eventuele winnaar wordt weer een open plaats. Reeds gespeelde wedstrijden in de volgende ronde worden beschermd.', {titel:'Vorige play-off herstellen?',ja:'Herstellen'}))) return;
+      maakHerstelpunt('Voor herstel vorige play-offwedstrijd');
+      const result = P.herstelDerdeVorige(T,vorige,i);
+      if (!result.ok) {toast(result.tekst || 'Herstel niet mogelijk',true);return;}
+      commit();toast('Play-offwedstrijd '+result.nr+' opnieuw geopend.');return;
+    }
+  }
   const r = P.herstelVorige(T, key, nr);
   if (r && (r.vergrendeld || r.fout)) { toast(r.fout || 'Deze speeldag is vergrendeld.', true); return; }
   if (!r) { toast('Er is nog geen wedstrijd om te herstellen.', true); return; }
