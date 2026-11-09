@@ -843,6 +843,21 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 :root[data-theme="karroesel"] .big-winner .naam {color:#ffcb64}
 @media print { :root[data-theme="karroesel"] body {background:#fff!important} :root[data-theme="karroesel"] .sect,:root[data-theme="karroesel"] .card {box-shadow:none!important} }
 
+
+/* Spelerslijst: op mobiel volledige namen, zonder horizontale tabelscroll. */
+@media(max-width:980px){
+ #spelers-overzicht .scroll-x{overflow-x:visible!important}
+ #spelers-overzicht table.t,#spelers-overzicht tbody{display:block;width:100%;min-width:0}
+ #spelers-overzicht thead{display:none}
+ #spelers-overzicht table.t tr{display:grid;grid-template-columns:30px minmax(0,1fr);gap:7px 10px;padding:12px 4px;border-bottom:1px solid var(--line)}
+ #spelers-overzicht table.t td{display:block;min-width:0;padding:3px 0;border:0;overflow-wrap:anywhere}
+ #spelers-overzicht table.t td:first-child{grid-column:1;grid-row:1}
+ #spelers-overzicht table.t td:nth-child(2){grid-column:2;grid-row:1}
+ #spelers-overzicht table.t td:nth-child(2) input{width:100%;min-width:0;font-size:16px;font-weight:750;white-space:normal}
+ #spelers-overzicht table.t td:nth-child(n+3){grid-column:2}
+ #spelers-overzicht table.t select,#spelers-overzicht table.t input[type=date]{width:100%;max-width:100%;font-size:15px}
+ #spelers-overzicht table.t td:last-child{display:flex;gap:7px;flex-wrap:wrap}
+}
 </style>
 </head>
 <body>
@@ -951,7 +966,8 @@ function nieuwToernooi(o) {
     gewijzigd: new Date().toISOString(),
     instellingen: {
       startdatum: o.startdatum || '2027-01-02',
-      pauzeNa: 'half',            // 'half' | 'geen' | getal
+      lotingMethode: 'app',       // 'app' | 'handmatig'
+       pauzeNa: 'half',            // 'half' | 'geen' | getal
       lotingVertraging: 0.25,
       overslaan: [],
       wekenTussen: 0,
@@ -2709,6 +2725,7 @@ function viewSpelers() {
     const cellen = rondes.map(r => '<td><select data-chg="sp-pref" data-id="' + s.id + '" data-key="' + r.key + '" aria-label="Voorkeur ' + esc(r.kort) + ' voor ' + esc(s.naam) + '">' +
       '<option value="">Geen voorkeur</option><option value="A"' + (s.voorkeur[r.key] === 'A' ? ' selected' : '') + '>' + esc(dagLabelLang('A')) + '</option><option value="B"' + (s.voorkeur[r.key] === 'B' ? ' selected' : '') + '>' + esc(dagLabelLang('B')) + '</option></select></td>' +
       '<td><input type="date" data-chg="sp-nb" data-id="' + s.id + '" data-key="' + r.key + '" value="' + esc(s.nb[r.key] || '') + '" aria-label="Niet beschikbaar ' + esc(r.kort) + ' voor ' + esc(s.naam) + '"></td>').join('');
+    const wisVoorkeur = rondes.filter(r => P.rondeGeloot(T,r.key) && (s.voorkeur[r.key] || s.nb[r.key])).map(r => '<button class="btn sec sm" data-act="sp-wis-voorkeur" data-id="'+s.id+'" data-key="'+r.key+'" title="Wis voorkeur en verhinderdatum voor deze gelote ronde">Wis '+esc(r.kort)+'</button>').join(' ');
     const chips = T.plan.rondes.map(r => { const st = P.spelerRondeStatus(T, r.key, s.id); const m = { door: ['ok', 'Door'], uit: ['bad', 'Uit'], bezig: ['info', 'Bezig'], playoff: ['warn', 'Play-off'], winnaar: ['ok', 'Winnaar'] }[st.s]; return m ? '<span class="chip ' + m[0] + '" title="' + esc(r.naam) + '">' + esc(r.kort) + ' ' + m[1] + '</span>' : ''; }).join(' ');
     const kanWeg = vrij || s.reserve;
     return '<tr><td class="num muted">' + (i + 1) + '</td><td><input type="text" class="' + (isDub ? 'bad' : '') + '" data-chg="sp-naam" data-id="' + s.id + '" value="' + esc(s.naam) + '" aria-label="Naam speler ' + (i + 1) + '">' + (isDub ? '<div class="tiny" style="color:var(--bad)">Naam komt dubbel voor</div>' : '') + '</td>' +
@@ -2716,7 +2733,7 @@ function viewSpelers() {
       '<td><button class="btn sec sm" data-act="sp-weg" data-id="' + s.id + '"' + (kanWeg ? '' : ' disabled title="Na de loting kan een speler niet meer worden verwijderd. Gebruik Vervangen bij de loting."') + ' aria-label="Verwijder ' + esc(s.naam) + '">✕</button></td></tr>';
   };
   const cap = vrij ? capCheckHtml() : '';
-  return '<div class="stack-l"><div class="sect"><header><h3>Deelnemers</h3><span class="chip solid">' + plural(nAct, 'speler', 'spelers') + '</span>' + (nRes ? '<span class="chip">' + plural(nRes, 'reserve', 'reserves') + '</span>' : '') +
+  return '<div id="spelers-overzicht" class="stack-l"><div class="sect"><header><h3>Deelnemers</h3><span class="chip solid">' + plural(nAct, 'speler', 'spelers') + '</span>' + (nRes ? '<span class="chip">' + plural(nRes, 'reserve', 'reserves') + '</span>' : '') +
     '<label class="row small" style="gap:6px"><input type="checkbox" data-chg="alle-rondes"' + (UI.alleRondes ? ' checked' : '') + '> Voorkeuren alle rondes</label></header>' +
     '<div class="body stack"><div class="note">' + esc(formatSamenvatting()) + '</div>' + cap +
     (vrij ? '' : '<div class="note warn">Ronde 1 is geloot. Namen kunnen nog worden aangepast; nieuwe aanmeldingen komen als reserve op de lijst. Vervangen doe je bij de loting.</div>') +
@@ -2809,8 +2826,10 @@ function viewLoting() {
       '</div></div><div class="stack"><div class="sect"><header><h3>Poules en speeldagen</h3></header><div class="body stack"><p class="small">' + plural(r.sizes.length, 'poule', 'poules') + ': ' + esc(r.sizes.join(' + ')) + ' spelers.' + (r.derden ? ' Daarnaast gaat de beste nummer 3 per weekend door.' : '') + '</p>' +
       '<div class="daglist">' + dagen.map(d => '<div class="row between small" style="border-bottom:1px solid var(--line);padding:4px 0"><span>Poule ' + d.poule + ' · ' + esc(P.datumKort(d.datum)) + '</span><span class="muted">' + esc(dagLabelLang(d.dag)) + '</span></div>').join('') + '</div>' +
       (cap && !cap.ok ? '<div class="note bad"><b>Voorkeuren niet haalbaar</b><br>' + cap.meldingen.map(esc).join('<br>') + '</div>' : '') +
-      '<div class="row"><button class="btn lg' + (kan ? '' : ' off') + '" data-act="loot" data-key="' + key + '">Start de loting</button><button class="btn sec' + (kan ? '' : ' off') + '" data-act="loot-manueel" data-key="' + key + '">Handmatig loten</button><button class="btn sec' + (kan ? '' : ' off') + '" data-act="loot-volgorde" data-key="' + key + '" title="Poule 1 krijgt de eerste namen van de lijst, poule 2 de volgende, enzovoort">Indelen in lijstvolgorde</button>' + (P.rondeIndex(T, key) > 0 ? '<button class="btn accent" data-act="loot-upload" data-key="' + key + '">Namen uploaden op volgorde</button>' : '') + '</div>' +
-      '<p class="tiny muted">De loting plaatst per positie één speler per poule en houdt rekening met voorkeur en verhinderdatum. Bij handmatig loten vul je zelf de getrokken namen in.</p></div></div></div></div></div>';
+             '<div class="row">' + ((T.instellingen.lotingMethode || 'app') === 'handmatig' ?
+         '<button class="btn accent' + (kan ? '' : ' off') + '" data-act="loot-upload" data-key="' + key + '">Namen uploaden op volgorde</button><button class="btn sec' + (kan ? '' : ' off') + '" data-act="loot-manueel" data-key="' + key + '">Handmatig vullen</button>' :
+         '<button class="btn lg' + (kan ? '' : ' off') + '" data-act="loot" data-key="' + key + '">Start de loting</button><button class="btn sec' + (kan ? '' : ' off') + '" data-act="loot-volgorde" data-key="' + key + '">Indelen in lijstvolgorde</button>') + '</div>' +
+'<p class="tiny muted">' + ((T.instellingen.lotingMethode || 'app') === 'handmatig' ? 'Upload de deelnemerslijst of vul de poules zelf in. Er wordt niet automatisch geloot.' : 'De app loot automatisch en houdt zoveel mogelijk rekening met voorkeuren en verhinderdatums.') + '</p></div></div></div></div></div>';
   }
   const rd = T.rondes[key], gescoord = rd.poules.some(P.heeftScores), opm = rd.opmerkingen || [];
   const anim = UI.anim && UI.anim.key === key;
@@ -2842,7 +2861,7 @@ function manueelHtml(key) {
   };
   const over = ids.filter(id => !gebruikt.has(id));
   return '<div class="stack-l"><div class="note">Handmatig loten voor <b>' + esc(r.naam) + '</b>: kies per plek de speler die je hebt getrokken. Nog niet ingedeeld: <b>' + over.length + '</b> van ' + ids.length + '.</div>' +
-    '<div class="row"><button class="btn" data-act="man-bevestig" data-key="' + key + '"' + (over.length ? ' disabled' : '') + '>Bevestig loting</button><button class="btn sec" data-act="man-rest" data-key="' + key + '">Rest willekeurig aanvullen</button><button class="btn sec" data-act="man-annuleer">Annuleren</button></div>' +
+    '<div class="row"><button class="btn" data-act="man-bevestig" data-key="' + key + '"' + (over.length ? ' disabled' : '') + '>Bevestig loting</button>' + ((T.instellingen.lotingMethode || 'app') === 'app' ? '<button class="btn sec" data-act="man-rest" data-key="' + key + '">Rest willekeurig aanvullen</button>' : '') + '<button class="btn sec" data-act="man-annuleer">Annuleren</button></div>' +
     '<div class="cards">' + r.sizes.map(kaart).join('') + '</div></div>';
 }
 
@@ -3425,6 +3444,7 @@ function instToernooi() {
     '<label class="f"><span>Naam van het toernooi</span><input type="text" data-chg="inst-naam" value="' + esc(T.naam) + '"></label>' +
     '<div class="grid2"><label class="f"><span>Eerste speeldag</span><input type="date" data-chg="inst-start" value="' + esc(i.startdatum) + '"' + (vrij ? '' : ' disabled') + '><span class="hint">' + esc(P.hoofd(P.dagNaam(i.startdatum))) + ' en ' + esc(P.dagNaam(P.plusDagen(i.startdatum, 1))) + ' vormen samen een weekend.</span></label>' +
     '<label class="f"><span>Extra weken tussen rondes</span><input type="number" min="0" max="6" data-chg="inst-tussen" value="' + (i.wekenTussen || 0) + '"' + (vrij ? '' : ' disabled') + '></label></div>' +
+    '<label class="f"><span>Manier van loten</span><select data-chg="inst-loting-methode"><option value="app"' + ((i.lotingMethode || 'app') === 'app' ? ' selected' : '') + '>Automatisch via de app</option><option value="handmatig"' + (i.lotingMethode === 'handmatig' ? ' selected' : '') + '>Handmatig (uploaden of zelf indelen)</option></select><span class="hint">Bepaalt welke lotingsknoppen zichtbaar zijn. Kan ook na eerdere rondes worden aangepast.</span></label>' +
     '<div class="grid2"><label class="f"><span>Pauze in de speeldag</span><select data-chg="inst-pauze"><option value="half"' + (i.pauzeNa === 'half' ? ' selected' : '') + '>Halverwege het schema</option><option value="geen"' + (i.pauzeNa === 'geen' ? ' selected' : '') + '>Geen pauze</option>' + [4, 5, 6, 8, 10, 12].map(n => '<option value="' + n + '"' + (String(i.pauzeNa) === String(n) ? ' selected' : '') + '>Na wedstrijd ' + n + '</option>').join('') + '</select></label>' +
     '<label class="f"><span>Tempo van de loting</span><select data-chg="inst-vertraging">' + [[0, 'Direct'], [0.1, 'Snel'], [0.25, 'Normaal'], [0.6, 'Langzaam'], [1.2, 'Spannend langzaam']].map(o => '<option value="' + o[0] + '"' + (Number(i.lotingVertraging) === o[0] ? ' selected' : '') + '>' + o[1] + '</option>').join('') + '</select></label></div>' +
     '<div><div class="f"><span style="font-weight:600;font-size:.88rem">Weken overslaan</span></div><div class="row" style="margin-top:6px"><input type="date" id="weekDatum" aria-label="Datum in het weekend dat wordt overgeslagen"><button class="btn sec sm" data-act="week-toe"' + (vrij ? '' : ' disabled') + '>Dit weekend overslaan</button>' + overslaan + '</div><div class="hint muted small" style="margin-top:4px">Handig bij vakanties of een gesloten locatie. Kies een datum in het weekend dat vervalt.</div></div>' +
@@ -3613,7 +3633,7 @@ function indelenInVolgorde(key) {
   const res = P.lootHandmatig(T, key, toew); if (res.ok) T.rondes[key].volgorde = true; return res;
 }
 async function uploadRondeVolgorde(key) {
-  if (P.rondeIndex(T,key) < 1 || P.rondeGeloot(T,key)) return;
+  if (P.rondeGeloot(T,key)) return;
   const fouten=P.controleerLoting(T,key);
   if(fouten.length){await melding('Loting niet beschikbaar','<p>'+fouten.map(esc).join('<br>')+'</p>');return;}
   const file=await new Promise(resolve=>{const inp=document.createElement('input');inp.type='file';inp.accept='.txt,.csv,.xlsx';inp.onchange=()=>resolve(inp.files[0]||null);inp.click();});
@@ -3796,27 +3816,27 @@ function adminCatalog(){try{return JSON.parse(localStorage.getItem(ADMIN_CATALOG
 function adminRemember(){if(!T||!T.id||UI.viewer)return;const all=adminCatalog();all[T.id]={id:T.id,naam:T.naam,datum:T.instellingen.startdatum,gewijzigd:T.gewijzigd,locatie:locatieVoorWeergave().naam};try{localStorage.setItem(ADMIN_CATALOG_KEY,JSON.stringify(all));localStorage.setItem('pooltoernooi.admin.data.'+T.id,JSON.stringify(T))}catch(e){}}
 function adminCloseMenu(){UI.adminMenu=false}
 function adminWizard(){
- adminCloseMenu();const w={step:0,naam:'',locatie:'',datum:'2027-01-02',type:'koppels',aantal:10,namen:'',thema:'biljartgroen',pauze:'half',derden:'auto',starttijd:'14:00',breakRun:false,openbaar:false};
+ adminCloseMenu();const w={step:0,naam:'',locatie:'',datum:'2027-01-02',type:'koppels',aantal:10,namen:'',thema:'biljartgroen',pauze:'half',lotingMethode:'app',derden:'auto',starttijd:'14:00',breakRun:false,openbaar:false};
  const pages=[['Basisgegevens','Naam, locatie en eerste speeldag'],['Deelnemers','Spelers of koppels'],['Speelopzet','Bestaande poulecompetitie met thuis- en uitwedstrijden'],['Planning','Speeldagen en pauze'],['Uiterlijk en opties','Thema en extra mogelijkheden'],['Controleren','Controleer je keuzes voor het aanmaken']];
  const field=(label,html)=>'<label class="f"><span>'+label+'</span>'+html+'</label>';
  function body(){const opt=(arr,sel)=>arr.map(([v,l])=>'<option value="'+esc(v)+'"'+(v===sel?' selected':'')+'>'+esc(l)+'</option>').join('');
  switch(w.step){
  case 0:return field('Naam toernooi','<input id="wiz-naam" required value="'+esc(w.naam)+'" placeholder="Bijv. Karroesel pooltoernooi 2027">')+field('Locatie','<input id="wiz-locatie" value="'+esc(w.locatie)+'" placeholder="Naam café of locatie">')+field('Eerste speeldag','<input id="wiz-datum" type="date" value="'+esc(w.datum)+'">');
  case 1:return field('Deelnemersvorm','<select id="wiz-type">'+opt([['koppels','Koppels (teamnamen)'],['spelers','Individuele spelers']],w.type)+'</select>')+field('Aantal deelnemers (teams of spelers)','<input id="wiz-aantal" type="number" min="4" max="120" value="'+w.aantal+'">')+field('Namen (optioneel, één per regel)','<textarea id="wiz-namen" rows="5" placeholder="Bijv. Tamara & Ruud">'+esc(w.namen)+'</textarea>')+'<p class="small muted">Je kunt namen later aanvullen. Bij koppels is ieder koppel één deelnemer in het schema.</p>';
- case 2:return '<div class="note good"><b>Bestaande poolopzet</b><p>Iedereen speelt twee keer tegen iedere andere deelnemer in de poule. De eerstgenoemde breekt. De beste twee gaan door, met optioneel beste nummers 3 en play-offs bij gelijke stand.</p></div>'+field('Beste nummer 3 per weekend','<select id="wiz-derden">'+opt([['auto','Automatisch (aanbevolen)'],['ja','Ja'],['nee','Nee']],w.derden)+'</select>')+'<p class="small muted">De poule-indeling wordt automatisch berekend op basis van het aantal deelnemers.</p>';
+ case 2:return '<div class="note good"><b>Bestaande poolopzet</b><p>Iedereen speelt twee keer tegen iedere andere deelnemer in de poule. De eerstgenoemde breekt. De beste twee gaan door, met optioneel beste nummers 3 en play-offs bij gelijke stand.</p></div>'+field('Lotingsmethode','<select id="wiz-loting">'+opt([['app','Automatisch via de app'],['handmatig','Handmatig (uploaden of zelf vullen)']],w.lotingMethode)+'</select>')+field('Beste nummer 3 per weekend','<select id="wiz-derden">'+opt([['auto','Automatisch (aanbevolen)'],['ja','Ja'],['nee','Nee']],w.derden)+'</select>')+'<p class="small muted">De poule-indeling wordt automatisch berekend op basis van het aantal deelnemers.</p>';
  case 3:return field('Aanvang reguliere wedstrijden','<input id="wiz-starttijd" type="time" value="'+esc(w.starttijd)+'">')+field('Pauze','<select id="wiz-pauze">'+opt([['half','Halverwege'],['geen','Geen pauze']],w.pauze)+'</select>')+'<p class="small muted">Speeldagen worden automatisch over weekenden verdeeld. Datums kun je later in Planning aanpassen. De publieke aftelklok ondersteunt momenteel 14:00 (play-offs 13:00); een andere starttijd wordt als voorkeur opgeslagen, maar verandert de klok nog niet.</p>';
  case 4:return field('Thema','<select id="wiz-thema">'+opt(Object.keys(THEMAS).map(k=>[k,THEMAS[k].naam]),w.thema)+'</select>')+'<label class="row"><input type="checkbox" id="wiz-br"'+(w.breakRun?' checked':'')+'> Break & Run bijhouden</label><label class="row"><input type="checkbox" id="wiz-openbaar"'+(w.openbaar?' checked':'')+'> Openbare toeschouwerslink toestaan</label>';
- default:return '<div class="stack"><p><b>'+esc(w.naam)+'</b> · '+esc(w.locatie||'Locatie nog niet ingevuld')+'</p><p>'+esc(w.datum)+' · '+w.aantal+' '+(w.type==='koppels'?'koppels':'spelers')+'</p><p>Bestaande poulecompetitie · '+esc(THEMAS[w.thema].naam)+'</p><p>'+w.namen.split(/\r?\n/).filter(x=>x.trim()).length+' namen ingevuld · overige namen later mogelijk</p><p class="small muted">Het huidige toernooi blijft apart bewaard. De loting start pas nadat alle deelnemers zijn ingevoerd.</p></div>';
+ default:return '<div class="stack"><p><b>'+esc(w.naam)+'</b> · '+esc(w.locatie||'Locatie nog niet ingevuld')+'</p><p>'+esc(w.datum)+' · '+w.aantal+' '+(w.type==='koppels'?'koppels':'spelers')+'</p><p>Bestaande poulecompetitie · '+esc(w.lotingMethode==='handmatig'?'Handmatig loten':'Loting via app')+' · '+esc(THEMAS[w.thema].naam)+'</p><p>'+w.namen.split(/\r?\n/).filter(x=>x.trim()).length+' namen ingevuld · overige namen later mogelijk</p><p class="small muted">Het huidige toernooi blijft apart bewaard. De loting start pas nadat alle deelnemers zijn ingevoerd.</p></div>';
  }}
  function save(){const v=id=>{const el=document.getElementById('wiz-'+id);return el?el.value:null};
  if(w.step===0){w.naam=v('naam')?.trim()||'';w.locatie=v('locatie')?.trim()||'';w.datum=v('datum')||w.datum;if(!w.naam){toast('Vul eerst een toernooinaam in.',true);return false}}
  if(w.step===1){w.type=v('type');w.aantal=Number(v('aantal'));w.namen=v('namen')||'';if(!Number.isInteger(w.aantal)||w.aantal<4||w.aantal>120){toast('Kies 4 tot 120 deelnemers.',true);return false}if(w.namen.split(/\r?\n/).filter(x=>x.trim()).length>w.aantal){toast('Er zijn meer namen dan het opgegeven aantal.',true);return false}}
- if(w.step===2)w.derden=v('derden');if(w.step===3){w.pauze=v('pauze');w.starttijd=v('starttijd')||'14:00'}
+ if(w.step===2){w.derden=v('derden');w.lotingMethode=v('loting')||'app';}if(w.step===3){w.pauze=v('pauze');w.starttijd=v('starttijd')||'14:00'}
  if(w.step===4){w.thema=v('thema');w.breakRun=document.getElementById('wiz-br').checked;w.openbaar=document.getElementById('wiz-openbaar').checked}return true;}
  function draw(){let ov=document.getElementById('adminWizardOverlay');if(!ov){ov=document.createElement('div');ov.id='adminWizardOverlay';ov.className='overlay admin-wizard';document.body.appendChild(ov)}
  ov.innerHTML='<div class="dialog wide"><h3>Nieuw toernooi · stap '+(w.step+1)+' van '+pages.length+'</h3><div class="db"><div class="steps">'+pages.map((x,i)=>'<i class="'+(i<=w.step?'done':'')+'"></i>').join('')+'</div><h4>'+pages[w.step][0]+'</h4><p class="muted small">'+pages[w.step][1]+'</p>'+body()+'</div><div class="df"><button class="btn sec" id="wiz-cancel">Annuleren</button>'+(w.step?'<button class="btn sec" id="wiz-back">Vorige</button>':'')+'<button class="btn" id="wiz-next">'+(w.step===5?'Toernooi aanmaken':'Volgende')+'</button></div></div>';
  document.getElementById('wiz-cancel').onclick=()=>ov.remove();const back=document.getElementById('wiz-back');if(back)back.onclick=()=>{save();w.step--;draw()};
- document.getElementById('wiz-next').onclick=()=>{if(!save())return;if(w.step<5){w.step++;draw();return}adminRemember();stopOnlineSynchronisatie();const nieuw=P.nieuwToernooi({naam:w.naam,startdatum:w.datum,locatieNaam:w.locatie||'Hoofdlocatie'});nieuw.locaties[0].thema=w.thema;nieuw.instellingen.pauzeNa=w.pauze;nieuw.instellingen.derden={0:w.derden};nieuw.instellingen.breakRun=w.breakRun;nieuw.instellingen.starttijdVoorkeur=w.starttijd;nieuw.deelnemersvorm=w.type;nieuw.verwachtAantal=w.aantal;nieuw.online.toegang=w.openbaar?'openbaar':'besloten';nieuw.online.gepubliceerd=w.openbaar;w.namen.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).forEach(n=>nieuw.spelers.push(P.nieuweSpeler(n)));P.herplan(nieuw);T=nieuw;UI.dag=null;UI.lotingKey=null;UI.tab='overzicht';ov.remove();commit();adminRemember();startOnlineSynchronisatie();toast('Nieuw toernooi aangemaakt. Vul zo nodig de overige deelnemers in en start daarna de loting.');};}
+ document.getElementById('wiz-next').onclick=()=>{if(!save())return;if(w.step<5){w.step++;draw();return}adminRemember();stopOnlineSynchronisatie();const nieuw=P.nieuwToernooi({naam:w.naam,startdatum:w.datum,locatieNaam:w.locatie||'Hoofdlocatie'});nieuw.locaties[0].thema=w.thema;nieuw.instellingen.pauzeNa=w.pauze;nieuw.instellingen.lotingMethode=w.lotingMethode;nieuw.instellingen.derden={0:w.derden};nieuw.instellingen.breakRun=w.breakRun;nieuw.instellingen.starttijdVoorkeur=w.starttijd;nieuw.deelnemersvorm=w.type;nieuw.verwachtAantal=w.aantal;nieuw.online.toegang=w.openbaar?'openbaar':'besloten';nieuw.online.gepubliceerd=w.openbaar;w.namen.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).forEach(n=>nieuw.spelers.push(P.nieuweSpeler(n)));P.herplan(nieuw);T=nieuw;UI.dag=null;UI.lotingKey=null;UI.tab='overzicht';ov.remove();commit();adminRemember();startOnlineSynchronisatie();toast('Nieuw toernooi aangemaakt. Vul zo nodig de overige deelnemers in en start daarna de loting.');};}
  draw();
 }
 function adminTournamentStatus(item){
@@ -3896,6 +3916,7 @@ const ACT = {
   loot(b) { voerLotingUit(b.dataset.key); },
   'loot-volgorde'(b) { const r = indelenInVolgorde(b.dataset.key); if (!r.ok) { toast(r.fouten.join(' '), true); return; } maakHerstelpunt('Na indelen in lijstvolgorde'); commit(); toast('Ingedeeld in precies de volgorde van de lijst'); },
   'loot-upload'(b) { uploadRondeVolgorde(b.dataset.key); },
+  'sp-wis-voorkeur'(b) { const sp=P.spelerById(T,b.dataset.id);if(!sp||!P.rondeGeloot(T,b.dataset.key))return;delete sp.voorkeur[b.dataset.key];delete sp.nb[b.dataset.key];commit();toast('Voorkeur en verhinderdatum gewist voor '+rondeNaam(b.dataset.key)); },
   'loot-manueel'(b) { const key = b.dataset.key, r = P.planRonde(T, key); UI.manual = { key, toewijzing: r.sizes.map(s => new Array(s).fill('')) }; render(); },
   'man-annuleer'() { UI.manual = null; render(); },
   'man-rest'() { const m = UI.manual, ids = P.deelnemersVoor(T, m.key), gebruikt = new Set([].concat.apply([], m.toewijzing).filter(Boolean)); const rest = P.shuffle(ids.filter(id => !gebruikt.has(id))); m.toewijzing.forEach(rij => { for (let i = 0; i < rij.length; i++) if (!rij[i] && rest.length) rij[i] = rest.pop(); }); render(); },
@@ -4098,6 +4119,7 @@ const CHG = {
   'inst-naam'(el) { T.naam = el.value.trim() || 'Pooltoernooi'; commit(); },
   'inst-start'(el) { if (el.value && wijzigbaar()) { T.instellingen.startdatum = el.value; P.herplan(T); commit(); } },
   'inst-tussen'(el) { T.instellingen.wekenTussen = Math.max(0, Math.min(6, parseInt(el.value, 10) || 0)); planOpnieuw(); commit(); },
+  'inst-loting-methode'(el) { T.instellingen.lotingMethode=el.value;commit(); },
   'inst-pauze'(el) { T.instellingen.pauzeNa = el.value; commit(); },
   'inst-vertraging'(el) { T.instellingen.lotingVertraging = Number(el.value); commit(); },
   'inst-derden'(el) { T.instellingen.derden[+el.dataset.idx] = el.value; planOpnieuw(); commit(); },
