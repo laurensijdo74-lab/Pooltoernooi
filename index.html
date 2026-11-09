@@ -3345,8 +3345,8 @@ function dagDetailHtml(key, nr) {
   const wachtPh = p.spelers.some(P.isPh);
   const actief = actieveActie(key, p);
   const vorigeRondeKey = P.vorigeKey(T, key);
-  const eerdereDerden = vorigeRondeKey ? (T.derden?.[vorigeRondeKey] || []) : [];
-  const herstelbareDerde = eerdereDerden.findIndex(po => po && Array.isArray(po.games) && po.games.some(g => g.w));
+  const eerdereDerden = vorigeRondeKey ? Object.entries((T.derden && T.derden[vorigeRondeKey]) || {}) : [];
+  const herstelbareDerde = eerdereDerden.find(entry => entry[1] && Array.isArray(entry[1].games) && entry[1].games.some(g => g.w));
   const laatste = P.laatsteGame(p), kanHerstel = !!laatste || (p.pp && p.pp.stappen.some(x => x.games.some(g => g.w))) || herstelbareDerde >= 0;
   const viewerRefresh = UI.viewer ? '<button class="btn accent viewer-refresh" data-act="viewer-refresh" aria-label="Vernieuwen" title="Haal de actuele stand op">↻</button>' : '';
   const beheerKnoppen = '<button class="btn sec sm" data-act="scorebord">Scorebord</button><button class="btn sec sm" data-act="scorebord-venster" title="Opent het scorebord in een eigen venster, bijvoorbeeld voor een tweede scherm of tv">Scorebord in eigen venster</button><button class="btn sec sm" data-act="print">Afdrukken</button>';
@@ -3831,8 +3831,9 @@ async function herstelVorige(key, nr) {
   const heeftEigenUitslag = !!(huidigePoule && (P.laatsteGame(huidigePoule) || (huidigePoule.pp && huidigePoule.pp.stappen.some(st => st.games.some(g => g.w)))));
   if (!heeftEigenUitslag) {
     const vorige = P.vorigeKey(T,key);
-    const playoffs = vorige ? (T.derden?.[vorige] || []) : [];
-    const i = playoffs.findIndex(po => po && Array.isArray(po.games) && po.games.some(g => g.w));
+    const playoffs = vorige ? Object.entries((T.derden && T.derden[vorige]) || {}) : [];
+    const gevonden = playoffs.find(entry => entry[1] && Array.isArray(entry[1].games) && entry[1].games.some(g => g.w));
+    const i = gevonden ? Number(gevonden[0]) : -1;
     if (i >= 0) {
       if (!(await bevestig('De laatste play-offwedstrijd uit de vorige ronde herstellen? De eventuele winnaar wordt weer een open plaats. Reeds gespeelde wedstrijden in de volgende ronde worden beschermd.', {titel:'Vorige play-off herstellen?',ja:'Herstellen'}))) return;
       maakHerstelpunt('Voor herstel vorige play-offwedstrijd');
