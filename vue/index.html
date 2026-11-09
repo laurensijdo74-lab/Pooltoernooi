@@ -966,6 +966,32 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  html.viewer-tv .tv-po-standings .tv-po-standing th,html.viewer-tv .tv-po-standings .tv-po-standing td{padding:12px 8px;border-bottom:1px solid var(--line);font-size:clamp(16px,1.3vw,23px)}
  html.viewer-tv .tv-po-standings .tv-po-standing tr:first-child td{background:var(--good-soft)}
 }
+
+/* Definitive TV-only split-screen. Mobile legacy block stays unchanged. */
+@media screen and (min-width:981px){
+ html.viewer-tv .viewer-pending-playoff>.viewer-playoff-mobile{display:none!important}
+ html.viewer-tv .viewer-pending-playoff>.viewer-playoff-top{display:none!important}
+ html.viewer-tv .viewer-pending-playoff.tv-show-playoff>.viewer-playoff-top{display:block!important}
+ html.viewer-tv .viewer-pending-playoff.tv-show-playoff>.viewer-day-cols{display:none!important}
+ html.viewer-tv .viewer-pending-playoff:not(.tv-show-playoff)>.viewer-day-cols{display:grid!important}
+ html.viewer-tv .viewer-playoff-top .tv-po-grid{display:grid!important;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)!important;gap:14px;align-items:stretch}
+ html.viewer-tv .viewer-playoff-top .tv-po-matches{min-width:0;overflow:hidden}
+ html.viewer-tv .viewer-playoff-top .tv-po-matches>.body{padding:0!important}
+ html.viewer-tv .viewer-playoff-top .tv-po-group{margin:0}
+ html.viewer-tv .viewer-playoff-top .tv-po-subtitle{padding:8px 12px}
+ html.viewer-tv .viewer-playoff-top .tv-po-matches .games{width:100%!important;margin:0!important;border-radius:0}
+ html.viewer-tv .viewer-playoff-top .tv-po-matches .game{grid-template-columns:minmax(0,1fr) 2rem minmax(0,1fr)!important}
+ html.viewer-tv .viewer-playoff-top .tv-po-matches .game .pl{padding:9px 10px;min-width:0}
+ html.viewer-tv .viewer-playoff-top .tv-po-matches .game .nm{font-size:clamp(17px,1.35vw,24px);white-space:normal}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing{display:flex;flex-direction:column;min-height:100%;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing h3{font-size:clamp(20px,1.5vw,27px);padding:10px 14px;border-bottom:1px solid var(--line)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing table{width:100%;table-layout:fixed;border-collapse:collapse}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing th{font-size:clamp(13px,1vw,17px)!important;color:var(--muted);text-align:left;padding:9px 8px}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing td{font-size:clamp(17px,1.4vw,24px);padding:11px 8px;border-bottom:1px solid var(--line)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing td:last-child,html.viewer-tv .viewer-playoff-top .tv-po-standing th:last-child{text-align:right}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing tbody tr:first-child{background:var(--good-soft)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing tbody tr:last-child{background:var(--bad-soft)}
+}
 @media screen and (max-width:980px){.viewer-playoff-top{display:none!important}}
 </style>
 </head>
@@ -3508,10 +3534,10 @@ function dagDetailHtml(key, nr) {
   const derdePp = derdeBlokkenVoorPoule(key, p);
   const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p) + (UI.viewer ? '' : pouleSamenvatting(key, p)) + (!UI.viewer && actief && actief.soort === 'reg' ? '<div class="small muted" id="viewerNextMatch">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + brPaneel(key,nr) + testHulpHtml(key, p) + '</div>';
   const playoffs = (UI.viewer && wachtPh ? '' : ppBlokHtml(key, p) + derdePp);
-  const tvPlayoffOnly = UI.viewer && wachtPh && vorigePlayoffsHtml(key,p);
+  const tvPlayoffOnly = UI.viewer && wachtPh && !!tvPlayoffScreenHtml(key,p);
   const tvPlayoffMode = tvPlayoffOnly ? ' viewer-pending-playoff' : '';
   const verslagen = verslagBlokHtml('poule', key, nr) + verslagBlokHtml('weekend', key, nr);
-  return '<div class="stack-l dag-detail-stack' + tvPlayoffMode + '">' + kop + waarschuw + (wachtPh ? vorigePlayoffsHtml(key, p) : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols' + (UI.viewer ? ' viewer-day-cols' : '') + '">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + (UI.viewer ? brVoetnoot() : '') + verslagen + '</div>';
+  return '<div class="stack-l dag-detail-stack' + tvPlayoffMode + '">' + kop + waarschuw + (wachtPh ? '<div class="viewer-playoff-mobile">' + vorigePlayoffsHtml(key, p) + '</div>' + (UI.viewer ? tvPlayoffScreenHtml(key,p) : '') : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols' + (UI.viewer ? ' viewer-day-cols' : '') + '">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + (UI.viewer ? brVoetnoot() : '') + verslagen + '</div>';
 }
 function updateTvPlayoffPhase(){
  const root=document.querySelector('.viewer-pending-playoff');
