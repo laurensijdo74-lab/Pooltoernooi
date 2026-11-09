@@ -3656,6 +3656,44 @@ function updateTvPlayoffWinner(){
  const h=document.createElement('div'),n=document.createElement('div');h.className='heading';n.className='winner';h.textContent='WINNAAR PLAYOFF';n.textContent=tvPlayoffAnnouncement.name;el.append(h,n);
 }
 setInterval(updateTvPlayoffWinner,1000);
+/* Publieke herstelweergave: een ingetrokken uitslag mag geen oude winnaar
+   in de volgende ronde laten staan. Alleen een ondubbelzinnige, nog niet
+   gespeelde plaats wordt tijdelijk als placeholder weergegeven.
+   De Firestore-bron en de beheerdersgegevens worden niet gewijzigd. */
+function herstelOpenPlayoffsPubliek(bron) {
+  if (!bron || !bron.plan || !bron.rondes) return bron;
+  const kopie = JSON.parse(JSON.stringify(bron));
+  const rondes = kopie.plan.rondes || [];
+  for (let ri = 0; ri + 1 < rondes.length; ri++) {
+    const key = rondes[ri].key, volgende = rondes[ri + 1].key;
+    const rd = kopie.rondes[key], nxt = kopie.rondes[volgende];
+    if (!rd || !nxt || !nxt.geloot || !Array.isArray(nxt.poules)) continue;
+    const entries = Object.entries((kopie.derden || {})[key] || {});
+    for (const [i, po] of entries) {
+      if (!po || !po.a || !po.b || po.a === po.b) continue;
+      // Controleer de echte stand: alleen een nog onbesliste play-off herstellen.
+      const st = P.derdeStatus(kopie, key, Number(i));
+      if (st.status !== 'playoff') continue;
+      const kandidaat = [po.a, po.b];
+      const gevonden = [];
+      nxt.poules.forEach(p => p.spelers.forEach((id, pos) => {
+        if (kandidaat.includes(id)) gevonden.push({p, pos, id});
+      }));
+      if (gevonden.length !== 1) continue;
+      const {p, pos, id} = gevonden[0];
+      if (P.heeftScores(p)) continue;
+      const token = 'phx:' + key + ':d' + i;
+      p.spelers[pos] = token;
+      (p.schema || []).forEach(g => {
+        if (g.a === id) g.a = token;
+        if (g.b === id) g.b = token;
+      });
+      kopie.ph = kopie.ph || {};
+      kopie.ph[token] = {key, soort:'derde', i:Number(i)};
+    }
+  }
+  return kopie;
+}
 function pasPubliekeStandToe(remote, melding) {
   if (!remote || !remote.id || !T || remote.id !== T.id) return false;
   const huidigeTab = UI.tab;
@@ -4536,7 +4574,7 @@ async function start() {
       await window.POOL_ONLINE.ready;
       const remote = await window.POOL_ONLINE.loadTournament(publicId, { public: true });
       if (remote) {
-        T = remote;
+        T = herstelOpenPlayoffsPubliek(remote);
         UI.viewer = true;
         UI.publicLink = location.href;
         UI.tab = 'dag';
