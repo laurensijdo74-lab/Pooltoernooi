@@ -4085,11 +4085,25 @@ function openScorebordVenster() {
   let w = null;
   try { w = window.open('', 'pooltoernooi_scorebord', 'popup=yes,width=1280,height=720'); } catch (e) { }
   if (!w) { toast('Het venster werd geblokkeerd. Sta pop-ups toe voor deze pagina en probeer opnieuw.', true); return; }
-  const css = Array.from(document.querySelectorAll('style')).map(s => s.textContent).join('\n');
-  w.document.open();
-  w.document.write('<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Scorebord</title><style>' + css + '\nbody{margin:0}.scorebord.venster{position:static;min-height:100vh}</style></head><body><div id="sb"></div></body></html>');
-  w.document.close();
-  UI.sbWin = w; ververscScorebordVenster();
+  // Bouw het scorebordvenster met DOM-elementen in plaats van HTML-broncode
+  // in een scriptstring. Dit voorkomt dat HTML-afsluitcodes de hoofdpagina verstoren.
+  const doc = w.document;
+  doc.title = 'Scorebord';
+  doc.documentElement.lang = 'nl';
+  const meta = doc.createElement('meta');
+  meta.name = 'viewport';
+  meta.content = 'width=device-width, initial-scale=1';
+  doc.head.appendChild(meta);
+  const style = doc.createElement('style');
+  style.textContent = Array.from(document.querySelectorAll('style')).map(el => el.textContent).join('\n') +
+    '\nbody{margin:0}.scorebord.venster{position:static;min-height:100vh}';
+  doc.head.appendChild(style);
+  doc.body.replaceChildren();
+  const sb = doc.createElement('div');
+  sb.id = 'sb';
+  doc.body.appendChild(sb);
+  UI.sbWin = w;
+  ververscScorebordVenster();
   toast('Scorebord geopend. Sleep het venster naar je tweede scherm en druk op “Volledig scherm”.');
 }
 function ververscScorebordVenster() {
