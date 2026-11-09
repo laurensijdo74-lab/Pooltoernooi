@@ -2713,7 +2713,7 @@ function tabsVoorWeergave() {
 }
 function navHtml() {
   const open = alleDagen().filter(d => P.rondeGeloot(T, d.ronde) && dagStatus(d.ronde, d.poule).code === 'playoff').length;
-  return '<nav class="nav noprint" aria-label="Hoofdmenu"><div class="nav-in">' + (UI.viewer ? '' : '<div class="admin-menu-wrap"><button class="admin-menu-button" data-act="admin-menu" aria-label="Beheermenu" aria-expanded="'+!!UI.adminMenu+'">☰</button>'+(UI.adminMenu ? '<div class="admin-menu-panel"><button data-act="admin-new">＋ Nieuw toernooi<small>Begeleide start</small></button><button data-act="admin-all">🏆 Alle toernooien<small>Wisselen en beheren</small></button><button data-act="admin-settings">⚙ Instellingen</button><button data-act="admin-themes">🎨 Thema’s<small>Ook tijdens het toernooi</small></button><button data-act="admin-faq">❔ Hulp & FAQ<small>Zoek uitleg over alle beheerfuncties</small></button><button data-act="admin-changelog">◷ Changelog</button></div>' : '')+'</div>') + tabsVoorWeergave().map(t =>
+  return '<nav class="nav noprint" aria-label="Hoofdmenu"><div class="nav-in">' + (UI.viewer ? '' : '<div class="admin-menu-wrap"><button class="admin-menu-button" data-act="admin-menu" aria-label="Beheermenu" aria-expanded="'+!!UI.adminMenu+'">☰</button>'+(UI.adminMenu ? '<div class="admin-menu-panel"><button type="button" data-act="admin-menu" aria-label="Menu sluiten">✕ Sluiten / terug naar beheer</button><button data-act="admin-new">＋ Nieuw toernooi<small>Begeleide start</small></button><button data-act="admin-all">🏆 Alle toernooien<small>Wisselen en beheren</small></button><button data-act="admin-settings">⚙ Instellingen</button><button data-act="admin-themes">🎨 Thema’s<small>Ook tijdens het toernooi</small></button><button data-act="admin-faq">❔ Hulp & FAQ<small>Zoek uitleg over alle beheerfuncties</small></button><button data-act="admin-changelog">◷ Changelog</button></div>' : '')+'</div>') + tabsVoorWeergave().map(t =>
     '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + '</div></nav>';
 }
 
@@ -3645,7 +3645,7 @@ function render() {
   const app = $('#app'); if (!app) return;
   const y = window.scrollY, focusId = UI.focusId; UI.focusId = null;
   pasThemaToe(locatieVoorWeergave());
-  app.innerHTML = heroHtml() + navHtml() + '<main class="wrap" id="main">' + view() + '</main>' + (UI.scorebord ? scorebordHtml() : '');
+  app.innerHTML = heroHtml() + navHtml() + (UI.tab==='instellingen'&&!UI.viewer?'<div class="wrap" style="padding-top:12px"><button class="btn sec sm" data-act="admin-back">← Terug naar beheer</button></div>':'') + '<main class="wrap" id="main">' + view() + '</main>' + (UI.scorebord ? scorebordHtml() : '');
   window.scrollTo(0, UI.resetScroll ? 0 : y); UI.resetScroll = false;
   updateViewerCountdown();
   /* Standnamen mogen op meerdere regels, niet kleiner worden gemaakt. */
@@ -3980,7 +3980,8 @@ const ACT = {
   'admin-menu'(){UI.adminMenu=!UI.adminMenu;render()},
   'admin-new'(){adminWizard()},
   'admin-all'(){adminAll()},
-  'admin-settings'(){adminCloseMenu();UI.tab='instellingen';UI.inst='toernooi';render()},
+  'admin-settings'(){adminCloseMenu();UI.adminReturnTab=UI.tab==='instellingen'?'overzicht':UI.tab;UI.tab='instellingen';UI.inst='toernooi';render()},
+  'admin-back'(){UI.adminMenu=false;UI.tab=UI.adminReturnTab&&UI.adminReturnTab!=='instellingen'?UI.adminReturnTab:'overzicht';UI.adminReturnTab=null;UI.resetScroll=true;render()},
   'admin-themes'(){adminTheme()},
   'admin-changelog'(){adminChangelog()},
   'admin-faq'(){adminFaq()},
@@ -3989,11 +3990,11 @@ const ACT = {
   'admin-delete'(b){adminDelete(b.dataset.id)},
   'br-adjust'(b) { const matches=brMatches(UI.dag.key,UI.dag.nr); const m=matches.find(x=>x.id===b.dataset.match); if(!m||![m.g.a,m.g.b].includes(b.dataset.id))return; T.breakRuns=T.breakRuns||{}; const v=T.breakRuns[m.id]||(T.breakRuns[m.id]={}); v[b.dataset.id]=Math.max(0,(Number(v[b.dataset.id])||0)+Number(b.dataset.delta)); if(!v[b.dataset.id])delete v[b.dataset.id]; UI.brSelected=m.id;UI.brOpen=true;commit(); },
   'dag-lijst'() { UI.dagLijst = UI.dagLijst === false; render(); },
-  tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = mobielWeergave() ? false : true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
+  tab(b) { UI.adminMenu=false; UI.adminReturnTab=null; UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = mobielWeergave() ? false : true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
   'ga-gegevens'() { UI.tab = 'instellingen'; UI.inst = 'gegevens'; render(); },
   'naar-loting'(b) { UI.lotingKey = b.dataset.key; UI.tab = 'loting'; UI.resetScroll = true; render(); },
   'naar-ronde'(b) { const k = b.dataset.key; if (P.rondeGeloot(T, k)) { UI.stand = k; UI.tab = 'standen'; } else { UI.lotingKey = k; UI.tab = 'loting'; } UI.resetScroll = true; render(); },
-  'open-dag'(b) { openDag(b.dataset.key, +b.dataset.nr); },
+  'open-dag'(b) { UI.adminMenu=false; openDag(b.dataset.key, +b.dataset.nr); },
   'dag-nav'(b) { const a = alleDagen(), i = a.findIndex(x => x.ronde === UI.dag.key && x.poule === UI.dag.nr), n = a[i + (+b.dataset.d)]; if (n && (!UI.viewer || P.rondeGeloot(T, n.ronde))) openDag(n.ronde, n.poule); },
   async 'viewer-refresh'() {
     await vernieuwPubliek(true);
@@ -4302,7 +4303,9 @@ function koppelEvents() {
     if (e.detail && !e.detail.user) stopOnlineSynchronisatie();
     if (!UI.viewer) render();
   });
-  document.addEventListener('click', e => { if(e.target.closest('[data-br-summary]')) UI.brOpen=!e.target.closest('details').open;
+  document.addEventListener('click', e => {
+    if (UI.adminMenu && !e.target.closest('.admin-menu-wrap')) { UI.adminMenu=false; if (!e.target.closest('[data-act]')) { render(); return; } }
+    if(e.target.closest('[data-br-summary]')) UI.brOpen=!e.target.closest('details').open;
     const b = e.target.closest('[data-act]'); if (!b || b.disabled || b.classList.contains('off')) return;
     if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'dag-lijst', 'viewer-refresh', 'stand-ronde'].indexOf(b.dataset.act) < 0) return;
     const f = ACT[b.dataset.act]; if (f) { e.preventDefault(); f(b, e); }
@@ -4317,6 +4320,7 @@ function koppelEvents() {
     const t = e.target;
     if (e.key === 'Enter' && t.id === 'nieuweNaam') { e.preventDefault(); ACT['sp-toevoegen'](); return; }
     if ((e.key === 'Enter' || e.key === ' ') && t.matches && t.matches('[data-act="kies-speler"]')) { e.preventDefault(); kiesSpeler(t.dataset.id); return; }
+    if (e.key === 'Escape' && UI.adminMenu) { UI.adminMenu=false; render(); return; }
     if (e.key === 'Escape' && UI.scorebord) { UI.scorebord = false; render(); return; }
     if (UI.tab !== 'dag' || !UI.dag || document.querySelector('.overlay')) return;
     if (t.matches && t.matches('input,select,textarea')) return;
