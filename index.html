@@ -1558,36 +1558,39 @@ function zetUitslag(T, key, nr, gameNr, w) {
 function maakPlayoffOngedaan(T, key, nr, derdeIndex) {
   const isDerde = derdeIndex !== null && derdeIndex !== undefined;
   const p = isDerde ? null : zoekPoule(T, key, nr);
-  if (!isDerde && (!p || !p.pp)) return { ok:false, tekst:'Geen play-off gevonden.' };
+  if (!isDerde && (!p || !p.pp)) return {ok:false,tekst:'Geen play-off gevonden.'};
   const po = isDerde ? (T.derden[key] || {})[derdeIndex] : p.pp;
-  if (!po) return { ok:false, tekst:'Geen play-off gevonden.' };
-  const ids = isDerde ? [po.a,po.b] : po.stappen[0].groep.slice();
+  if (!po) return {ok:false,tekst:'Geen play-off gevonden.'};
   const winnaar = isDerde ? po.winnaar : (po.voltooid ? ppVolgorde(po)[0] : null);
-  const next = volgendeKey(T,key), token = isDerde ? 'phx:'+key+':d'+derdeIndex : null;
+  const next = volgendeKey(T,key);
+  // De beslissing kan alleen worden teruggedraaid wanneer de afhankelijke poule
+  // nog geen uitslagen heeft. Andere poules blijven volledig onaangetast.
   if (next && rondeGeloot(T,next)) {
-    const r=T.rondes[next];
-    const betrokken=r.poules.filter(q=>q.spelers.some(id=>ids.includes(id) || id===token || (isPh(id) && ids.some(x=>naamVan(T,id).includes(naamVan(T,x))))));
-    if (betrokken.some(q=>heeftScores(q))) return {ok:false,tekst:'De volgende ronde bevat al uitslagen van betrokken spelers. Maak die eerst ongedaan.'};
-    // Keep the unresolved place visible instead of silently selecting a player.
-    if (winnaar) {
-      const ph = isDerde ? 'phx:'+key+':d'+derdeIndex : 'phx:'+key+':p'+nr+':1';
-      if (r.poules.some(q=>q.spelers.includes(winnaar))) {
-        T.ph=T.ph||{};
-        T.ph[ph]=isDerde?{key,soort:'derde',i:derdeIndex}:{key,soort:'pool',poule:nr,slot:1,slots:1,idx:po.start-1};
-        vervangId(T,next,winnaar,ph);
-      }
+    const r = T.rondes[next];
+    const token = isDerde ? 'phx:'+key+':d'+derdeIndex : 'phx:'+key+':p'+nr+':1';
+    const betrokken = r.poules.filter(q => q.spelers.includes(winnaar) || q.spelers.includes(token));
+    if (betrokken.some(q => heeftScores(q))) return {ok:false,tekst:'De volgende ronde bevat al uitslagen in de betrokken poule. Herstel eerst die uitslagen.'};
+    if (winnaar && betrokken.some(q => q.spelers.includes(winnaar))) {
+      T.ph = T.ph || {};
+      T.ph[token] = isDerde ? {key,soort:'derde',i:derdeIndex} : {key,soort:'pool',poule:nr,slot:1,slots:1,idx:po.start-1};
+      vervangId(T,next,winnaar,token);
     }
   }
   if (isDerde) {
-    T.derdenOvergeslagen=T.derdenOvergeslagen||{};
-    T.derdenOvergeslagen[key]=T.derdenOvergeslagen[key]||{};
-    T.derdenOvergeslagen[key][derdeIndex]=ids.slice().sort().join('|');
-    delete T.derden[key][derdeIndex];
+    // Houd de play-off beschikbaar voor een nieuwe beslissing.
+    po.games.forEach(g => {g.w=null;g.t=0;});
+    po.forfait=null;po.winnaar=null;po.ontgrendeld=false;
+    if (T.derdenOvergeslagen && T.derdenOvergeslagen[key]) delete T.derdenOvergeslagen[key][derdeIndex];
+    derdeStatus(T,key,derdeIndex);
   } else {
-    p.ppOvergeslagen=po.sleutel;
-    p.pp=null;
+    po.stappen = [nieuwePpStap(po.stappen[0].groep,po.stappen[0].plekken,po.stappen[0].start,po.stappen[0].formaat)];
+    po.voltooid=false;
+    delete p.ppOvergeslagen;
+    p.ontgrendeld=false;
+    synchroniseerPoule(T,p);
   }
-  log(T,'Play-off ongedaan gemaakt: '+key+(isDerde?' beste nummer 3 '+(derdeIndex+1):' poule '+nr));
+  T.gewijzigd=new Date().toISOString();
+  log(T,'Play-off heropend: '+key+(isDerde?' beste nummer 3 '+(derdeIndex+1):' poule '+nr));
   return {ok:true};
 }
 
@@ -4060,16 +4063,16 @@ const ACT = {
   vergrendel(b) { P.zetOntgrendeld(T, b.dataset.key, +b.dataset.nr, false); commit(); toast('Speeldag vergrendeld'); },
   async 'derde-ontgrendel'(b) { if (!(await bevestig('Deze play-off is beslist. Ontgrendelen is bedoeld om een fout te herstellen.', { titel: 'Play-off ontgrendelen?', ja: 'Ontgrendelen' }))) return; const po = T.derden[b.dataset.key][+b.dataset.i]; po.ontgrendeld = true; commit(); },
   async 'pp-ongedaan'(b) {
-    if (!(await bevestig('De volledige play-off inclusief uitslagen wordt ongedaan gemaakt. De oorspronkelijke poulewedstrijden blijven behouden. Dit kan gevolgen hebben voor de plaats in de volgende ronde.', {titel:'Play-off ongedaan maken?',ja:'Play-off verwijderen',gevaar:true}))) return;
+    if (!(await bevestig('De play-offuitslagen worden gewist en de play-off wordt opnieuw geopend. De oorspronkelijke poulewedstrijden blijven behouden. De volgende ronde toont opnieuw de open play-offplek.', {titel:'Play-off ongedaan maken?',ja:'Play-off heropenen',gevaar:true}))) return;
     maakHerstelpunt('Voor verwijderen play-off');
     const r=P.maakPlayoffOngedaan(T,b.dataset.key,+b.dataset.nr,null);
-    if(!r.ok){toast(r.tekst,true);return;} commit();toast('Play-off ongedaan gemaakt.');
+    if(!r.ok){toast(r.tekst,true);return;} commit();toast('Play-off opnieuw geopend.');
   },
   async 'd-ongedaan'(b) {
-    if (!(await bevestig('De play-off om beste nummer 3 wordt inclusief uitslagen verwijderd. Er wordt niet automatisch een winnaar aangewezen.', {titel:'Play-off ongedaan maken?',ja:'Play-off verwijderen',gevaar:true}))) return;
+    if (!(await bevestig('De uitslagen worden gewist en de play-off om beste nummer 3 wordt opnieuw geopend. Er wordt geen winnaar aangewezen.', {titel:'Play-off ongedaan maken?',ja:'Play-off heropenen',gevaar:true}))) return;
     maakHerstelpunt('Voor verwijderen play-off beste nummer 3');
     const r=P.maakPlayoffOngedaan(T,b.dataset.key,null,+b.dataset.i);
-    if(!r.ok){toast(r.tekst,true);return;} commit();toast('Play-off ongedaan gemaakt.');
+    if(!r.ok){toast(r.tekst,true);return;} commit();toast('Play-off opnieuw geopend.');
   },
   async 'pp-reset'(b) { if (!(await bevestig('De play-off wordt opnieuw opgezet; ingevoerde play-offuitslagen vervallen.', { ja: 'Opnieuw opzetten' }))) return; P.resetPp(T, b.dataset.key, +b.dataset.nr, +b.dataset.stap); commit(); },
   scorebord() { UI.scorebord = true; render(); },
