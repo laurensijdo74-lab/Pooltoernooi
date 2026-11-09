@@ -1008,7 +1008,11 @@ function phLabel(T, id) {
     return 'Winnaar play-off poule ' + h.poule;
   }
   const st = derdeStatus(T, h.key, h.i);
-  if (st.status === 'playoff') return naamVan(T, st.a) + ' / ' + naamVan(T, st.b);
+  // Een onbesliste of geresette play-off blijft beide kandidaatnamen tonen.
+  // Ook bij status 'wacht' (bijv. na reset) kan de koppeling bekend zijn.
+  if (st.a && st.b && st.status !== 'beslist') return naamVan(T, st.a) + ' / ' + naamVan(T, st.b);
+  const po = T.derden && T.derden[h.key] && T.derden[h.key][h.i];
+  if (po && po.a && po.b && !po.winnaar) return naamVan(T, po.a) + ' / ' + naamVan(T, po.b);
   return 'Beste nr. 3 weekend ' + (h.i + 1);
 }
 function naamVan(T, id) {
