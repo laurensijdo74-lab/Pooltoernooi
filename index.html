@@ -858,11 +858,6 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  #spelers-overzicht table.t select,#spelers-overzicht table.t input[type=date]{width:100%;max-width:100%;font-size:15px}
  #spelers-overzicht table.t td:last-child{display:flex;gap:7px;flex-wrap:wrap}
 }
-/* Play-off voor volgende ronde: boven de normale stand en wedstrijden. */
-.tv-playoff-announcement{position:fixed;inset:0;z-index:200;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:3vh;text-align:center;padding:5vw;font-weight:900;font-size:clamp(28px,5vw,76px)}
-.tv-playoff-announcement strong{color:var(--brand);font-size:clamp(38px,7vw,110px);overflow-wrap:anywhere}
-.tv-playoff-announcement small{font-size:clamp(18px,2.5vw,36px);font-weight:600}
-@media(max-width:980px){.tv-playoff-announcement{display:none}}
 </style>
 </head>
 <body>
@@ -2482,7 +2477,7 @@ const TABS = [
 const rondeNaam = k => { const r = P.planRonde(T, k); return r ? r.naam : k; };
 const rondeKort = k => { const r = P.planRonde(T, k); return r ? r.kort : k; };
 const dagLabelLang = (dag) => P.dagLabel(T, dag);
-const spelerNaam = id => UI.viewer && P.isPh(id) ? 'Playoff' : P.naamVan(T, id);
+const spelerNaam = id => P.naamVan(T, id);
 const wijzigbaar = () => !UI.viewer && !P.rondeGeloot(T, T.plan.rondes.length ? T.plan.rondes[0].key : 'R1');
 
 const enkelPoule = key => { const r = P.planRonde(T, key); return !!r && r.sizes.length === 1; };
@@ -3147,7 +3142,7 @@ function verslagBlokHtml(soort, key, nr) {
 /* ---------- play-offs ---------- */
 function ppBlokHtml(key, p) {
   if (P.isFinale(T, p)) return p.fin ? p.fin.plaatsen.map(pl => ppKetenHtml(key, p, pl.pp, { plek: pl.plek, eind: pl.eind, extra: pl.extra, afgesloten: pl.pp !== p.pp })).join('') : '';
-  return p.pp && (!UI.viewer || !p.pp.voltooid) ? ppKetenHtml(key, p, p.pp, {}) : '';
+  return p.pp ? ppKetenHtml(key, p, p.pp, {}) : '';
 }
 function ppKetenHtml(key, p, pp, o) {
   const vast = P.vergrendeld(T, key, p.nr) || !!o.afgesloten;
@@ -3169,7 +3164,7 @@ function ppKetenHtml(key, p, pp, o) {
   }).join('');
 }
 function derdeBlokHtml(key, i) {
-  const st = P.derdeStatus(T, key, i); if (st.status !== 'playoff' && !(st.status === 'beslist' && st.playoff && !UI.viewer)) return '';
+  const st = P.derdeStatus(T, key, i); if (st.status !== 'playoff' && !(st.status === 'beslist' && st.playoff)) return '';
   const po = st.playoff, r = T.rondes[key], vast = P.derdeVergrendeld(T, key, i);
   const posFn = id => { const pp = r.poules.find(x => x.spelers.indexOf(id) >= 0); return pp ? pp.spelers.indexOf(id) + 1 : 0; };
   const gestart = po.games.some(g => g.w), wins = P.ppWins({ groep: [po.a, po.b], games: po.games }), doel = Math.floor(po.games.length / 2) + 1;
@@ -3289,7 +3284,7 @@ function dagDetailHtml(key, nr) {
   const waarschuw = slot + (vorigeOpen ? '<div class="note warn">De vorige speeldag (' + esc(rondePoule(vorige.ronde, vorige.poule).replace(/^Ronde /, 'R').replace(' · poule ', ' poule ')) + ', ' + esc(P.datumKort(vorige.datum)) + ') is nog niet afgerond.</div>' : '') +
     (wachtPh ? '<div class="note warn">Eén van de spelers is nog niet bekend: de play-off voor deze plek moet eerst worden gespeeld (zie hieronder).</div>' : '');
   const uitleg = UI.viewer ? '' : '<div class="row between noprint" style="margin-bottom:8px"><span class="muted small">Tik op de winnaar van elke wedstrijd. De speler links heeft de break. Sneltoetsen: <kbd>1</kbd> of ← links wint, <kbd>2</kbd> of → rechts wint, <kbd>Backspace</kbd> herstelt de vorige.</span><button class="btn sec sm" data-act="herstel" data-key="' + key + '" data-nr="' + nr + '"' + (kanHerstel && !vast ? '' : ' disabled') + '>Herstel vorige wedstrijd</button></div>';
-  const links = '<div>' + uitleg + (wachtPh && !UI.viewer ? '' : gamesHtml(key, p)) + '</div>';
+  const links = '<div>' + uitleg + (wachtPh ? '' : gamesHtml(key, p)) + '</div>';
   const derdePp = derdeBlokkenVoorPoule(key, p);
   const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p) + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + brPaneel(key,nr) + testHulpHtml(key, p) + '</div>';
   const playoffs = ppBlokHtml(key, p) + derdePp;
@@ -3573,43 +3568,13 @@ function fitViewerStandNames(){
  });
 }
 
-
-/* Publieke tv-aankondiging: maximaal twee minuten na de beslissende play-off. */
-function playoffWinnaarAankondiging(){
- if(!UI.viewer || !window.matchMedia('(min-width:981px)').matches || !T)return null;
- const now=Date.now(), events=[];
- Object.keys(T.rondes||{}).forEach(key=>{
-  const rd=T.rondes[key];if(!rd||!rd.geloot)return;
-  (rd.poules||[]).forEach(p=>{
-   if(!p.pp||!p.pp.voltooid||!P.volgendeKey(T,key))return;
-   const step=p.pp.stappen[p.pp.stappen.length-1];
-   const times=step.games.filter(g=>g.w&&g.t).map(g=>Number(g.t));
-   if(step.forfait?.t)times.push(Number(step.forfait.t));
-   const t=Math.max(0,...times);
-   if(t&&now>=t&&now-t<120000){const winners=P.eindvolgorde(T,p).slice(p.pp.start-1,p.pp.start-1+p.pp.plekken);if(winners.length===1)events.push({t,naam:P.naamVan(T,winners[0])});}
-  });
-  Object.keys(T.derden?.[key]||{}).forEach(i=>{
-   const po=T.derden[key][i],st=P.derdeStatus(T,key,+i);
-   if(st.status!=='beslist'||!st.playoff||!po.winnaar)return;
-   const t=Math.max(0,...po.games.filter(g=>g.w&&g.t).map(g=>Number(g.t)),Number(po.forfait?.t||0));
-   if(t&&now>=t&&now-t<120000)events.push({t,naam:P.naamVan(T,po.winnaar)});
-  });
- });
- events.sort((a,b)=>b.t-a.t);return events[0]||null;
-}
-function tvPlayoffAnnouncementHtml(){
- const e=playoffWinnaarAankondiging();
- return e?'<div class="tv-playoff-announcement" role="status"><div>🏆 WINNAAR PLAYOFF</div><strong>'+esc(e.naam)+'</strong><small>Door naar de volgende ronde</small></div>':'';
-}
-
 function render() {
   const app = $('#app'); if (!app) return;
   const y = window.scrollY, focusId = UI.focusId; UI.focusId = null;
   pasThemaToe(locatieVoorWeergave());
-  app.innerHTML = heroHtml() + navHtml() + '<main class="wrap" id="main">' + view() + '</main>' + (UI.scorebord ? scorebordHtml() : '') + tvPlayoffAnnouncementHtml();
+  app.innerHTML = heroHtml() + navHtml() + '<main class="wrap" id="main">' + view() + '</main>' + (UI.scorebord ? scorebordHtml() : '');
   window.scrollTo(0, UI.resetScroll ? 0 : y); UI.resetScroll = false;
   updateViewerCountdown();
-  if(UI.viewer){clearTimeout(UI.playoffTvTimer);if(playoffWinnaarAankondiging())UI.playoffTvTimer=setTimeout(()=>render(),Math.max(1000,120000-(Date.now()-playoffWinnaarAankondiging().t)));}
   /* Standnamen mogen op meerdere regels, niet kleiner worden gemaakt. */
   ververscScorebordVenster();
   if (UI.scrollNaar) { const el = document.getElementById(UI.scrollNaar); UI.scrollNaar = null; if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60); }
