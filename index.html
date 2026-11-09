@@ -3343,7 +3343,7 @@ function dagDetailHtml(key, nr) {
   const actief = actieveActie(key, p);
   const vorigeRondeKey = P.vorigeKey(T, key);
   const eerdereDerden = vorigeRondeKey ? (T.derden?.[vorigeRondeKey] || []) : [];
-  const herstelbareDerde = eerdereDerden.findIndex(po => po && Array.isArray(po.games) && po.games.some(g => g.w));
+  const herstelbareDerde = Object.keys(eerdereDerden).map(Number).find(i => { const po = eerdereDerden[i]; return po && Array.isArray(po.games) && po.games.some(g => g.w); }) ?? -1;
   const laatste = P.laatsteGame(p), kanHerstel = !!laatste || (p.pp && p.pp.stappen.some(x => x.games.some(g => g.w))) || herstelbareDerde >= 0;
   const viewerRefresh = UI.viewer ? '<button class="btn accent viewer-refresh" data-act="viewer-refresh" aria-label="Vernieuwen" title="Haal de actuele stand op">↻</button>' : '';
   const beheerKnoppen = '<button class="btn sec sm" data-act="scorebord">Scorebord</button><button class="btn sec sm" data-act="scorebord-venster" title="Opent het scorebord in een eigen venster, bijvoorbeeld voor een tweede scherm of tv">Scorebord in eigen venster</button><button class="btn sec sm" data-act="print">Afdrukken</button>';
@@ -3829,7 +3829,7 @@ async function herstelVorige(key, nr) {
   if (!heeftEigenUitslag) {
     const vorige = P.vorigeKey(T,key);
     const playoffs = vorige ? (T.derden?.[vorige] || []) : [];
-    const i = playoffs.findIndex(po => po && Array.isArray(po.games) && po.games.some(g => g.w));
+    const i = Object.keys(playoffs).map(Number).find(i => { const po = playoffs[i]; return po && Array.isArray(po.games) && po.games.some(g => g.w); }) ?? -1;
     if (i >= 0) {
       if (!(await bevestig('De laatste play-offwedstrijd uit de vorige ronde herstellen? De eventuele winnaar wordt weer een open plaats. Reeds gespeelde wedstrijden in de volgende ronde worden beschermd.', {titel:'Vorige play-off herstellen?',ja:'Herstellen'}))) return;
       maakHerstelpunt('Voor herstel vorige play-offwedstrijd');
