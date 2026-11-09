@@ -994,48 +994,26 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 }
 @media screen and (max-width:980px){.viewer-playoff-top{display:none!important}}
 
-/* Gedeelde standcomponent: playoff gebruikt exact de reguliere tabel. */
+/* Play-offstand: identieke reguliere standkaart, zonder oude 2-kolomsregels. */
 @media screen and (min-width:981px){
- html.viewer-tv .viewer-playoff-top .tv-po-standing,
- html.viewer-tv .viewer-playoff-top .tv-po-standing .body{height:auto;min-height:0}
- html.viewer-tv .viewer-playoff-top .tv-po-standing{display:block;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
- html.viewer-tv .viewer-playoff-top .tv-po-standing header{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line)}
- html.viewer-tv .viewer-playoff-top .tv-po-standing header h3{padding:0;border:0}
- html.viewer-tv .viewer-playoff-top .tv-po-standing table{width:100%;table-layout:fixed}
- html.viewer-tv .viewer-playoff-top .tv-po-standing th,html.viewer-tv .viewer-playoff-top .tv-po-standing td{padding:11px 5px!important;font-size:inherit;border-bottom:1px solid var(--line)}
- html.viewer-tv .viewer-playoff-top .tv-po-standing th{font-size:clamp(13px,1vw,17px)!important}
- html.viewer-tv .viewer-playoff-top .tv-po-standing .viewer-team-inner strong,
- html.viewer-tv .viewer-playoff-top .tv-po-standing .num{font-size:clamp(17px,1.4vw,24px)!important}
- html.viewer-tv .viewer-playoff-top .tv-po-standing tr.po td{background:var(--warn-soft)!important}
- html.viewer-tv .viewer-playoff-top .tv-po-standing tr.door td{background:var(--good-soft)!important}
- html.viewer-tv .viewer-playoff-top .tv-po-standing tr.uit td{background:var(--bad-soft)!important}
- html.viewer-tv .viewer-playoff-top .tv-po-standing .viewer-team-inner .ball{display:inline-grid!important}
- html.viewer-tv .viewer-playoff-top .tv-po-standing th:first-child{width:45%;text-align:left}
- html.viewer-tv .viewer-playoff-top .tv-po-standing th:nth-child(2){width:12%}
- html.viewer-tv .viewer-playoff-top .tv-po-standing th:nth-child(3){width:16%}
- html.viewer-tv .viewer-playoff-top .tv-po-standing th:nth-child(4){width:9%}
- html.viewer-tv .viewer-playoff-top .tv-po-standing th:last-child{width:18%}
- html.viewer-tv .viewer-playoff-top .tv-po-standing th:last-child,html.viewer-tv .viewer-playoff-top .tv-po-standing td:last-child{text-align:left}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing{display:flex;flex-direction:column;height:100%;min-height:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing>header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing>header h3{margin-right:auto;padding:0;border:0;font-size:clamp(20px,1.5vw,27px)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing>.body{padding:14px 16px;flex:1}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing table.viewer-stand-table{width:100%;table-layout:fixed;border-collapse:collapse}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing table.viewer-stand-table th{font-size:clamp(13px,1vw,17px)!important;text-align:left;padding:7px 5px!important;color:var(--muted);border-bottom:2px solid var(--line)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing table.viewer-stand-table td{padding:11px 5px!important;font-size:clamp(17px,1.4vw,24px);border-bottom:1px solid var(--line);text-align:left}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing table.viewer-stand-table th.num,html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing table.viewer-stand-table td.num{text-align:right}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing table.viewer-stand-table th:last-child,html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing table.viewer-stand-table td:last-child{text-align:left;width:24%}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing tbody tr:first-child{background:transparent}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing tbody tr:last-child{background:transparent}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing tbody tr.door td{background:var(--good-soft)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing tbody tr.uit td{background:var(--bad-soft)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing tbody tr.po td{background:var(--warn-soft)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing .viewer-team-inner{display:flex;align-items:center;gap:5px}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing .ball{display:inline-grid!important}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing .viewer-status .chip{display:inline-block!important;background:transparent;border:0;padding:1px 4px;font-size:clamp(12px,.95vw,16px)}
 }
-@media screen and (min-width:981px){
- html.viewer-compact .dagview:not(.collapsed){grid-template-columns:minmax(0,1fr)}
- html.viewer-compact .dagview:not(.collapsed)>aside{display:none}
- html.viewer-compact #main.wrap{max-width:none;padding:8px 16px 12px}
- html.viewer-compact .viewer-day-cols{display:grid!important;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr)!important;gap:12px;align-items:stretch}
- html.viewer-compact .viewer-day-cols>.stack:last-child{position:static;max-height:none;overflow:visible}
- html.viewer-compact .viewer-day-cols .games.public-match-list{display:flex;flex-direction:column}
- html.viewer-compact .viewer-day-cols .games.public-match-list>.game{flex:1;min-height:0!important}
- html.viewer-compact .viewer-day-cols .games.public-match-list>.game .pl{min-height:0!important;padding:2px 7px!important}
- html.viewer-compact .viewer-day-cols .games.public-match-list>.game .nm{font-size:clamp(11px,1vw,16px)!important;line-height:1.05!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
- html.viewer-compact .viewer-day-cols .games.public-match-list>.ghead span{padding:2px 7px}
- html.viewer-compact .viewer-day-cols .games.public-match-list>.pauze{display:block!important;font-size:0!important;min-height:8px!important;padding:0!important;background:#ff3fa4!important}
- html.viewer-compact .viewer-day-cols .viewer-stand-table td{padding-top:7px!important;padding-bottom:7px!important}
- html.viewer-compact .viewer-day-cols .viewer-stand-table .viewer-team-inner strong{font-size:clamp(13px,1.15vw,19px)!important}
- html.viewer-compact .viewer-day-cols .viewer-stand-table .num{font-size:clamp(13px,1.15vw,19px)!important}
- html.viewer-compact .viewer-day-cols .tv-half-hidden{display:grid!important}
- html.viewer-compact .viewer-day-cols .tv-pause-panel{display:none!important}
-}
-@media screen and (max-width:980px){#viewerCompactBtn{display:none!important}}
 </style>
 </head>
 <body>
@@ -2844,16 +2822,6 @@ document.addEventListener('fullscreenchange',updateViewerFullscreenButton);
 document.addEventListener('webkitfullscreenchange',updateViewerFullscreenButton);
 /* TV-pauze volgt de echte uitslagen, niet een vaste wisseltimer. */
 let tvHalf=0;
-function toggleViewerCompact(){
- if(!UI.viewer||mobielWeergave())return;
- document.documentElement.classList.toggle('viewer-compact');
- updateViewerCompactButton();applyTvHalf();updateTvPlayoffPhase();
-}
-function updateViewerCompactButton(){
- const b=document.getElementById('viewerCompactBtn');if(!b)return;
- const active=document.documentElement.classList.contains('viewer-compact');
- b.textContent=active?'Normale weergave':'Compacte weergave';b.setAttribute('aria-pressed',String(active));
-}
 function toggleViewerTv(){
  if(!UI.viewer || mobielWeergave())return;
  document.documentElement.classList.toggle('viewer-tv');
@@ -2884,7 +2852,6 @@ function tvPauseState(){
 function applyTvHalf(){
  const enabled=UI.viewer&&!mobielWeergave()&&document.documentElement.classList.contains('viewer-tv')&&UI.tab==='dag';
  const games=document.querySelector('.viewer-day-cols .games.public-match-list');
- if(document.documentElement.classList.contains('viewer-compact')){if(games){games.querySelectorAll('.tv-half-hidden').forEach(el=>el.classList.remove('tv-half-hidden'));games.querySelectorAll('.tv-pause-panel,.tv-second-half-bar').forEach(el=>el.remove());}if(badge)badge.style.display='none';return;}
  const badge=document.getElementById('tvHalfIndicator');
  if(!games){if(badge)badge.style.display='none';return;}
  const rows=Array.from(games.children).filter(el=>el.classList.contains('game'));
@@ -2918,7 +2885,7 @@ setInterval(()=>{
 function navHtml() {
   const open = alleDagen().filter(d => P.rondeGeloot(T, d.ronde) && dagStatus(d.ronde, d.poule).code === 'playoff').length;
   return '<nav class="nav noprint" aria-label="Hoofdmenu"><div class="nav-in">' + tabsVoorWeergave().map(t =>
-    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + (UI.viewer ? '<span id="tvHalfIndicator" class="tv-half-indicator" aria-live="off"></span><button type="button" id="viewerCompactBtn" class="viewer-tv-btn" data-act="viewer-compact" aria-pressed="false">Compacte weergave</button><button type="button" id="viewerTvBtn" class="viewer-tv-btn" data-act="viewer-tv" aria-pressed="false">TV-weergave aan</button><button type="button" id="viewerFullscreenBtn" class="viewer-fullscreen-btn" data-act="viewer-fullscreen" aria-label="Volledig scherm openen">⛶</button>' : '') + '</div></nav>';
+    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + (UI.viewer ? '<span id="tvHalfIndicator" class="tv-half-indicator" aria-live="off"></span><button type="button" id="viewerTvBtn" class="viewer-tv-btn" data-act="viewer-tv" aria-pressed="false">TV-weergave aan</button><button type="button" id="viewerFullscreenBtn" class="viewer-fullscreen-btn" data-act="viewer-fullscreen" aria-label="Volledig scherm openen">⛶</button>' : '') + '</div></nav>';
 }
 
 /* ---------- Overzicht ---------- */
@@ -3416,18 +3383,23 @@ function verslagBlokHtml(soort, key, nr) {
 
 /* ---------- play-offs ---------- */
 function tvPlayoffStandingHtml(ids,wins,games){
- const played=games.filter(g=>g.w).length, total=games.length;
- const goal=Math.floor(total/2)+1;
- const sorted=ids.slice().sort((a,b)=>(wins[b]||0)-(wins[a]||0)||ids.indexOf(a)-ids.indexOf(b));
- const decided=sorted.some(id=>(wins[id]||0)>=goal);
- const rows=sorted.map((id,i)=>{
-  const points=wins[id]||0, remaining=total-played;
-  const status=decided?(points>=goal?'<span class="chip ok">Door</span>':'<span class="chip bad">Uit</span>'):'<span class="chip warn">Play-off</span>';
-  const cls=decided?(points>=goal?'door':'uit'):'po';
-  return '<tr class="'+cls+'"><td class="viewer-team"><span class="viewer-team-inner">'+ball(i+1)+'<strong>'+esc(spelerNaam(id))+'</strong></span></td><td class="num"><b>'+points+'</b></td><td class="num">'+played+'</td><td class="num">'+Math.min(goal,points+remaining)+'</td><td class="viewer-status">'+status+'</td></tr>';
- }).join('');
- return '<section class="sect tv-po-standing"><header><h3>Stand Playoff</h3><span class="muted small">'+played+' van '+total+' gespeeld</span></header><div class="body"><div class="viewer-stand-scroll"><table class="t stand viewer-stand-table"><thead><tr><th>Speler</th><th class="num">Ptn</th><th class="num">Ges</th><th class="num">Max</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></section>';
+  const played=(games||[]).filter(g=>!!g.w).length;
+  const total=(games||[]).length;
+  const target=ids.length===2?Math.floor(total/2)+1:0;
+  const winner=target?ids.find(id=>(wins[id]||0)>=target):null;
+  const sorted=ids.slice().sort((a,b)=>(wins[b]||0)-(wins[a]||0)||ids.indexOf(a)-ids.indexOf(b));
+  const rows=sorted.map((id,i)=>{
+    const points=wins[id]||0;
+    const remaining=(games||[]).filter(g=>!g.w&&(g.a===id||g.b===id)).length;
+    const max=winner?points:Math.min(target||total,points+remaining);
+    const status=winner?(id===winner?'Door':'Uit'):(points===0&&played===0?'In de race':(max<Math.max(...ids.map(x=>wins[x]||0))?'Geen kans':'In de race'));
+    const cls=winner?(id===winner?'door':'uit'):(status==='Geen kans'?'uit':'po');
+    const chip=winner?(id===winner?'ok':'bad'):(status==='Geen kans'?'bad':'warn');
+    return '<tr class="'+cls+'"><td class="viewer-team"><span class="viewer-team-inner">'+ball(i+1)+'<strong>'+esc(spelerNaam(id))+'</strong></span></td><td class="num"><b>'+points+'</b></td><td class="num">'+(games||[]).filter(g=>g.w&&(g.a===id||g.b===id)).length+'</td><td class="num">'+max+'</td><td class="viewer-status"><span class="chip '+chip+'">'+status+'</span></td></tr>';
+  }).join('');
+  return '<div class="tv-po-standing sect"><header><h3>Stand Playoff</h3><span class="muted small">'+played+' van '+total+' gespeeld</span></header><div class="body"><div class="viewer-stand-scroll"><table class="t stand viewer-stand-table"><thead><tr><th>Speler</th><th class="num">Ptn</th><th class="num">Ges</th><th class="num">Max</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>';
 }
+
 function ppBlokHtml(key, p) {
   if (P.isFinale(T, p)) return p.fin ? p.fin.plaatsen.map(pl => ppKetenHtml(key, p, pl.pp, { plek: pl.plek, eind: pl.eind, extra: pl.extra, afgesloten: pl.pp !== p.pp })).join('') : '';
   return p.pp ? ppKetenHtml(key, p, p.pp, {}) : '';
@@ -3993,7 +3965,6 @@ function render() {
   updateViewerCountdown();
   updateViewerFullscreenButton();
   updateViewerTvButton();
-  updateViewerCompactButton();
   applyTvHalf();
   updateTvPlayoffWinner();
   updateViewerFrozenStand();
@@ -4183,7 +4154,6 @@ const ACT = {
   'br-adjust'(b) { const matches=brMatches(UI.dag.key,UI.dag.nr); const m=matches.find(x=>x.id===b.dataset.match); if(!m||![m.g.a,m.g.b].includes(b.dataset.id))return; T.breakRuns=T.breakRuns||{}; const v=T.breakRuns[m.id]||(T.breakRuns[m.id]={}); v[b.dataset.id]=Math.max(0,(Number(v[b.dataset.id])||0)+Number(b.dataset.delta)); if(!v[b.dataset.id])delete v[b.dataset.id]; UI.brSelected=m.id;UI.brOpen=true;commit(); },
   'viewer-fullscreen'() { toggleViewerFullscreen(); },
   'viewer-tv'() { toggleViewerTv(); },
-  'viewer-compact'() { toggleViewerCompact(); },
   'dag-lijst'() { UI.dagLijst = UI.dagLijst === false; render(); },
   tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = mobielWeergave() ? false : true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
   'ga-gegevens'() { UI.tab = 'instellingen'; UI.inst = 'gegevens'; render(); },
@@ -4463,7 +4433,7 @@ function koppelEvents() {
   });
   document.addEventListener('click', e => { if(e.target.closest('[data-br-summary]')) UI.brOpen=!e.target.closest('details').open;
     const b = e.target.closest('[data-act]'); if (!b || b.disabled || b.classList.contains('off')) return;
-    if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'dag-lijst', 'viewer-refresh', 'stand-ronde', 'viewer-fullscreen', 'viewer-tv', 'viewer-compact'].indexOf(b.dataset.act) < 0) return;
+    if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'dag-lijst', 'viewer-refresh', 'stand-ronde', 'viewer-fullscreen', 'viewer-tv'].indexOf(b.dataset.act) < 0) return;
     const f = ACT[b.dataset.act]; if (f) { e.preventDefault(); f(b, e); }
   });
   document.addEventListener('change', e => {
