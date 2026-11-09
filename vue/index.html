@@ -4143,10 +4143,8 @@ function openScorebordVenster() {
   if (!w) { toast('Het venster werd geblokkeerd. Sta pop-ups toe voor deze pagina en probeer opnieuw.', true); return; }
   const css = Array.from(document.querySelectorAll('style')).map(s => s.textContent).join('\n');
   w.document.open();
-  w.document.write('<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Scorebord</title><style>' + css + '\nbody{margin:0}.scorebord.venster{position:static;min-height:100vh}</style></head><body><div id="sb"></div><script>
-document.addEventListener('click',function(e){const b=e.target.closest('[data-act="viewer-fullscreen"]');if(!b)return;e.preventDefault();e.stopPropagation();const el=document.documentElement;if(document.fullscreenElement){document.exitFullscreen?.();}else{(el.requestFullscreen||el.webkitRequestFullscreen)?.call(el);}},true);
-</script>
-</body></html>');
+  // Bouw het tweede scherm zonder ingebedde script-tags in de hoofd-HTML.
+  w.document.write('<!DOCTYPE html><html lang="nl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Scorebord</title><style>' + css + '\nbody{margin:0}.scorebord.venster{position:static;min-height:100vh}</style></head><body><div id="sb"></div></body></html>');
   w.document.close();
   UI.sbWin = w; ververscScorebordVenster();
   toast('Scorebord geopend. Sleep het venster naar je tweede scherm en druk op “Volledig scherm”.');
