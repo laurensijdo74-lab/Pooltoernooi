@@ -3612,6 +3612,39 @@ function indelenInVolgorde(key) {
   const toew = r.sizes.map(s => { const rij = ids.slice(i, i + s); i += s; return rij; });
   const res = P.lootHandmatig(T, key, toew); if (res.ok) T.rondes[key].volgorde = true; return res;
 }
+async function uploadRondeVolgorde(key) {
+  if (P.rondeIndex(T,key) < 1 || P.rondeGeloot(T,key)) return;
+  const fouten=P.controleerLoting(T,key);
+  if(fouten.length){await melding('Loting niet beschikbaar','<p>'+fouten.map(esc).join('<br>')+'</p>');return;}
+  const file=await new Promise(resolve=>{const inp=document.createElement('input');inp.type='file';inp.accept='.txt,.csv,.xlsx,.xls';inp.onchange=()=>resolve(inp.files[0]||null);inp.click();});
+  if(!file)return;
+  let rows=[];
+  try {
+    if(/\.xlsx?$/i.test(file.name)) {
+      if(!window.XLSX){await new Promise((resolve,reject)=>{const sc=document.createElement('script');sc.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';sc.onload=resolve;sc.onerror=()=>reject(Error('Excel-leesmodule kon niet worden geladen. Gebruik CSV of TXT.'));document.head.appendChild(sc);});}
+      const book=XLSX.read(await file.arrayBuffer(),{type:'array'});
+      rows=XLSX.utils.sheet_to_json(book.Sheets[book.SheetNames[0]],{header:1,defval:''}).map(r=>String(r.find(x=>String(x).trim())||'').trim());
+    } else {
+      const text=(await file.text()).replace(/^\uFEFF/,'');
+      rows=text.split(/\r?\n/).map(line=>{const v=line.trim();if(!v)return '';const sep=v.includes(';')?';':(v.includes('\t')?'\t':',');return v.split(sep)[0].replace(/^"|"$/g,'').trim();});
+    }
+  }catch(e){await melding('Bestand niet gelezen','<p>'+esc(e.message||e)+'</p>');return;}
+  rows=rows.filter(Boolean);
+  if(rows.length && /^(naam|namen|speler|spelers|deelnemer|deelnemers|team|koppel)$/i.test(rows[0]))rows.shift();
+  const ids=P.deelnemersVoor(T,key), normal=n=>String(n).normalize('NFKC').trim().replace(/\s+/g,' ').toLocaleLowerCase('nl');
+  const map=new Map();ids.forEach(id=>{const k=normal(spelerNaam(id));map.set(k,(map.get(k)||[]).concat(id));});
+  const gebruikt=new Set(),toew=[],issues=[];
+  rows.forEach((name,i)=>{const found=map.get(normal(name))||[];if(found.length!==1){issues.push('Regel '+(i+1)+': '+name+(found.length?' (naam niet uniek)':' (niet gevonden bij deelnemers van deze ronde)'));return;}if(gebruikt.has(found[0])){issues.push('Regel '+(i+1)+': '+name+' staat dubbel');return;}gebruikt.add(found[0]);toew.push(found[0]);});
+  ids.filter(id=>!gebruikt.has(id)).forEach(id=>issues.push('Ontbreekt: '+spelerNaam(id)));
+  if(rows.length!==ids.length)issues.unshift('Bestand bevat '+rows.length+' namen, maar deze ronde heeft '+ids.length+' deelnemers.');
+  if(issues.length){await melding('Controle upload – niet ingedeeld','<p>Corrigeer het bestand en upload opnieuw. Er is niets gewijzigd.</p><div style="max-height:50vh;overflow:auto"><ul>'+issues.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul></div>');return;}
+  const r=P.planRonde(T,key);let at=0;
+  UI.manual={key,toewijzing:r.sizes.map(size=>{const x=toew.slice(at,at+size);at+=size;return x;})};
+  UI.lotingKey=key;
+  render();
+  toast('Upload gecontroleerd. Controleer de poules en klik Bevestig loting.');
+}
+
 async function voorbeeldSpelers() {
   if (!wijzigbaar()) { toast('Na de loting kunnen geen voorbeeldspelers meer worden geladen.', true); return; }
   const res = await dialoog({ titel: 'Voorbeeldspelers laden', ok: 'Laden', html: '<p class="small">Handig om de app te proberen. Bestaande spelers worden vervangen.</p><label class="f"><span>Aantal spelers</span><input type="number" id="vbAantal" min="4" max="120" value="50" style="width:120px"></label>', lees: ov => parseInt($('#vbAantal', ov).value, 10) });
@@ -3862,6 +3895,7 @@ const ACT = {
   'stand-ronde'(b) { if (UI.viewer && !standRondesVoorWeergave().some(x => x.key === b.dataset.key)) return; UI.stand = b.dataset.key; render(); },
   loot(b) { voerLotingUit(b.dataset.key); },
   'loot-volgorde'(b) { const r = indelenInVolgorde(b.dataset.key); if (!r.ok) { toast(r.fouten.join(' '), true); return; } maakHerstelpunt('Na indelen in lijstvolgorde'); commit(); toast('Ingedeeld in precies de volgorde van de lijst'); },
+  'loot-upload'(b) { uploadRondeVolgorde(b.dataset.key); },
   'loot-manueel'(b) { const key = b.dataset.key, r = P.planRonde(T, key); UI.manual = { key, toewijzing: r.sizes.map(s => new Array(s).fill('')) }; render(); },
   'man-annuleer'() { UI.manual = null; render(); },
   'man-rest'() { const m = UI.manual, ids = P.deelnemersVoor(T, m.key), gebruikt = new Set([].concat.apply([], m.toewijzing).filter(Boolean)); const rest = P.shuffle(ids.filter(id => !gebruikt.has(id))); m.toewijzing.forEach(rij => { for (let i = 0; i < rij.length; i++) if (!rij[i] && rest.length) rij[i] = rest.pop(); }); render(); },
