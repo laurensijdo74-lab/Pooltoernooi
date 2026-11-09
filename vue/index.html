@@ -1014,6 +1014,38 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing .ball{display:inline-grid!important}
  html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing .viewer-status .chip{display:inline-block!important;background:transparent;border:0;padding:1px 4px;font-size:clamp(12px,.95vw,16px)}
 }
+
+/* POOL 2026-11-09: unified regular/playoff scoreboard and compact desktop view. */
+@media screen and (min-width:981px){
+ html.viewer-tv .viewer-pending-playoff>.viewer-playoff-mobile{display:none!important}
+ html.viewer-tv .viewer-pending-playoff>.viewer-playoff-top{display:none!important}
+ html.viewer-tv .viewer-pending-playoff.tv-show-playoff>.viewer-playoff-top{display:block!important}
+ html.viewer-tv .viewer-pending-playoff.tv-show-playoff>.viewer-day-cols{display:none!important}
+ html.viewer-tv .viewer-pending-playoff:not(.tv-show-playoff)>.viewer-day-cols{display:grid!important}
+ html.viewer-tv .viewer-playoff-top .tv-po-grid{display:grid!important;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)!important;gap:14px;align-items:stretch}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings{display:flex;min-width:0}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings>.tv-po-standing{flex:1;min-width:0}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing>header{padding:12px 16px}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing>.body{padding:14px 16px}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing table.viewer-stand-table{table-layout:auto!important;width:100%}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing table.viewer-stand-table th,
+ html.viewer-tv .viewer-playoff-top .tv-po-standing table.viewer-stand-table td{padding:11px 5px!important;border-bottom:1px solid var(--line);font-size:clamp(17px,1.4vw,24px)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing table.viewer-stand-table th{font-size:clamp(13px,1vw,17px)!important}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing table.viewer-stand-table td.viewer-team{width:44%}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing .viewer-team-inner{display:flex;align-items:center;gap:6px}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing .viewer-status{white-space:normal}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing tbody tr.po td{background:var(--warn-soft)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing tbody tr.door td{background:var(--good-soft)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing tbody tr.uit td{background:var(--bad-soft)}
+ html.viewer-compact .viewer-day-cols{display:grid!important;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)!important;gap:14px}
+ html.viewer-compact .viewer-day-cols .games.public-match-list>.game{display:grid!important;min-height:0!important;flex:none!important}
+ html.viewer-compact .viewer-day-cols .games.public-match-list>.game.tv-half-hidden{display:grid!important}
+ html.viewer-compact .viewer-day-cols .games.public-match-list>.game .pl{padding:2px 8px!important}
+ html.viewer-compact .viewer-day-cols .games.public-match-list>.game .nm{font-size:clamp(11px,.85vw,15px)!important;line-height:1.1!important}
+ html.viewer-compact .viewer-day-cols .games.public-match-list>.pauze{display:block!important;padding:3px 8px!important;background:#ff3fa4!important;color:white!important}
+ html.viewer-compact .viewer-day-cols .tv-pause-panel{display:none!important}
+}
+@media screen and (max-width:980px){#viewerCompactBtn{display:none!important}}
 </style>
 </head>
 <body>
@@ -2827,6 +2859,11 @@ function toggleViewerTv(){
  document.documentElement.classList.toggle('viewer-tv');
  updateViewerTvButton();applyTvHalf();
 }
+function updateViewerCompactButton(){
+ const b=document.getElementById('viewerCompactBtn');if(!b)return;
+ const active=document.documentElement.classList.contains('viewer-compact');
+ b.textContent=active?'Compact uit':'Compacte weergave';b.setAttribute('aria-pressed',String(active));
+}
 function updateViewerTvButton(){
  const b=document.getElementById('viewerTvBtn');if(!b)return;
  const active=document.documentElement.classList.contains('viewer-tv');
@@ -2857,7 +2894,7 @@ function applyTvHalf(){
  const rows=Array.from(games.children).filter(el=>el.classList.contains('game'));
  const state=enabled?tvPauseState():{phase:'first'};
  const split=state.split||Math.ceil(rows.length/2);
- const staged=enabled&&rows.length>split&&split>0;
+ const staged=enabled&&!document.documentElement.classList.contains('viewer-compact')&&rows.length>split&&split>0;
  tvHalf=state.phase==='second'?1:0;
  rows.forEach((el,i)=>el.classList.toggle('tv-half-hidden',staged&&(state.phase==='pause'||(tvHalf===0?i>=split:i<split))));
  Array.from(games.children).filter(el=>el.classList.contains('pauze')).forEach(el=>{
@@ -2885,7 +2922,7 @@ setInterval(()=>{
 function navHtml() {
   const open = alleDagen().filter(d => P.rondeGeloot(T, d.ronde) && dagStatus(d.ronde, d.poule).code === 'playoff').length;
   return '<nav class="nav noprint" aria-label="Hoofdmenu"><div class="nav-in">' + tabsVoorWeergave().map(t =>
-    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + (UI.viewer ? '<span id="tvHalfIndicator" class="tv-half-indicator" aria-live="off"></span><button type="button" id="viewerTvBtn" class="viewer-tv-btn" data-act="viewer-tv" aria-pressed="false">TV-weergave aan</button><button type="button" id="viewerFullscreenBtn" class="viewer-fullscreen-btn" data-act="viewer-fullscreen" aria-label="Volledig scherm openen">⛶</button>' : '') + '</div></nav>';
+    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + (UI.viewer ? '<span id="tvHalfIndicator" class="tv-half-indicator" aria-live="off"></span><button type="button" id="viewerCompactBtn" class="viewer-tv-btn" data-act="viewer-compact" aria-pressed="false">Compacte weergave</button><button type="button" id="viewerTvBtn" class="viewer-tv-btn" data-act="viewer-tv" aria-pressed="false">TV-weergave aan</button><button type="button" id="viewerFullscreenBtn" class="viewer-fullscreen-btn" data-act="viewer-fullscreen" aria-label="Volledig scherm openen">⛶</button>' : '') + '</div></nav>';
 }
 
 /* ---------- Overzicht ---------- */
@@ -3390,14 +3427,16 @@ function tvPlayoffStandingHtml(ids,wins,games){
   const sorted=ids.slice().sort((a,b)=>(wins[b]||0)-(wins[a]||0)||ids.indexOf(a)-ids.indexOf(b));
   const rows=sorted.map((id,i)=>{
     const points=wins[id]||0;
+    const playedFor=(games||[]).filter(g=>g.w&&(g.a===id||g.b===id)).length;
     const remaining=(games||[]).filter(g=>!g.w&&(g.a===id||g.b===id)).length;
     const max=winner?points:Math.min(target||total,points+remaining);
-    const status=winner?(id===winner?'Door':'Uit'):(points===0&&played===0?'In de race':(max<Math.max(...ids.map(x=>wins[x]||0))?'Geen kans':'In de race'));
-    const cls=winner?(id===winner?'door':'uit'):(status==='Geen kans'?'uit':'po');
-    const chip=winner?(id===winner?'ok':'bad'):(status==='Geen kans'?'bad':'warn');
-    return '<tr class="'+cls+'"><td class="viewer-team"><span class="viewer-team-inner">'+ball(i+1)+'<strong>'+esc(spelerNaam(id))+'</strong></span></td><td class="num"><b>'+points+'</b></td><td class="num">'+(games||[]).filter(g=>g.w&&(g.a===id||g.b===id)).length+'</td><td class="num">'+max+'</td><td class="viewer-status"><span class="chip '+chip+'">'+status+'</span></td></tr>';
+    const eliminated=!winner&&max<Math.max(...ids.map(x=>wins[x]||0));
+    const status=winner?(id===winner?'Door':'Uit'):(eliminated?'Uit':'In de race');
+    const cls=winner?(id===winner?'door':'uit'):(eliminated?'uit':'po');
+    const chip=winner?(id===winner?'ok':'bad'):(eliminated?'bad':'warn');
+    return '<tr class="'+cls+'"><td class="viewer-team"><span class="viewer-team-inner">'+ball(i+1)+'<strong>'+esc(spelerNaam(id))+'</strong></span></td><td class="num"><b>'+points+'</b></td><td class="num">'+playedFor+'</td><td class="num">'+max+'</td><td class="viewer-status"><span class="chip '+chip+'">'+status+'</span></td></tr>';
   }).join('');
-  return '<div class="tv-po-standing sect"><header><h3>Stand Playoff</h3><span class="muted small">'+played+' van '+total+' gespeeld</span></header><div class="body"><div class="viewer-stand-scroll"><table class="t stand viewer-stand-table"><thead><tr><th>Speler</th><th class="num">Ptn</th><th class="num">Ges</th><th class="num">Max</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>';
+  return '<div class="tv-po-standing sect"><header><h3>Stand Playoff</h3><span class="muted small">'+played+' van '+total+' gespeeld</span></header><div class="body stack"><div class="viewer-stand-scroll"><table class="t stand viewer-stand-table"><thead><tr><th>Speler</th><th class="num" title="Punten">Ptn</th><th class="num" title="Gespeeld">Ges</th><th class="num">Max</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>';
 }
 
 function ppBlokHtml(key, p) {
@@ -3578,7 +3617,14 @@ function updateTvPlayoffPhase(){
  const root=document.querySelector('.viewer-pending-playoff');
  if(!root)return;
  const target=countdownTarget();
- if(!target||!target.playoff){root.classList.add('tv-show-playoff');return;}
+ if(!target||!target.playoff){
+   const d=UI.dag&&P.planDag(T,UI.dag.key,UI.dag.nr);
+   if(!d){root.classList.add('tv-show-playoff');return;}
+   const start=Date.parse(d.datum+'T13:30:00+01:00');
+   const now=Date.now();
+   root.classList.toggle('tv-show-playoff',now>=start-300000||Math.floor(now/30000)%2===0);
+   return;
+ }
  const now=Date.now();
  // Until 13:25 alternate every 30 seconds. From 13:25 only the play-off.
  const cutoff=target.ms-5*60000;
@@ -3965,6 +4011,7 @@ function render() {
   updateViewerCountdown();
   updateViewerFullscreenButton();
   updateViewerTvButton();
+  updateViewerCompactButton();
   applyTvHalf();
   updateTvPlayoffWinner();
   updateViewerFrozenStand();
@@ -4154,6 +4201,7 @@ const ACT = {
   'br-adjust'(b) { const matches=brMatches(UI.dag.key,UI.dag.nr); const m=matches.find(x=>x.id===b.dataset.match); if(!m||![m.g.a,m.g.b].includes(b.dataset.id))return; T.breakRuns=T.breakRuns||{}; const v=T.breakRuns[m.id]||(T.breakRuns[m.id]={}); v[b.dataset.id]=Math.max(0,(Number(v[b.dataset.id])||0)+Number(b.dataset.delta)); if(!v[b.dataset.id])delete v[b.dataset.id]; UI.brSelected=m.id;UI.brOpen=true;commit(); },
   'viewer-fullscreen'() { toggleViewerFullscreen(); },
   'viewer-tv'() { toggleViewerTv(); },
+  'viewer-compact'() { if(UI.viewer&&!mobielWeergave()){document.documentElement.classList.toggle('viewer-compact');updateViewerCompactButton();applyTvHalf();} },
   'dag-lijst'() { UI.dagLijst = UI.dagLijst === false; render(); },
   tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = mobielWeergave() ? false : true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
   'ga-gegevens'() { UI.tab = 'instellingen'; UI.inst = 'gegevens'; render(); },
