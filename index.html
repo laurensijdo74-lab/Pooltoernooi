@@ -2583,6 +2583,29 @@ function volgendeSpeeldag() {
   }
   return null;
 }
+/* Openstaande play-offs die bij een volgende speeldag horen. */
+function playoffsVoorDag(d) {
+  if (!d || !P.rondeGeloot(T, d.ronde)) return [];
+  const p = P.zoekPoule(T, d.ronde, d.poule);
+  if (!p) return [];
+  const src = bronnenPh(d.ronde, p), result = [];
+  if (!src.vk) return result;
+  Object.keys(src.pool).forEach(n => {
+    const q = P.zoekPoule(T, src.vk, Number(n));
+    if (q && q.pp && !q.pp.voltooid) result.push({key:src.vk,nr:Number(n), label:'Play-off '+rondePoule(src.vk,Number(n)), namen:q.pp.stappen[q.pp.stappen.length-1].groep.map(spelerNaam).join(' / ')});
+  });
+  Object.keys(src.derde).forEach(i => {
+    const st = P.derdeStatus(T,src.vk,Number(i));
+    if (st.status === 'playoff') result.push({key:src.vk,i:Number(i),label:'Play-off beste nummer 3',namen:[st.a,st.b].map(spelerNaam).join(' / ')});
+  });
+  return result;
+}
+function playoffAgendaHtml(d) {
+  const lijst=playoffsVoorDag(d);
+  if (!lijst.length) return '';
+  return '<div class="note warn" style="margin-top:10px"><b>🔥 Eerst: '+lijst.length+' play-off'+(lijst.length===1?'':'s')+'</b><div class="stack" style="margin-top:7px">'+lijst.map(x=>'<div><b>'+esc(x.label)+'</b><div>'+esc(x.namen)+'</div><button class="btn sec sm" data-act="open-dag" data-key="'+esc(d.ronde)+'" data-nr="'+d.poule+'">Open play-off op deze speeldag</button></div>').join('')+'</div></div>';
+}
+
 function standKeyVoorWeergave() {
   const d = volgendeSpeeldag();
   if (d && P.planRonde(T, d.ronde)) return d.ronde;
@@ -3366,7 +3389,7 @@ function dagDetailHtml(key, nr) {
   const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p) + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + brPaneel(key,nr) + testHulpHtml(key, p) + '</div>';
   const playoffs = ppBlokHtml(key, p) + derdePp;
   const verslagen = verslagBlokHtml('poule', key, nr) + verslagBlokHtml('weekend', key, nr);
-  return '<div class="stack-l dag-detail-stack">' + kop + waarschuw + (wachtPh ? vorigePlayoffsHtml(key, p) : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + (UI.viewer ? brVoetnoot() : '') + verslagen + '</div>';
+  return '<div class="stack-l dag-detail-stack">' + kop + waarschuw + vorigePlayoffsHtml(key, p) + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + (UI.viewer ? brVoetnoot() : '') + verslagen + '</div>';
 }
 function pasPubliekeStandToe(remote, melding) {
   if (!remote || !remote.id || !T || remote.id !== T.id) return false;
