@@ -899,6 +899,23 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  html.viewer-tv .viewer-day-cols .games.public-match-list>.pauze.tv-second-half-bar{display:block!important;visibility:visible!important;flex:0 0 auto;background:#ff3fa4!important;color:white!important;padding:6px 10px!important;font-size:15px!important;letter-spacing:.14em;text-align:center}
  html.viewer-tv .viewer-day-cols .tv-pause-panel{flex:1;min-height:0!important}
 }
+
+/* TV: menu uitsluitend bij aanraken van de bovenrand, geen navigatieknoppen. */
+@media screen and (min-width:981px){
+ html.viewer-tv .nav{position:fixed;top:0;left:0;right:0;z-index:110;transform:translateY(calc(-100% + 8px));opacity:.04;transition:transform .22s,opacity .22s}
+ html.viewer-tv .nav:hover,html.viewer-tv .nav:focus-within{transform:translateY(0);opacity:1}
+ html.viewer-tv .public-dag-controls{display:none!important}
+ html.viewer-tv .tv-playoff-winner{position:fixed;inset:0;z-index:100;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:5vh}
+ html.viewer-tv .tv-playoff-winner .heading{font-size:clamp(46px,7vw,115px);font-weight:900}
+ html.viewer-tv .tv-playoff-winner .winner{font-size:clamp(54px,8vw,140px);font-weight:900;color:var(--brand)}
+}
+.viewer-tv .tv-half-indicator{display:none!important}
+.viewer-tv .tv-first-pause-bar,.viewer-tv .tv-second-half-bar{font-size:0!important;color:transparent!important;min-height:20px}
+.viewer-playoff-block .body>.row:not(:has(.games)),.viewer-playoff-block .body>p,.viewer-playoff-block .body>.note,.viewer-playoff-block .body>.small{display:none!important}
+.viewer-playoff-block .body{padding:8px!important}
+.viewer-playoff-block .body>.stack{gap:4px}
+.viewer-playoff-block .chip{display:none!important}
+.viewer-day-cols .body>.note,.viewer-day-cols .body>.small{display:none!important}
 </style>
 </head>
 <body>
@@ -2749,7 +2766,7 @@ function applyTvHalf(){
  let secondBar=games.querySelector('.tv-second-half-bar');
  if(staged&&state.phase==='second'){
    if(!secondBar){secondBar=document.createElement('div');secondBar.className='pauze tv-second-half-bar';games.appendChild(secondBar);}
-   secondBar.textContent='2E HELFT';
+   secondBar.textContent='';
  }else if(secondBar)secondBar.remove();
  let panel=games.querySelector('.tv-pause-panel');
  if(staged&&state.phase==='pause'){
@@ -3277,7 +3294,7 @@ function ppKetenHtml(key, p, pp, o) {
   return pp.stappen.map((s, si) => {
     const wins = P.ppWins(s), n = s.groep.length, gestart = s.games.some(g => g.w), klaar = P.ppStapKlaar(s);
     const formaten = P.ppFormaten(n);
-    const fSel = UI.viewer ? '<div><span class="muted small">Formaat</span><br><b>' + esc(s.formaat) + '</b></div>' : (formaten.length > 1 ? '<label class="f" style="min-width:200px"><span>Formaat</span><select data-chg="pp-formaat" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (gestart || vast ? ' disabled' : '') + '>' + formaten.map(f => '<option' + (f === s.formaat ? ' selected' : '') + '>' + esc(f) + '</option>').join('') + '</select></label>' : '<div><span class="muted small">Formaat</span><br><b>' + esc(s.formaat) + '</b></div>');
+    const fSel = UI.viewer ? '' : (formaten.length > 1 ? '<label class="f" style="min-width:200px"><span>Formaat</span><select data-chg="pp-formaat" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (gestart || vast ? ' disabled' : '') + '>' + formaten.map(f => '<option' + (f === s.formaat ? ' selected' : '') + '>' + esc(f) + '</option>').join('') + '</select></label>' : '<div><span class="muted small">Formaat</span><br><b>' + esc(s.formaat) + '</b></div>');
     const bSel = false ? '<label class="f" style="min-width:200px"><span>Eerste break (toss)</span><select data-chg="pp-break" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (gestart || vast ? ' disabled' : '') + '>' + s.groep.map(id => '<option value="' + id + '"' + (id === s.eersteBreak ? ' selected' : '') + '>' + esc(spelerNaam(id)) + '</option>').join('') + '</select></label>' : '';
     const rijen = s.games.map(g => gameRijHtml(g, posFn, { act: 'ppwin', attrs: 'data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"', actief: !g.w && P.ppGameNodig(s, g) && s.games.find(x => !x.w && P.ppGameNodig(s, x)) === g && si === pp.stappen.length - 1 && !o.afgesloten, skip: !g.w && !P.ppGameNodig(s, g), locked: vast })).join('');
     const stand = s.groep.slice().sort((a, b) => wins[b] - wins[a]).map(id => '<span class="row gap-s">' + esc(spelerNaam(id)) + ' <b>' + wins[id] + '</b></span>').join('<span class="muted">·</span>');
@@ -3293,10 +3310,10 @@ function derdeBlokHtml(key, i) {
   const posFn = id => { const pp = r.poules.find(x => x.spelers.indexOf(id) >= 0); return pp ? pp.spelers.indexOf(id) + 1 : 0; };
   const gestart = po.games.some(g => g.w), wins = P.ppWins({ groep: [po.a, po.b], games: po.games }), doel = Math.floor(po.games.length / 2) + 1;
   const rijen = po.games.map(g => { const nodig = !(wins[po.a] >= doel || wins[po.b] >= doel) || !!g.w; return gameRijHtml(g, posFn, { act: 'dwin', attrs: 'data-key="' + key + '" data-i="' + i + '"', actief: !g.w && nodig && po.games.find(x => !x.w) === g && !po.winnaar, skip: !g.w && !nodig, locked: vast }); }).join('');
-  const fSel = UI.viewer ? '<div><span class="muted small">Formaat</span><br><b>' + esc(po.formaat) + '</b></div>' : '<label class="f" style="min-width:160px"><span>Formaat</span><select data-chg="d-formaat" data-key="' + key + '" data-i="' + i + '"' + (gestart ? ' disabled' : '') + '>' + P.ppFormaten(2).map(f => '<option' + (f === po.formaat ? ' selected' : '') + '>' + esc(f) + '</option>').join('') + '</select></label>';
+  const fSel = UI.viewer ? '' : '<label class="f" style="min-width:160px"><span>Formaat</span><select data-chg="d-formaat" data-key="' + key + '" data-i="' + i + '"' + (gestart ? ' disabled' : '') + '>' + P.ppFormaten(2).map(f => '<option' + (f === po.formaat ? ' selected' : '') + '>' + esc(f) + '</option>').join('') + '</select></label>';
   const walkover = po.forfait ? '<div class="note good small"><b>Walk-over wegens verhindering:</b> ' + esc(spelerNaam(po.forfait.winnaar)) + ' gaat door; ' + esc(spelerNaam(po.forfait.afwezig)) + ' was verhinderd.</div>' : '';
   return '<div class="sect playoff-block public-match-card"><header><h3>Play-off beste nummer 3</h3><span class="chip ' + (po.winnaar ? 'ok' : 'warn') + '">' + (po.winnaar ? 'Beslist: ' + esc(spelerNaam(po.winnaar)) + ' gaat door' : 'Wacht op uitslag') + '</span></header><div class="body stack">' + walkover +
-    '<p class="small">De nummers 3 van poule ' + (2 * i + 1) + ' en ' + (2 * i + 2) + ' hebben evenveel punten. De winnaar gaat door naar de volgende ronde.</p>' +
+    (UI.viewer ? '' : '<p class="small">De nummers 3 van poule ' + (2 * i + 1) + ' en ' + (2 * i + 2) + ' hebben evenveel punten. De winnaar gaat door naar de volgende ronde.</p>') +
     '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + (UI.viewer ? '' : (po.forfait ? '<button class="btn sec sm noprint" data-act="d-walkover-reset" data-key="' + key + '" data-i="' + i + '">Walk-over ongedaan maken</button>' : (vast ? '<button class="btn sec sm noprint" data-act="derde-ontgrendel" data-key="' + key + '" data-i="' + i + '">🔒 Ontgrendelen</button>' : ''))) + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="d-loot-breaks" data-key="' + key + '" data-i="' + i + '"' + (vast || gestart ? ' disabled' : '') + '>🎲 Loot wie breekt</button><button class="btn sec sm noprint" data-act="d-walkover" data-key="' + key + '" data-i="' + i + '"' + (vast || po.winnaar ? ' disabled' : '') + '>Winst wegens verhindering</button></div>') + '<div class="games public-match-list">' + gameKopHtml() + rijen + '</div><div class="row small" style="gap:12px"><span class="row gap-s">' + esc(spelerNaam(po.a)) + ' <b>' + wins[po.a] + '</b></span><span class="muted">·</span><span class="row gap-s">' + esc(spelerNaam(po.b)) + ' <b>' + wins[po.b] + '</b></span></div></div></div>';
 }
 function bronnenPh(key, p) {
@@ -3315,7 +3332,7 @@ function vorigePlayoffsHtml(key, p) {
   Object.keys(pool).forEach(n => { const pp = P.zoekPoule(T, vk, +n); if (pp && pp.pp && !pp.pp.voltooid) h += '<h4 style="margin:4px 0">' + esc(rondeNaam(vk)) + ' · poule ' + n + '</h4>' + ppBlokHtml(vk, pp); });
   Object.keys(derde).forEach(i => { const b = derdeBlokHtml(vk, +i); if (b) h += '<h4 style="margin:4px 0">' + esc(rondeNaam(vk)) + ' · beste nummer 3, weekend ' + (+i + 1) + '</h4>' + b; });
   if (!h) return '';
-  return '<div class="sect" style="border-color:var(--warn)"><header><h3>Eerst spelen: play-off voor een plek in deze poule</h3><span class="chip warn">Voor de poulewedstrijden</span></header><div class="body stack"><p class="small">De spelers in deze play-off zijn ingeloot als “A / B”. Zodra de play-off beslist is, neemt de winnaar automatisch de plek in en verschijnen de wedstrijden van deze poule.</p>' + h + '</div></div>';
+  return '<div class="sect viewer-playoff-block" style="border-color:var(--warn)"><header><h3>Play-off wedstrijden</h3></header><div class="body stack">' + h + '</div></div>';
 }
 function derdeBlokkenVoorPoule(key, p) {
   const pr = P.planRonde(T, key); if (!pr || !pr.derden) return '';
@@ -3405,21 +3422,46 @@ function dagDetailHtml(key, nr) {
     '<div class="row noprint' + (UI.viewer ? ' public-dag-controls' : '') + '">' + navigatie + '</div></div></div></div>';
   const vast = P.vergrendeld(T, key, nr), ontgrendeldKlaar = !vast && p.ontgrendeld && P.pouleAfgerond(T, p);
   const slot = UI.viewer ? '' : (vast ? '<div class="note good row between"><span>🔒 <b>Deze speeldag is afgerond en vergrendeld.</b> Uitslagen kunnen niet per ongeluk worden gewijzigd.</span><button class="btn sec sm noprint" data-act="ontgrendel" data-key="' + key + '" data-nr="' + nr + '">Ontgrendelen…</button></div>' : (ontgrendeldKlaar ? '<div class="note warn row between"><span>🔓 <b>Ontgrendeld.</b> Je kunt uitslagen wijzigen.</span><button class="btn sm noprint" data-act="vergrendel" data-key="' + key + '" data-nr="' + nr + '">Weer vergrendelen</button></div>' : ''));
-  const waarschuw = slot + (vorigeOpen ? '<div class="note warn">De vorige speeldag (' + esc(rondePoule(vorige.ronde, vorige.poule).replace(/^Ronde /, 'R').replace(' · poule ', ' poule ')) + ', ' + esc(P.datumKort(vorige.datum)) + ') is nog niet afgerond.</div>' : '') +
+  const waarschuw = UI.viewer ? '' : slot + (vorigeOpen ? '<div class="note warn">De vorige speeldag (' + esc(rondePoule(vorige.ronde, vorige.poule).replace(/^Ronde /, 'R').replace(' · poule ', ' poule ')) + ', ' + esc(P.datumKort(vorige.datum)) + ') is nog niet afgerond.</div>' : '') +
     (wachtPh ? '<div class="note warn">Eén van de spelers is nog niet bekend: de play-off voor deze plek moet eerst worden gespeeld (zie hieronder).</div>' : '');
   const uitleg = UI.viewer ? '' : '<div class="row between noprint" style="margin-bottom:8px"><span class="muted small">Tik op de winnaar van elke wedstrijd. De speler links heeft de break. Sneltoetsen: <kbd>1</kbd> of ← links wint, <kbd>2</kbd> of → rechts wint, <kbd>Backspace</kbd> herstelt de vorige.</span><button class="btn sec sm" data-act="herstel" data-key="' + key + '" data-nr="' + nr + '"' + (kanHerstel && !vast ? '' : ' disabled') + '>Herstel vorige wedstrijd</button></div>';
-  const links = '<div>' + uitleg + (wachtPh ? '' : gamesHtml(key, p)) + '</div>';
+  const links = '<div>' + uitleg + gamesHtml(key, p) + '</div>';
   const derdePp = derdeBlokkenVoorPoule(key, p);
-  const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p) + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted" id="viewerNextMatch">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + brPaneel(key,nr) + testHulpHtml(key, p) + '</div>';
-  const playoffs = ppBlokHtml(key, p) + derdePp;
+  const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p) + (UI.viewer ? '' : pouleSamenvatting(key, p)) + (!UI.viewer && actief && actief.soort === 'reg' ? '<div class="small muted" id="viewerNextMatch">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + brPaneel(key,nr) + testHulpHtml(key, p) + '</div>';
+  const playoffs = (UI.viewer && wachtPh ? '' : ppBlokHtml(key, p) + derdePp);
   const verslagen = verslagBlokHtml('poule', key, nr) + verslagBlokHtml('weekend', key, nr);
   return '<div class="stack-l dag-detail-stack">' + kop + waarschuw + (wachtPh ? vorigePlayoffsHtml(key, p) : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols' + (UI.viewer ? ' viewer-day-cols' : '') + '">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + (UI.viewer ? brVoetnoot() : '') + verslagen + '</div>';
 }
+let tvPlayoffAnnouncement=null;
+function notePlayoffResolution(oldT,newT){
+ if(!oldT||!newT||!oldT.rondes||!newT.rondes)return;
+ for(const key of Object.keys(newT.rondes)){
+  const before=oldT.rondes[key],after=newT.rondes[key];if(!before||!after||!before.poules||!after.poules)continue;
+  for(const np of after.poules){const op=before.poules.find(p=>p.nr===np.nr);if(!op)continue;
+   for(let i=0;i<np.spelers.length;i++){
+    const old=op.spelers[i],now=np.spelers[i];
+    if(P.isPh(old)&&now&&!P.isPh(now)&&old!==now){
+     const player=P.spelerById(newT,now);if(player){tvPlayoffAnnouncement={name:player.naam,until:Date.now()+120000};return;}
+    }
+   }
+  }
+ }
+}
+function updateTvPlayoffWinner(){
+ let el=document.getElementById('tvPlayoffWinner');
+ const on=tvPlayoffAnnouncement&&Date.now()<tvPlayoffAnnouncement.until&&UI.viewer&&!mobielWeergave()&&document.documentElement.classList.contains('viewer-tv');
+ if(!on){if(el)el.remove();return;}
+ if(!el){el=document.createElement('div');el.id='tvPlayoffWinner';el.className='tv-playoff-winner';document.body.appendChild(el);}
+ el.replaceChildren();
+ const h=document.createElement('div'),n=document.createElement('div');h.className='heading';n.className='winner';h.textContent='WINNAAR PLAYOFF';n.textContent=tvPlayoffAnnouncement.name;el.append(h,n);
+}
+setInterval(updateTvPlayoffWinner,1000);
 function pasPubliekeStandToe(remote, melding) {
   if (!remote || !remote.id || !T || remote.id !== T.id) return false;
   const huidigeTab = UI.tab;
   const huidigeDag = UI.dag && { key: UI.dag.key, nr: UI.dag.nr };
   const huidigeStand = UI.stand;
+  notePlayoffResolution(T,remote);
   T = remote; migreerNaLaden(); UI.viewer = true; UI.tab = huidigeTab;
   UI.dag = huidigeDag && P.planDag(T, huidigeDag.key, huidigeDag.nr) ? huidigeDag : null;
   UI.stand = huidigeStand && P.planRonde(T, huidigeStand) ? huidigeStand : null;
@@ -3770,6 +3812,7 @@ function render() {
   updateViewerFullscreenButton();
   updateViewerTvButton();
   applyTvHalf();
+  updateTvPlayoffWinner();
   updateViewerFrozenStand();
   /* Standnamen mogen op meerdere regels, niet kleiner worden gemaakt. */
   ververscScorebordVenster();
