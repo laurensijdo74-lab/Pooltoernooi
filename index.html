@@ -4346,7 +4346,7 @@ function adminTournamentLinks(x){
  const vue=/vue/i.test(loc+' '+(x.naam||''));
  const root='https://laurensijdo74-lab.github.io/Pooltoernooi/';
  const viewerBase=kar?root+'Karroesel/':vue?root+'vue/':root;
- return {viewer:viewerBase+'?tournament='+id+'&view=public',admin:root+'?tournament='+id};
+ return {viewer:viewerBase+'?tournament='+id+'&view=public',admin:root+'?beheer='+id};
 }
 function adminAll(){
  adminCloseMenu();adminRemember();
@@ -4360,7 +4360,7 @@ function adminAll(){
  const magWeg=!!data&&status==='concept'&&!x.online;
  const links=adminTournamentLinks(x);
  const uitleg=x.online?'Online toernooi: verwijderen is niet beschikbaar zonder veilige verwijdering in Firebase.':!data?'Gegevens niet lokaal beschikbaar.':status!=='concept'?'Een geloot of gestart toernooi kan niet worden verwijderd.':'';
- return '<article><div class="row between"><b>'+esc(x.naam||'Pooltoernooi')+'</b><span class="chip '+(status==='concept'?'info':'')+'">'+(status==='concept'?'Concept':status==='actief'?'Geloot / actief':'Status onbekend')+'</span></div><div class="small muted">Start: '+esc(x.datum||x.startdatum||'onbekend')+'</div><div class="row"><button class="btn sec sm" data-act="admin-open" data-id="'+esc(x.id)+'"'+(x.id===T.id?' disabled':'')+'>Openen</button><button class="btn sec sm" data-act="admin-duplicate" data-id="'+esc(x.id)+'">Dupliceren</button><button class="btn danger sm" data-act="admin-delete" data-id="'+esc(x.id)+'"'+(magWeg?'':' disabled title="'+esc(uitleg)+'"')+'>Verwijderen</button></div><div class="row admin-app-links"><a class="btn sec sm" href="'+esc(links.viewer)+'" target="_blank" rel="noopener noreferrer">👁 Toeschouwersapp ↗</a><a class="btn sec sm" href="'+esc(links.admin)+'" target="_blank" rel="noopener noreferrer">⚙ Beheerdersapp ↗</a></div></article>';
+ return '<article><div class="row between"><b>'+esc(x.naam||'Pooltoernooi')+'</b><span class="chip '+(status==='concept'?'info':'')+'">'+(status==='concept'?'Concept':status==='actief'?'Geloot / actief':'Status onbekend')+'</span></div><div class="small muted">Start: '+esc(x.datum||x.startdatum||'onbekend')+'</div><div class="row"><button class="btn sec sm" data-act="admin-open" data-id="'+esc(x.id)+'"'+(x.id===T.id?' disabled':'')+'>Openen</button><button class="btn sec sm" data-act="admin-duplicate" data-id="'+esc(x.id)+'">Dupliceren</button><button class="btn danger sm" data-act="admin-delete" data-id="'+esc(x.id)+'"'+(magWeg?'':' disabled title="'+esc(uitleg)+'"')+'>Verwijderen</button></div><div class="row admin-app-links"><a class="btn sec sm" href="'+esc(links.viewer)+'" target="_blank" rel="noopener noreferrer">👁 Toeschouwersapp ↗</a><button class="btn sec sm" data-act="admin-open-direct" data-id="'+esc(x.id)+'">⚙ Beheerdersapp</button></div></article>';
  }).join('')+'</section>').join('');
  dialoog({titel:'Alle toernooien',breed:true,annuleer:false,html:'<div class="admin-tourneys">'+(html||'<p>Geen toernooien gevonden.</p>')+'</div><p class="small muted">Gesorteerd op startdatum (oud naar nieuw), gegroepeerd per locatie. Alleen lokale concepttoernooien zonder loting kunnen worden verwijderd. Online toernooien blijven beschermd.</p>',knoppen:[{label:'Sluiten',val:'sluit',cls:'sec'}]});
 }
@@ -4389,6 +4389,7 @@ const ACT = {
   'admin-changelog'(){adminChangelog()},
   'admin-faq'(){adminFaq()},
   'admin-open'(b){document.querySelector('.overlay')?.remove();adminLoad(b.dataset.id,false)},
+  'admin-open-direct'(b){document.querySelector('.overlay')?.remove();if(T&&T.id===b.dataset.id){UI.tab='overzicht';render();return;}adminLoad(b.dataset.id,false)},
   'admin-duplicate'(b){document.querySelector('.overlay')?.remove();adminLoad(b.dataset.id,true)},
   'admin-delete'(b){adminDelete(b.dataset.id)},
   'br-adjust'(b) { const matches=brMatches(UI.dag.key,UI.dag.nr); const m=matches.find(x=>x.id===b.dataset.match); if(!m||![m.g.a,m.g.b].includes(b.dataset.id))return; T.breakRuns=T.breakRuns||{}; const v=T.breakRuns[m.id]||(T.breakRuns[m.id]={}); v[b.dataset.id]=Math.max(0,(Number(v[b.dataset.id])||0)+Number(b.dataset.delta)); if(!v[b.dataset.id])delete v[b.dataset.id]; UI.brSelected=m.id;UI.brOpen=true;commit(); },
@@ -4763,6 +4764,7 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
 /* ---------- opstarten ---------- */
 async function start() {
   const queryPublicId = new URLSearchParams(location.search).get('tournament');
+  const queryBeheerId = new URLSearchParams(location.search).get('beheer');
   const publicRoute = !!queryPublicId || /\/vue\/?$/i.test(location.pathname);
   if (publicRoute) {
     document.getElementById('pool-manifest')?.setAttribute('href','./manifest.webmanifest');
@@ -4798,6 +4800,20 @@ async function start() {
   UI.locEdit = T.locatieId;
   if (kanBestandKoppelen()) { const h = await idb('get'); if (h && h.name) UI.fhPending = h; }
   koppelEvents(); render();
+  // Beheerlinks zijn geen publieke routes: open het gekozen toernooi in dezelfde app-shell.
+  if(queryBeheerId && !UI.viewer && queryBeheerId !== T.id){
+    const targetId=queryBeheerId;
+    Promise.resolve(window.POOL_ONLINE?.ready).then(async()=>{
+      let selected=null;
+      try{selected=JSON.parse(localStorage.getItem('pooltoernooi.admin.data.'+targetId)||'null')}catch(e){}
+      if(window.POOL_ONLINE?.state?.user && window.POOL_ONLINE.loadTournament){
+        try{const remote=await window.POOL_ONLINE.loadTournament(targetId);if(remote)selected=remote}catch(e){}
+      }
+      if(!selected){toast('Toernooi niet beschikbaar. Meld je aan met een bevoegd beheeraccount.',true);return;}
+      stopOnlineSynchronisatie();T=selected;migreerNaLaden();UI.tab='overzicht';UI.dag=null;UI.lotingKey=null;
+      bewaarNu();adminRemember();render();startOnlineSynchronisatie();
+    }).catch(()=>toast('Toernooi kon niet worden geopend.',true));
+  }
   // The administrator may open a locally cached tournament. Refresh it from
   // Firestore on startup rather than waiting for a later edit or login event.
   if (!UI.viewer && T && T.id && T.online && T.online.synchroniseren && window.POOL_ONLINE) {
