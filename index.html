@@ -858,6 +858,19 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  #spelers-overzicht table.t select,#spelers-overzicht table.t input[type=date]{width:100%;max-width:100%;font-size:15px}
  #spelers-overzicht table.t td:last-child{display:flex;gap:7px;flex-wrap:wrap}
 }
+
+/* Beheerdersapp redesign 2026-11-10; uitsluitend beheer, publieke app blijft gelijk. */
+.admin-vue-wordmark{display:inline-flex;align-items:center;justify-content:center;min-width:105px;height:64px;padding:0 10px;border-radius:10px;background:rgba(255,255,255,.12);color:#fff;font-family:Georgia,serif;font-size:2rem;font-weight:900;letter-spacing:.04em}
+.admin-dashboard{max-width:1100px;margin:auto}.admin-progress{height:11px;border-radius:99px;background:var(--line);overflow:hidden}.admin-progress i{display:block;height:100%;background:var(--brand);border-radius:99px}.admin-stages{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:9px}.admin-stage{display:flex;flex-direction:column;align-items:flex-start;gap:7px;padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);cursor:pointer;text-align:left}.admin-stage:hover{border-color:var(--brand)}
+@media screen and (max-width:980px){
+ body:not(.public-mode) .dagview .cols{display:flex!important;flex-direction:column!important;gap:14px}
+ body:not(.public-mode) .dagview .cols>.stack:last-child{order:-1;width:100%}
+ body:not(.public-mode) .dagview .cols>.stack:last-child>.sect:first-child{width:100%}
+ body:not(.public-mode) .dagview .cols>.stack:last-child .viewer-stand-table{width:100%!important;min-width:0!important}
+ body:not(.public-mode) .admin-vue-wordmark{height:50px;min-width:74px;font-size:1.5rem}
+ .admin-stages{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media screen and (min-width:981px){body:not(.public-mode) .dagview .cols{grid-template-columns:minmax(0,1.25fr) minmax(330px,1fr)!important}}
 </style>
 </head>
 <body>
@@ -2725,7 +2738,7 @@ function viewerBreakHtml() {
 
 function heroHtml() {
   const loc = locatieVoorWeergave();
-  const logo = loc.logo ? '<img class="logo" alt="Logo ' + esc(loc.naam) + '" src="' + esc(loc.logo) + '">' : '<span class="logo-bal" aria-hidden="true">' + ((THEMAS[loc.thema] || {}).icoon || '🎱') + '</span>';
+  const logo = (!UI.viewer && /vue/i.test(loc.naam || '')) ? '<span class="admin-vue-wordmark">VUE</span>' : loc.logo ? '<img class="logo" alt="Logo ' + esc(loc.naam) + '" src="' + esc(loc.logo) + '">' : '<span class="logo-bal" aria-hidden="true">' + ((THEMAS[loc.thema] || {}).icoon || '🎱') + '</span>';
   const st = backupStatus();
   const o = window.POOL_ONLINE, os = o && o.state || {};
   const onlineChip = UI.viewer || !o ? '' : '<button class="chip ' + (os.user ? 'ok' : (os.status === 'fout' ? 'bad' : 'warn')) + '" data-act="ga-gegevens" title="Naar Instellingen → Online versie">' + (os.user ? '✓ Online aangemeld' : (os.status === 'initialiseren' ? 'Online laden…' : 'Niet aangemeld')) + '</button>';
@@ -2757,51 +2770,31 @@ function volgendeStap() {
 function ballenRij(poule) { return poule.spelers.map((id, i) => '<span class="row gap-s" style="gap:6px">' + ball(P.isPh(id) ? 0 : i + 1, P.isPh(id) ? 'ph' : '') + '<span>' + esc(spelerNaam(id)) + '</span></span>').join(''); }
 
 function viewOverzicht() {
-  const stap = volgendeStap(), plan = T.plan, nAct = P.actief(T).length;
-  let hoofd = '';
-  if (stap.soort === 'spelers') {
-    hoofd = '<div class="sect"><div class="body stack"><h2>Welkom bij ' + esc(T.naam) + '</h2><p>Begin met het invoeren van de deelnemers. Er zijn minstens 4 spelers nodig; het toernooi past zich automatisch aan op het aantal inschrijvingen.</p><div class="row"><button class="btn lg" data-act="tab" data-tab="spelers">Spelers invoeren</button><button class="btn sec" data-act="voorbeeld">Voorbeeldspelers laden</button><button class="btn sec" data-act="tab" data-tab="instellingen" data-inst="locaties">Locatie en uiterlijk kiezen</button></div></div></div>';
-  } else if (stap.soort === 'loot') {
-    const r = P.planRonde(T, stap.key), fouten = P.controleerLoting(T, stap.key);
-    hoofd = '<div class="sect"><div class="body stack"><h2>Volgende stap: loting ' + esc(r.naam.toLowerCase()) + '</h2><p>' + (stap.key === plan.rondes[0].key
-      ? nAct + ' spelers worden verdeeld over ' + plural(r.sizes.length, 'poule', 'poules') + '.' : r.M + ' spelers gaan door naar deze ronde.') + '</p>' +
-      (fouten.length ? '<div class="note warn">' + fouten.map(esc).join('<br>') + '</div>' : '') +
-      '<div class="row"><button class="btn lg' + (fouten.length ? ' off' : '') + '" data-act="naar-loting" data-key="' + stap.key + '">Naar de loting</button>' + (stap.key === plan.rondes[0].key ? '<button class="btn sec" data-act="tab" data-tab="spelers">Spelers aanpassen</button>' : '') + '</div></div></div>';
-  } else if (stap.soort === 'speel') {
-    const d = volgendeSpeeldag(), p = d ? P.zoekPoule(T, d.ronde, d.poule) : null;
-    if (d && p) {
-      const s = dagStatus(d.ronde, d.poule), dd = P.isoNaarDatum(d.datum);
-      hoofd = '<div class="sect next"><div class="dt"><div class="d">' + dd.getDate() + '</div><div class="m">' + esc(P.MAANDEN[dd.getMonth()]) + '<br>' + esc(P.dagNaam(d.datum)) + '</div></div>' +
-        '<div class="stack"><div class="row"><h2>' + esc(rondePoule(d.ronde, d.poule)) + '</h2><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span></div>' +
-        '<div class="row" style="gap:14px">' + ballenRij(p) + '</div><div class="muted small">' + esc(locNaam(dagLocatie(d.ronde, d.poule))) + '</div></div>' +
-        '<div class="stack"><button class="btn lg" data-act="open-dag" data-key="' + d.ronde + '" data-nr="' + d.poule + '">Open speeldag</button></div></div>';
-    }
-  } else {
-    const k = P.kwalificatie(T, 'FIN'), w = k.ids[0];
-    const fin = P.zoekPoule(T, 'FIN', 1), ev = fin ? P.eindvolgorde(T, fin) : [];
-    hoofd = '<div class="sect big-winner"><div class="muted">Het toernooi is afgerond</div><div class="naam">🏆 ' + esc(spelerNaam(w)) + '</div><div class="muted">Kampioen ' + esc(T.naam) + '</div>' +
-      '<div class="row" style="justify-content:center;margin-top:14px;gap:18px">' + ev.slice(0, 3).map((id, i) => '<span class="row gap-s">' + ball(i + 1) + esc(spelerNaam(id)) + '</span>').join('') + '</div></div>';
-  }
-
-  const trechter = '<div class="sect"><header><h3>Het toernooi</h3><span class="muted small">' + plural(nAct, 'speler', 'spelers') + ' · ' + plan.dagen.length + ' speeldagen' + (plan.dagen.length ? ' · ' + esc(P.datumKort(plan.dagen[0].datum)) + ' t/m ' + esc(P.datumKort(plan.dagen[plan.dagen.length - 1].datum)) : '') + '</span></header>' +
-    '<div class="funnel">' + (plan.rondes.length ? plan.rondes.map(r => {
-      const g = P.rondeGespeeldAantal(T, r.key), pct = g.totaal ? Math.round(100 * g.klaar / g.totaal) : 0;
-      const status = P.rondeAfgerond(T, r.key) ? '<span class="chip ok">Afgerond</span>' : (P.rondeGeloot(T, r.key) ? '<span class="chip info">Bezig</span>' : '<span class="chip">Nog niet geloot</span>');
-      return '<button class="st" data-act="naar-ronde" data-key="' + r.key + '"><div class="n">' + r.M + '</div><div class="l">' + esc(r.naam) + '</div><div class="muted small">' + plural(r.sizes.length, 'poule', 'poules') + (r.derden ? ' · +' + r.derden + '× nr. 3' : '') + '</div>' +
-        '<div class="meter" aria-label="' + pct + '% gespeeld"><i style="width:' + pct + '%"></i></div><div style="margin-top:8px">' + status + '</div></button>';
-    }).join('') : '<div class="body muted">Voeg spelers toe om het schema te zien.</div>') + '</div></div>';
-
-  const volgende = alleDagen().filter(d => { const s = dagStatus(d.ronde, d.poule); return s.code !== 'klaar'; }).slice(0, 6);
-  const agenda = '<div class="sect"><header><h3>Eerstvolgende speeldagen</h3><button class="btn sec sm" data-act="tab" data-tab="planning">Hele planning</button></header><div class="body"><div class="daglist">' +
-    (volgende.length ? volgende.map(d => { const s = dagStatus(d.ronde, d.poule), dd = P.isoNaarDatum(d.datum);
-      return '<button class="dagrow" data-act="open-dag" data-key="' + d.ronde + '" data-nr="' + d.poule + '"><div class="dd">' + dd.getDate() + '<small>' + esc(P.MAANDEN[dd.getMonth()].slice(0, 3)) + '</small></div><div><b>' + esc(rondePoule(d.ronde, d.poule)) + '</b><div class="muted small">' + esc(P.hoofd(P.dagNaam(d.datum))) + ' · ' + esc(locNaam(dagLocatie(d.ronde, d.poule))) + '</div></div><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span></button>'; }).join('') : '<div class="muted">Geen openstaande speeldagen.</div>') + '</div></div></div>';
-
-  const bs = backupStatus();
-  const bewaar = '<div class="sect"><header><h3>Voortgang veilig stellen</h3><span id="statchip2" class="chip ' + bs.cls + '">' + esc(bs.tekst) + '</span></header><div class="body stack"><p class="small">Alles wordt automatisch in deze browser bewaard. Het toernooi loopt over weken, dus bewaar na elke speeldag ook een bestand. Dat is je vangnet als de browser wordt leeggemaakt of je op een andere laptop verder gaat.</p>' +
-    '<div class="row"><button class="btn" data-act="download">Bewaar als bestand</button><button class="btn sec" data-act="open-bestand">Open bestand…</button>' + (kanBestandKoppelen() ? '<button class="btn sec" data-act="tab" data-tab="instellingen" data-inst="gegevens">Automatisch bewaren instellen</button>' : '') + '</div></div></div>';
-
-  const testbalk = T.instellingen.testmodus ? '<div class="note warn row between"><span><b>Testmodus</b> – begin opnieuw wanneer je wilt.</span><span class="row"><button class="btn danger sm" data-act="reset-spelers">Opnieuw met dezelfde spelers</button><button class="btn danger sm" data-act="reset-alles">Alles resetten</button></span></div>' : '';
-  return '<div class="stack-l">' + testbalk + hoofd + trechter + '<div class="cols">' + agenda + bewaar + '</div></div>';
+  const stap = volgendeStap(), dagen = alleDagen(), totaal = dagen.length;
+  const klaar = dagen.filter(d => dagStatus(d.ronde,d.poule).code === 'klaar').length;
+  const huidig = actueleSpeeldag();
+  const open = dagen.filter(d => dagStatus(d.ronde,d.poule).code !== 'klaar');
+  const ronde = huidig ? P.planRonde(T,huidig.ronde) : null;
+  const rd = huidig ? P.zoekPoule(T,huidig.ronde,huidig.poule) : null;
+  const status = huidig ? dagStatus(huidig.ronde,huidig.poule) : null;
+  const pct = totaal ? Math.round(100*klaar/totaal) : 0;
+  const actie = stap.soort === 'spelers' ? '<button class="btn" data-act="tab" data-tab="spelers">Deelnemers invoeren</button>' :
+    stap.soort === 'loot' ? '<button class="btn" data-act="naar-loting" data-key="'+esc(stap.key)+'">Loting '+esc(rondeNaam(stap.key))+' openen</button>' :
+    huidig ? '<button class="btn" data-act="open-dag" data-key="'+esc(huidig.ronde)+'" data-nr="'+huidig.poule+'">Open huidige speeldag →</button>' : '';
+  const rondeKaarten = T.plan.rondes.map(r => {
+    const ds = dagen.filter(d=>d.ronde===r.key), af = ds.filter(d=>dagStatus(d.ronde,d.poule).code==='klaar').length;
+    const cls = af===ds.length&&ds.length?'ok':P.rondeGeloot(T,r.key)?'info':'';
+    return '<button class="admin-stage" data-act="naar-ronde" data-key="'+esc(r.key)+'"><b>'+esc(r.naam)+'</b><span class="chip '+cls+'">'+(af===ds.length&&ds.length?'Afgerond':P.rondeGeloot(T,r.key)?'Bezig':'Gepland')+'</span><span class="muted small">'+af+' / '+ds.length+' speeldagen</span></button>';
+  }).join('');
+  return '<div class="admin-dashboard stack-l">'+
+    '<section class="sect"><header><h3>Toernooivoortgang</h3><span class="chip '+(stap.soort==='klaar'?'ok':'info')+'">'+(stap.soort==='klaar'?'Afgerond':'Actief')+'</span></header><div class="body stack">'+
+    '<div class="row between"><div><h2>'+(ronde?esc(ronde.naam):'Voorbereiding')+'</h2><span class="muted small">'+esc(T.naam)+' · '+P.actief(T).length+' deelnemers</span></div><strong>'+pct+'%</strong></div>'+
+    '<div class="admin-progress"><i style="width:'+pct+'%"></i></div><div class="row between small muted"><span>'+klaar+' van '+totaal+' speeldagen afgerond</span><span>'+Math.max(0,totaal-klaar)+' resterend</span></div>'+
+    '<div class="admin-stages">'+rondeKaarten+'</div></div></section>'+
+    (huidig ? '<section class="sect"><header><h3>Huidige speeldag</h3><span class="chip '+status.cls+'">'+esc(status.tekst)+'</span></header><div class="body stack"><h2>'+esc(P.datumLang(huidig.datum))+'</h2><div class="muted">'+esc(rondePoule(huidig.ronde,huidig.poule))+' · '+esc(locNaam(dagLocatie(huidig.ronde,huidig.poule)))+'</div>'+
+    (rd?'<div class="row small">'+rd.schema.filter(g=>g.w).length+' van '+rd.schema.length+' wedstrijden gespeeld</div><div class="admin-progress"><i style="width:'+(rd.schema.length?Math.round(100*rd.schema.filter(g=>g.w).length/rd.schema.length):0)+'%"></i></div>':'')+
+    playoffAgendaHtml(huidig)+'<div class="row">'+actie+'<button class="btn sec" data-act="tab" data-tab="dag">Alle speeldagen</button></div></div></section>' : '<section class="sect"><div class="body stack"><h3>Volgende stap</h3>'+actie+'</div></section>')+
+    '<section class="sect"><header><h3>Komende speeldagen</h3><button class="btn sec sm" data-act="tab" data-tab="planning">Planning</button></header><div class="body daglist">'+(open.slice(0,5).map(d=>{const st=dagStatus(d.ronde,d.poule);return '<button class="dagrow" data-act="open-dag" data-key="'+esc(d.ronde)+'" data-nr="'+d.poule+'"><div class="dd">'+P.isoNaarDatum(d.datum).getDate()+'<small>'+esc(P.MAANDEN[P.isoNaarDatum(d.datum).getMonth()].slice(0,3))+'</small></div><div><b>'+esc(rondePoule(d.ronde,d.poule))+'</b><div class="muted small">'+esc(P.hoofd(P.dagNaam(d.datum)))+'</div></div><span class="chip '+st.cls+'">'+esc(st.kort)+'</span></button>';}).join('')||'<p class="muted">Geen komende speeldagen.</p>')+'</div></section></div>';
 }
 
 /* ---------- Spelers ---------- */
@@ -3386,7 +3379,7 @@ function dagDetailHtml(key, nr) {
   const uitleg = UI.viewer ? '' : '<div class="row between noprint" style="margin-bottom:8px"><span class="muted small">Tik op de winnaar van elke wedstrijd. De speler links heeft de break. Sneltoetsen: <kbd>1</kbd> of ← links wint, <kbd>2</kbd> of → rechts wint, <kbd>Backspace</kbd> herstelt de vorige.</span><button class="btn sec sm" data-act="herstel" data-key="' + key + '" data-nr="' + nr + '"' + (kanHerstel ? '' : ' disabled') + '>Herstel vorige wedstrijd</button></div>';
   const links = '<div>' + uitleg + (wachtPh ? '' : gamesHtml(key, p)) + '</div>';
   const derdePp = derdeBlokkenVoorPoule(key, p);
-  const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p) + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + brPaneel(key,nr) + testHulpHtml(key, p) + '</div>';
+  const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p, UI.viewer ? false : "admin") + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + brPaneel(key,nr) + testHulpHtml(key, p) + '</div>';
   const playoffs = ppBlokHtml(key, p) + derdePp;
   const verslagen = verslagBlokHtml('poule', key, nr) + verslagBlokHtml('weekend', key, nr);
   return '<div class="stack-l dag-detail-stack">' + kop + waarschuw + vorigePlayoffsHtml(key, p) + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + (UI.viewer ? brVoetnoot() : '') + verslagen + '</div>';
@@ -4017,7 +4010,7 @@ const ACT = {
   'admin-delete'(b){adminDelete(b.dataset.id)},
   'br-adjust'(b) { const matches=brMatches(UI.dag.key,UI.dag.nr); const m=matches.find(x=>x.id===b.dataset.match); if(!m||![m.g.a,m.g.b].includes(b.dataset.id))return; T.breakRuns=T.breakRuns||{}; const v=T.breakRuns[m.id]||(T.breakRuns[m.id]={}); v[b.dataset.id]=Math.max(0,(Number(v[b.dataset.id])||0)+Number(b.dataset.delta)); if(!v[b.dataset.id])delete v[b.dataset.id]; UI.brSelected=m.id;UI.brOpen=true;commit(); },
   'dag-lijst'() { UI.dagLijst = UI.dagLijst === false; render(); },
-  tab(b) { UI.adminMenu=false; UI.adminReturnTab=null; UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = mobielWeergave() ? false : true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
+  tab(b) { UI.adminMenu=false; UI.adminReturnTab=null; UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = false; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
   'ga-gegevens'() { UI.tab = 'instellingen'; UI.inst = 'gegevens'; render(); },
   'naar-loting'(b) { UI.lotingKey = b.dataset.key; UI.tab = 'loting'; UI.resetScroll = true; render(); },
   'naar-ronde'(b) { const k = b.dataset.key; if (P.rondeGeloot(T, k)) { UI.stand = k; UI.tab = 'standen'; } else { UI.lotingKey = k; UI.tab = 'loting'; } UI.resetScroll = true; render(); },
