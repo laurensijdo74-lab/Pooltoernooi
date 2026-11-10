@@ -11,11 +11,10 @@
 - Browser/PWA-installatie en Firebase-toegangsrechten moeten na upload op het daadwerkelijke toestel worden getest.
 - Bewaar de voorafgaande aantoonbaar werkende `index.html` als terugvalversie.
 
-## Vue Beheer als aparte PWA (voorbereid 10 november 2026)
-- GitHub-map: `vue-beheer/`; installatieadres: `https://laurensijdo74-lab.github.io/Pooltoernooi/vue-beheer/`.
-- Bestanden: `index.html`, `beheer.webmanifest`, `beheer-sw.js`, `beheer-icon-192.png`, `beheer-icon-512.png`.
-- Eigen manifest-ID, start-URL, scope en cache-prefix, gescheiden van de toeschouwersapp.
-- De applicatielogica en Firebase-configuratie zijn niet aangepast. De bestaande hoofdmap en `/vue/` blijven ongewijzigd.
-- Let op: icons uit eerdere upload hadden JPEG-inhoud met `.png`-extensie; opnieuw als echte PNG opgeslagen.
-- Controle: syntaxis en bestanden lokaal te verifiëren; installatie en online toegang pas aantoonbaar na publicatie en test op Samsung.
-- Bewaar de vorige werkende index per map als terugval.
+
+## Vue Beheer PWA - installatie-identiteit (10 november 2026)
+- Map: `Pooltoernooi/vue-beheer/`, los van de hoofdmap en de toeschouwersapp.
+- Manifest: unieke `id` `/Pooltoernooi/vue-beheer/?identity=vue-beheer-2026`, start-URL `/Pooltoernooi/vue-beheer/?app=vue-beheer`, scope `/Pooltoernooi/vue-beheer/`.
+- Manifest cacheversie v3; serviceworker cache v3. Bestaande toernooigegevens/Firebase-logica niet gewijzigd.
+- Installatie moet op Samsung Chrome worden getest; een al geregistreerde PWA kan nog door Android worden herkend.
+- Oude werkende `index.html` als terugval bewaren; geen live-test uitgevoerd.
