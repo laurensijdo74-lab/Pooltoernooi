@@ -2650,20 +2650,33 @@ function stopOnlineSynchronisatie() {
 
 function startOnlineSynchronisatie() {
   const o = window.POOL_ONLINE;
-  if (!o || !o.state || !o.state.user || !T || !T.id) return;
-  // Eén Firestore-listener per tab. De statusmelding die bij een snapshot
-  // binnenkomt mag niet opnieuw een tweede listener aanmaken.
+  if (!o || !o.state || !o.state.user || !T || !T.id || UI.viewer) return;
   if (onlineUnsub) return;
-  onlineUnsub = o.subscribeTournament(T.id, remote => {
-    if (onlineApplying || !remote || remote.id !== T.id || !T.online || !T.online.synchroniseren) return;
-    const remoteTime = new Date(remote.gewijzigd || 0).getTime();
-    const localTime = new Date(T.gewijzigd || 0).getTime();
-    if (!remoteTime || remoteTime <= localTime) return;
+  const subscribedId = T.id;
+  onlineUnsub = o.subscribeTournament(subscribedId, remote => {
+    if (onlineApplying || UI.viewer || !remote || !T || remote.id !== T.id ||
+        subscribedId !== T.id || !T.online || !T.online.synchroniseren) return;
+    const remoteTime = Date.parse(remote.gewijzigd || '') || 0;
+    const localTime = Date.parse(T.gewijzigd || '') || 0;
+    // Never discard local edits that are still waiting to be uploaded.
+    if (onlineSaveTimer) return;
+    // Equal timestamps can occur with imported snapshots. Avoid a pointless rerender.
+    if (remoteTime < localTime) return;
+    if (remoteTime === localTime && JSON.stringify(remote.rondes) === JSON.stringify(T.rondes) &&
+        JSON.stringify(remote.derden) === JSON.stringify(T.derden)) return;
     onlineApplying = true;
     try {
+      const tab = UI.tab, dag = UI.dag && { key: UI.dag.key, nr: UI.dag.nr };
+      const dagLijst = UI.dagLijst, stand = UI.stand, lotingKey = UI.lotingKey;
       maakHerstelpunt('Voor online synchronisatie');
-      T = remote; migreerNaLaden(); stopAnimatie(); UI.dag = null; UI.lotingKey = null; UI.tab = 'overzicht'; bewaarNu(); render();
-      toast('Nieuwe online stand geladen');
+      T = remote;
+      migreerNaLaden(); stopAnimatie();
+      UI.tab = tab;
+      UI.dag = dag && P.planDag(T, dag.key, dag.nr) ? dag : null;
+      UI.dagLijst = dagLijst;
+      UI.stand = stand && P.planRonde(T, stand) ? stand : null;
+      UI.lotingKey = lotingKey && P.planRonde(T, lotingKey) ? lotingKey : null;
+      bewaarNu(); adminRemember(); render();
     } finally { onlineApplying = false; }
   });
 }
@@ -2683,7 +2696,7 @@ async function synchroniseerOnlineNu() {
 function planOnlineSynchronisatie() {
   if (!onlineActief() || onlineApplying) return;
   clearTimeout(onlineSaveTimer);
-  onlineSaveTimer = setTimeout(() => synchroniseerOnlineNu(), 900);
+  onlineSaveTimer = setTimeout(() => { onlineSaveTimer = null; synchroniseerOnlineNu(); }, 900);
 }
 
 function commit(opties) {
@@ -4774,6 +4787,31 @@ async function start() {
   UI.locEdit = T.locatieId;
   if (kanBestandKoppelen()) { const h = await idb('get'); if (h && h.name) UI.fhPending = h; }
   koppelEvents(); render();
+  // The administrator may open a locally cached tournament. Refresh it from
+  // Firestore on startup rather than waiting for a later edit or login event.
+  if (!UI.viewer && T && T.id && T.online && T.online.synchroniseren && window.POOL_ONLINE) {
+    Promise.resolve(window.POOL_ONLINE.ready).then(async () => {
+      const o = window.POOL_ONLINE;
+      if (!o.state || !o.state.user || !T || !T.id || UI.viewer) return;
+      const id = T.id;
+      try {
+        const remote = await o.loadTournament(id);
+        if (remote && T && T.id === id && !onlineSaveTimer &&
+            (Date.parse(remote.gewijzigd || '') || 0) >= (Date.parse(T.gewijzigd || '') || 0) &&
+            JSON.stringify(remote.rondes) !== JSON.stringify(T.rondes)) {
+          const tab = UI.tab, dag = UI.dag && { ...UI.dag }, dagLijst = UI.dagLijst;
+          maakHerstelpunt('Voor eerste online verversing');
+          onlineApplying = true;
+          try {
+            T = remote; migreerNaLaden(); UI.tab = tab;
+            UI.dag = dag && P.planDag(T, dag.key, dag.nr) ? dag : null;
+            UI.dagLijst = dagLijst; bewaarNu(); adminRemember(); render();
+          } finally { onlineApplying = false; }
+        }
+      } catch (e) { /* The realtime listener will retry when available. */ }
+      startOnlineSynchronisatie();
+    }).catch(() => {});
+  }
   if (!opgeslagen && !publiekGeladen) bewaarNu();
   if (!UI.opslag.ok) setTimeout(() => toast('Let op: de browser laat geen automatisch bewaren toe. Gebruik “Bewaar als bestand”.', true), 600);
 }
