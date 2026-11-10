@@ -871,6 +871,39 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  .admin-stages{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 @media screen and (min-width:981px){body:not(.public-mode) .dagview .cols{grid-template-columns:minmax(0,1.25fr) minmax(330px,1fr)!important}}
+
+/* Beheer mobiel: compacte appweergave, desktop volledig ongemoeid. */
+@media screen and (max-width:980px){
+ body:has(.admin-mobile-day) .admin-desktop-only{display:none!important}
+ .admin-mobile-day .admin-day-top{padding:0!important}
+ .admin-mobile-day .admin-day-top .body{padding:12px!important}
+ .admin-mobile-day .admin-day-top h2{font-size:1.18rem!important}
+ .admin-mobile-day .admin-day-top .row.between{gap:8px}
+ .admin-mobile-day .admin-day-top .row.noprint{width:100%;gap:7px}
+ .admin-mobile-day .admin-day-top .row.noprint .btn{padding:7px 11px;font-size:.83rem}
+ .admin-mobile-day .admin-day-cols{display:flex!important;flex-direction:column;gap:14px}
+ .admin-mobile-day .admin-day-cols>.stack:last-child{order:0;position:static!important;max-height:none!important;overflow:visible!important}
+ .admin-mobile-day .admin-day-cols>div:first-child{order:1}
+ .admin-mobile-day .admin-pre-playoffs{order:0}
+ .admin-mobile-day .admin-day-cols .sect .body{padding:10px 8px}
+ .admin-mobile-day .admin-day-cols .scroll-x{overflow-x:hidden}
+ .admin-mobile-day .admin-day-cols .stand{table-layout:fixed;width:100%}
+ .admin-mobile-day .admin-day-cols .stand th,.admin-mobile-day .admin-day-cols .stand td{padding:7px 3px;font-size:clamp(10px,2.8vw,14px);overflow-wrap:anywhere}
+ .admin-mobile-day .admin-day-cols .stand .naam{white-space:normal;gap:4px;font-size:clamp(12px,3.6vw,16px)}
+ .admin-mobile-day .admin-day-cols .stand .chip{white-space:normal;font-size:10px;padding:2px 4px}
+ .admin-mobile-day .admin-day-cols .stand .ball{font-size:12px}
+ .admin-mobile-day .admin-day-cols .stand th:first-child{width:43%}
+ .admin-mobile-day .admin-day-cols .stand th:nth-child(2){width:13%}
+ .admin-mobile-day .admin-day-cols .stand th:nth-child(3){width:15%}
+ .admin-mobile-day .admin-day-cols .stand th:nth-child(4){width:10%}
+ .admin-mobile-day .admin-day-cols .stand th:last-child{width:19%}
+ .admin-mobile-day .admin-pre-playoffs .sect{margin-bottom:12px}
+ .admin-mobile-day .admin-pre-playoffs .playoff-block .body{padding:10px 8px}
+ .admin-mobile-day .admin-pre-playoffs .playoff-block .games{width:100%!important;margin:0!important}
+ .admin-mobile-day .admin-pre-playoffs .playoff-block .row{gap:8px!important}
+ .admin-mobile-day .admin-pre-playoffs .playoff-block .btn{font-size:.8rem;padding:6px 8px}
+ .admin-mobile-day .admin-day-cols .br-side,.admin-mobile-day .admin-day-cols .sect:has(.note.warn):not(:first-child){max-width:100%}
+}
 </style>
 </head>
 <body>
@@ -3368,21 +3401,21 @@ function dagDetailHtml(key, nr) {
   const viewerRefresh = UI.viewer ? '<button class="btn accent viewer-refresh" data-act="viewer-refresh" aria-label="Vernieuwen" title="Haal de actuele stand op">↻</button>' : '';
   const beheerKnoppen = '<button class="btn sec sm" data-act="scorebord">Scorebord</button><button class="btn sec sm" data-act="scorebord-venster" title="Opent het scorebord in een eigen venster, bijvoorbeeld voor een tweede scherm of tv">Scorebord in eigen venster</button><button class="btn sec sm" data-act="print">Afdrukken</button>';
   const ondertitel = UI.viewer ? P.datumLang(d.datum) : P.datumLang(d.datum) + ' · ' + locNaam(dagLocatie(key, nr));
-  const navigatie = '<button class="btn sec sm" data-act="dag-nav" data-d="-1"' + (vorige ? '' : ' disabled') + '>← Vorige</button><button class="btn sec sm" data-act="dag-nav" data-d="1"' + (volgendeOpenbaar ? '' : ' disabled') + '>Volgende →</button>' + (UI.viewer ? viewerRefresh : beheerKnoppen);
+  const navigatie = '<button class="btn sec sm" data-act="dag-nav" data-d="-1"' + (vorige ? '' : ' disabled') + '>← Vorige</button><button class="btn sec sm" data-act="dag-nav" data-d="1"' + (volgendeOpenbaar ? '' : ' disabled') + '>Volgende →</button>' + (UI.viewer ? viewerRefresh : '<span class="admin-desktop-only">' + beheerKnoppen + '</span>');
   const titelBlok = UI.viewer ? '<div class="stack"><div class="public-dag-datum">' + esc(P.datumLang(d.datum)) + '</div><div class="public-dag-ronde">' + esc(rondeNaam(key)) + ' · ' + esc(s.tekst) + '</div></div>' : '<div class="stack"><div class="row"><h2>' + esc(rondePoule(key, nr)) + '</h2><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span></div><div class="muted">' + esc(ondertitel) + '</div></div>';
   const kop = '<div class="sect ' + (UI.viewer ? 'public-dag-kop' : '') + '"><div class="body"><div class="row between">' + titelBlok +
     '<div class="row noprint' + (UI.viewer ? ' public-dag-controls' : '') + '">' + navigatie + '</div></div></div></div>';
   const vast = P.vergrendeld(T, key, nr), ontgrendeldKlaar = !vast && p.ontgrendeld && P.pouleAfgerond(T, p);
   const slot = UI.viewer ? '' : (vast ? '<div class="note good row between"><span>🔒 <b>Deze speeldag is afgerond en vergrendeld.</b> Uitslagen kunnen niet per ongeluk worden gewijzigd.</span><button class="btn sec sm noprint" data-act="ontgrendel" data-key="' + key + '" data-nr="' + nr + '">Ontgrendelen…</button></div>' : (ontgrendeldKlaar ? '<div class="note warn row between"><span>🔓 <b>Ontgrendeld.</b> Je kunt uitslagen wijzigen.</span><button class="btn sm noprint" data-act="vergrendel" data-key="' + key + '" data-nr="' + nr + '">Weer vergrendelen</button></div>' : ''));
   const waarschuw = slot + (vorigeOpen ? '<div class="note warn">De vorige speeldag (' + esc(rondePoule(vorige.ronde, vorige.poule).replace(/^Ronde /, 'R').replace(' · poule ', ' poule ')) + ', ' + esc(P.datumKort(vorige.datum)) + ') is nog niet afgerond.</div>' : '') +
-    (wachtPh ? '<div class="note warn">Eén van de spelers is nog niet bekend: de play-off voor deze plek moet eerst worden gespeeld (zie hieronder).</div>' : '');
+    (wachtPh ? '<div class="note warn">Eén van de spelers is nog niet bekend: de play-off voor deze plek moet eerst worden gespeeld (zie het play-offblok boven de stand).</div>' : '');
   const uitleg = UI.viewer ? '' : '<div class="row between noprint" style="margin-bottom:8px"><span class="muted small">Tik op de winnaar van elke wedstrijd. De speler links heeft de break. Sneltoetsen: <kbd>1</kbd> of ← links wint, <kbd>2</kbd> of → rechts wint, <kbd>Backspace</kbd> herstelt de vorige.</span><button class="btn sec sm" data-act="herstel" data-key="' + key + '" data-nr="' + nr + '"' + (kanHerstel ? '' : ' disabled') + '>Herstel vorige wedstrijd</button></div>';
   const links = '<div>' + uitleg + (wachtPh ? '' : gamesHtml(key, p)) + '</div>';
   const derdePp = derdeBlokkenVoorPoule(key, p);
   const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p, UI.viewer ? false : "admin") + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + brPaneel(key,nr) + testHulpHtml(key, p) + '</div>';
   const playoffs = ppBlokHtml(key, p) + derdePp;
   const verslagen = verslagBlokHtml('poule', key, nr) + verslagBlokHtml('weekend', key, nr);
-  return '<div class="stack-l dag-detail-stack">' + kop + waarschuw + vorigePlayoffsHtml(key, p) + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + (UI.viewer ? brVoetnoot() : '') + verslagen + '</div>';
+  return '<div class="stack-l dag-detail-stack' + (!UI.viewer ? ' admin-mobile-day' : '') + '">' + kop + waarschuw + '<div class="admin-pre-playoffs">' + vorigePlayoffsHtml(key, p) + '</div>' + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + (UI.viewer ? brVoetnoot() : '') + verslagen + '</div>';
 }
 function pasPubliekeStandToe(remote, melding) {
   if (!remote || !remote.id || !T || remote.id !== T.id) return false;
