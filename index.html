@@ -1105,6 +1105,17 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  body:not(.public-mode) .admin-mobile-day table.admin-stand-table .admin-status-short{display:inline-block;font-weight:800;font-size:12px;}
 }
 @media screen and (min-width:981px){.admin-status-short{display:none!important;}}
+/* Mobiel beheer: alleen een compacte online-statusindicator in de bovenbalk. */
+.admin-online-dot{display:none}
+@media screen and (max-width:980px){
+ body:not(.public-mode) .hero .admin-online-label,
+ body:not(.public-mode) .hero #statchip{display:none!important}
+ body:not(.public-mode) .hero .admin-online-dot{display:inline-block;width:11px;height:11px;min-width:11px;border-radius:50%;background:#8b929d;box-shadow:0 0 0 2px rgba(255,255,255,.18);padding:0;border:0;cursor:pointer}
+ body:not(.public-mode) .hero .admin-online-dot.is-online{background:#37d778}
+ body:not(.public-mode) .hero .admin-online-dot.is-error{background:#ed5c59}
+ body:not(.public-mode) .hero .meta{gap:0!important;align-items:center;justify-content:flex-end!important}
+ body:not(.public-mode) .hero .meta>.row{justify-content:flex-end!important}
+}
 </style>
 </head>
 <body>
@@ -3036,7 +3047,7 @@ function heroHtml() {
   const logo = (!UI.viewer && /vue/i.test(loc.naam || '')) ? '<span class="admin-vue-wordmark"><span class="admin-vue-cafe">CAFÉ</span><span class="admin-vue-script">Vue<span>Grandige</span></span></span>' : loc.logo ? '<img class="logo" alt="Logo ' + esc(loc.naam) + '" src="' + esc(loc.logo) + '">' : '<span class="logo-bal" aria-hidden="true">' + ((THEMAS[loc.thema] || {}).icoon || '🎱') + '</span>';
   const st = backupStatus();
   const o = window.POOL_ONLINE, os = o && o.state || {};
-  const onlineChip = UI.viewer || !o ? '' : '<button class="chip ' + (os.user ? 'ok' : (os.status === 'fout' ? 'bad' : 'warn')) + '" data-act="ga-gegevens" title="Naar Instellingen → Online versie">' + (os.user ? '✓ Online aangemeld' : (os.status === 'initialiseren' ? 'Online laden…' : 'Niet aangemeld')) + '</button>';
+  const onlineChip = UI.viewer || !o ? '' : '<button class="chip admin-online-label ' + (os.user ? 'ok' : (os.status === 'fout' ? 'bad' : 'warn')) + '" data-act="ga-gegevens" title="Naar Instellingen → Online versie">' + (os.user ? '✓ Online aangemeld' : (os.status === 'initialiseren' ? 'Online laden…' : 'Niet aangemeld')) + '</button><button class="admin-online-dot ' + (os.user ? 'is-online' : (os.status === 'fout' ? 'is-error' : '')) + '" data-act="ga-gegevens" title="' + (os.user ? 'Online aangemeld' : (os.status === 'fout' ? 'Verbindingsprobleem' : 'Niet online aangemeld')) + '" aria-label="' + (os.user ? 'Online aangemeld' : (os.status === 'fout' ? 'Verbindingsprobleem' : 'Niet online aangemeld')) + '"></button>';
   const status = UI.viewer ? '' : '<div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-end">' + onlineChip + '<button id="statchip" class="chip ' + st.cls + '" data-act="ga-gegevens" title="Naar opslag en back-up">' + (UI.opslag.ok ? '✓ ' : '! ') + esc(st.tekst) + '</button></div>';
   return '<div class="hero' + (UI.viewer ? ' hero-public' : '') + '"><div class="hero-in">' + logo + viewerBreakHtml() + '<div><div class="hero-title-row"><h1>' + esc(loc.naam) + '</h1><div class="hero-tournament">' + esc(T.naam) + '</div></div>' + (loc.adres ? '<div class="sub">' + esc(loc.adres) + '</div>' : '') + '</div>' +
     (status ? '<div class="meta noprint">' + status + '</div>' : '') + countdownHtml() + '</div></div><div class="rail"></div>';
