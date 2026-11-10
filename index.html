@@ -1489,7 +1489,8 @@ function bouwPpGames(ids, formaat, eersteBreak) {
   const n = ids.length, games = [];
   if (n === 2) {
     const k = formaat === 'Best of 7' ? 7 : (formaat === 'Best of 5' ? 5 : (formaat === 'Best of 3' ? 3 : 1));
-    for (let g = 0; g < k; g++) games.push(g % 2 === 0 ? { a: ids[0], b: ids[1] } : { a: ids[1], b: ids[0] });
+    const first = ids.includes(eersteBreak) ? eersteBreak : ids[0], second = ids.find(id => id !== first);
+    for (let g = 0; g < k; g++) games.push(g % 2 === 0 ? { a: first, b: second } : { a: second, b: first });
   } else {
     const paren = schemaParen(n), helft = paren.length / 2;
     const lijst = formaat === 'Mini competitie uit/thuis' || formaat === 'Alles opnieuw spelen' ? paren : paren.slice(0, helft);
@@ -2005,6 +2006,7 @@ function zetDerdeFormaat(T, key, i, formaat) {
   const po = T.derden[key] && T.derden[key][i]; if (!po) return { ok: false };
   if (po.forfait) return { ok: false, tekst: 'Deze play-off is beslist via een walk-over.' };
   if (po.games.some(g => g.w)) return { ok: false, tekst: 'Er zijn al uitslagen ingevoerd.' };
+  if (!ppFormaten(2).includes(formaat)) return { ok: false, tekst: 'Ongeldig play-offformat.' };
   po.formaat = formaat; po.games = bouwPpGames([po.a, po.b], formaat, po.eersteBreak);
   return { ok: true };
 }
@@ -2013,7 +2015,7 @@ function wisselDerdeStartteam(T, key, i) {
   const po = T.derden[key] && T.derden[key][i];
   if (!po || !st.playoff) return { ok:false, tekst:'Play-off niet gevonden.' };
   if (po.forfait || po.winnaar || po.games.some(g => g.w)) return { ok:false, tekst:'Startteam wijzigen kan alleen voordat een uitslag is ingevoerd.' };
-  po.eersteBreak = po.eersteBreak === po.a ? po.b : po.a;
+  po.eersteBreak = (po.games[0] && po.games[0].a) === po.a ? po.b : po.a;
   po.games = bouwPpGames([po.eersteBreak, po.eersteBreak === po.a ? po.b : po.a], po.formaat, po.eersteBreak);
   return { ok:true };
 }
@@ -3479,11 +3481,15 @@ function vorigePlayoffsHtml(key, p) {
 }
 
 function derdeBlokOpgeslagenHtml(key,i,po) {
-  // Legacy-herstel: toon de opgeslagen wedstrijden ook wanneer de afgeleide
-  // derdeStatus tijdelijk 'wacht' geeft. Geen data muteren bij het renderen.
+  // Dezelfde instellingen en dezelfde bron-play-off als op het oorspronkelijke weekend.
+  // Deze fallback wordt gebruikt wanneer de afgeleide status tijdelijk 'wacht' is.
+  const gestart=po.games.some(g=>g.w), vast=!!po.winnaar || !!po.forfait;
   const wins=P.ppWins({groep:[po.a,po.b],games:po.games});
-  const rijen=po.games.map(g=>gameRijHtml(g,()=>0,{act:'dwin',attrs:'data-key="'+key+'" data-i="'+i+'"',actief:!g.w,locked:false})).join('');
-  return '<div class="sect playoff-block public-match-card"><header><h3>Play-off beste nummer 3</h3><span class="chip warn">Nog te spelen</span></header><div class="body stack"><div class="games">'+gameKopHtml()+rijen+'</div><div class="row small"><b>'+esc(spelerNaam(po.a))+' '+(wins[po.a]||0)+'</b><span>–</span><b>'+esc(spelerNaam(po.b))+' '+(wins[po.b]||0)+'</b></div></div></div>';
+  const doel=Math.floor(po.games.length/2)+1;
+  const rijen=po.games.map(g=>gameRijHtml(g,()=>0,{act:'dwin',attrs:'data-key="'+key+'" data-i="'+i+'"',actief:!g.w && !vast,locked:vast})).join('');
+  const fSel=UI.viewer?'<b>'+esc(po.formaat||'Best of 5')+'</b>':'<label class="f"><span>Format</span><select data-chg="d-formaat" data-key="'+key+'" data-i="'+i+'"'+(gestart||vast?' disabled':'')+'>'+P.ppFormaten(2).map(f=>'<option'+(f===(po.formaat||'Best of 5')?' selected':'')+'>'+esc(f)+'</option>').join('')+'</select></label>';
+  const controls=UI.viewer?'':'<div class="row admin-playoff-controls">'+fSel+'<button class="btn sec sm noprint" data-act="d-swap-start" data-key="'+key+'" data-i="'+i+'"'+(gestart||vast?' disabled':'')+'>⇄ Startteam wisselen</button></div>';
+  return '<div class="sect playoff-block public-match-card"><header><h3>Play-off beste nummer 3</h3><span class="chip warn">Nog te spelen</span></header><div class="body stack">'+controls+'<div class="games">'+gameKopHtml()+rijen+'</div><div class="row small"><b>'+esc(spelerNaam(po.a))+' '+(wins[po.a]||0)+'</b><span>–</span><b>'+esc(spelerNaam(po.b))+' '+(wins[po.b]||0)+'</b></div></div></div>';
 }
 
 function derdeBlokkenVoorPoule(key, p) {
