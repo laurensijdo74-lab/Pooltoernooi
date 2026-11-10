@@ -943,6 +943,36 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
   .admin-mobile-day .admin-day-cols .stand th{font-size:10px!important}
   .admin-mobile-day .admin-day-cols .stand td.num{font-size:12px!important}
 }
+
+/* Mobiele beheerapp: herkenbaar Vue-woordmerk en play-off voor speeldag. */
+@media screen and (max-width:980px){
+ body:not(.public-mode) .hero-in:has(.admin-vue-wordmark){display:grid;grid-template-columns:108px minmax(0,1fr);gap:8px;padding:8px 12px;align-items:center}
+ body:not(.public-mode) .admin-vue-wordmark{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;width:108px;min-width:0;height:78px;padding:3px 0;background:none;border:0;border-radius:0;letter-spacing:0;line-height:1;color:#fff}
+ .admin-vue-cafe{font:700 10px/1.1 system-ui,sans-serif;letter-spacing:.14em;margin-left:3px}
+ .admin-vue-script{font:italic 34px/.82 "URW Chancery L","Apple Chancery","Brush Script MT",cursive;letter-spacing:-.08em;white-space:nowrap;transform:rotate(-6deg)}
+ .admin-vue-script span{display:block;font-size:23px;letter-spacing:-.07em;margin-left:12px;margin-top:5px}
+ body:not(.public-mode) .hero-in:has(.admin-vue-wordmark)>.meta{grid-column:1/-1;justify-content:flex-start;margin:0}
+ body:not(.public-mode) .hero-in:has(.admin-vue-wordmark) .hero-title-row{display:block}
+ body:not(.public-mode) .hero-in:has(.admin-vue-wordmark) .hero-title-row h1{font-size:14px}
+ body:not(.public-mode) .hero-in:has(.admin-vue-wordmark) .hero-tournament{font-size:12px}
+ .admin-mobile-day{display:flex!important;flex-direction:column!important;gap:9px!important}
+ .admin-mobile-day>.admin-pre-playoffs{order:0!important;margin:0!important}
+ .admin-mobile-day>.admin-day-top{order:1!important}
+ .admin-mobile-day>.admin-day-cols{order:2!important}
+ .admin-mobile-day>.printtitle{order:3!important}
+ .admin-mobile-day>.playoff-fullwidth{order:4!important}
+ .admin-mobile-day>.verslagblok{order:5!important}
+ .admin-mobile-day .admin-pre-playoffs:empty{display:none!important}
+ .admin-mobile-day .admin-pre-playoffs .admin-pre-playoff-content{display:grid;gap:8px}
+ .admin-mobile-day .admin-pre-playoffs .playoff-block>header{padding:7px 9px!important;gap:5px}
+ .admin-mobile-day .admin-pre-playoffs .playoff-block .body{padding:7px!important}
+ .admin-mobile-day .admin-pre-playoffs .playoff-block .body>.row:first-of-type{margin:0}
+ .admin-mobile-day .admin-pre-playoffs .playoff-block .game .pl{padding:7px 5px!important}
+ .admin-mobile-day .admin-pre-playoffs .playoff-block .ghead span{padding:4px 5px}
+ .admin-mobile-day .admin-pre-playoffs .playoff-block .row.small{gap:6px!important}
+ .admin-mobile-day .admin-day-top .muted{font-size:12px!important}
+}
+@media screen and (min-width:981px){.admin-vue-cafe,.admin-vue-script{display:none}.admin-vue-wordmark::after{content:"VUE"}}
 </style>
 </head>
 <body>
@@ -2810,7 +2840,7 @@ function viewerBreakHtml() {
 
 function heroHtml() {
   const loc = locatieVoorWeergave();
-  const logo = (!UI.viewer && /vue/i.test(loc.naam || '')) ? '<span class="admin-vue-wordmark">VUE</span>' : loc.logo ? '<img class="logo" alt="Logo ' + esc(loc.naam) + '" src="' + esc(loc.logo) + '">' : '<span class="logo-bal" aria-hidden="true">' + ((THEMAS[loc.thema] || {}).icoon || '🎱') + '</span>';
+  const logo = (!UI.viewer && /vue/i.test(loc.naam || '')) ? '<span class="admin-vue-wordmark"><span class="admin-vue-cafe">CAFÉ</span><span class="admin-vue-script">Vue<span>Grandige</span></span></span>' : loc.logo ? '<img class="logo" alt="Logo ' + esc(loc.naam) + '" src="' + esc(loc.logo) + '">' : '<span class="logo-bal" aria-hidden="true">' + ((THEMAS[loc.thema] || {}).icoon || '🎱') + '</span>';
   const st = backupStatus();
   const o = window.POOL_ONLINE, os = o && o.state || {};
   const onlineChip = UI.viewer || !o ? '' : '<button class="chip ' + (os.user ? 'ok' : (os.status === 'fout' ? 'bad' : 'warn')) + '" data-act="ga-gegevens" title="Naar Instellingen → Online versie">' + (os.user ? '✓ Online aangemeld' : (os.status === 'initialiseren' ? 'Online laden…' : 'Niet aangemeld')) + '</button>';
@@ -3487,7 +3517,7 @@ function dagDetailHtml(key, nr) {
   const ondertitel = UI.viewer ? P.datumLang(d.datum) : P.datumLang(d.datum) + ' · ' + locNaam(dagLocatie(key, nr));
   const navigatie = '<button class="btn sec sm" data-act="dag-nav" data-d="-1"' + (vorige ? '' : ' disabled') + '>← Vorige</button><button class="btn sec sm" data-act="dag-nav" data-d="1"' + (volgendeOpenbaar ? '' : ' disabled') + '>Volgende →</button>' + (UI.viewer ? viewerRefresh : '<span class="admin-desktop-only">' + beheerKnoppen + '</span>');
   const titelBlok = UI.viewer ? '<div class="stack"><div class="public-dag-datum">' + esc(P.datumLang(d.datum)) + '</div><div class="public-dag-ronde">' + esc(rondeNaam(key)) + ' · ' + esc(s.tekst) + '</div></div>' : '<div class="stack"><div class="row"><h2>' + esc(rondePoule(key, nr)) + '</h2><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span></div><div class="muted">' + esc(ondertitel) + '</div></div>';
-  const kop = '<div class="sect ' + (UI.viewer ? 'public-dag-kop' : '') + '"><div class="body"><div class="row between">' + titelBlok +
+  const kop = '<div class="sect admin-day-top ' + (UI.viewer ? 'public-dag-kop' : '') + '"><div class="body"><div class="row between">' + titelBlok +
     '<div class="row noprint' + (UI.viewer ? ' public-dag-controls' : '') + '">' + navigatie + '</div></div></div></div>';
   const vast = P.vergrendeld(T, key, nr), ontgrendeldKlaar = !vast && p.ontgrendeld && P.pouleAfgerond(T, p);
   const slot = UI.viewer ? '' : (vast ? '<div class="note good row between"><span>🔒 <b>Deze speeldag is afgerond en vergrendeld.</b> Uitslagen kunnen niet per ongeluk worden gewijzigd.</span><button class="btn sec sm noprint" data-act="ontgrendel" data-key="' + key + '" data-nr="' + nr + '">Ontgrendelen…</button></div>' : (ontgrendeldKlaar ? '<div class="note warn row between"><span>🔓 <b>Ontgrendeld.</b> Je kunt uitslagen wijzigen.</span><button class="btn sm noprint" data-act="vergrendel" data-key="' + key + '" data-nr="' + nr + '">Weer vergrendelen</button></div>' : ''));
