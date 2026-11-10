@@ -1,9 +1,9 @@
 {
-  "name": "Vue Grandige - Beheer",
+  "name": "Vue Beheer",
   "short_name": "Vue Beheer",
   "description": "Beheer pooltoernooien en voer uitslagen in.",
-  "id": "/Pooltoernooi/vue-beheer/",
-  "start_url": "/Pooltoernooi/vue-beheer/",
+  "id": "/Pooltoernooi/vue-beheer/?identity=vue-beheer-2026",
+  "start_url": "/Pooltoernooi/vue-beheer/?app=vue-beheer",
   "scope": "/Pooltoernooi/vue-beheer/",
   "display": "standalone",
   "background_color": "#0b0d20",
