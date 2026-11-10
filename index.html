@@ -2011,12 +2011,17 @@ function zetDerdeFormaat(T, key, i, formaat) {
   return { ok: true };
 }
 function wisselDerdeStartteam(T, key, i) {
-  const st = derdeStatus(T, key, i);
-  const po = T.derden[key] && T.derden[key][i];
-  if (!po || !st.playoff) return { ok:false, tekst:'Play-off niet gevonden.' };
-  if (po.forfait || po.winnaar || po.games.some(g => g.w)) return { ok:false, tekst:'Startteam wijzigen kan alleen voordat een uitslag is ingevoerd.' };
-  po.eersteBreak = (po.games[0] && po.games[0].a) === po.a ? po.b : po.a;
-  po.games = bouwPpGames([po.eersteBreak, po.eersteBreak === po.a ? po.b : po.a], po.formaat, po.eersteBreak);
+  // De play-off kan op de nieuwe speeldag via de opgeslagen fallback
+  // zichtbaar zijn terwijl derdeStatus() tijdelijk 'wacht' teruggeeft.
+  // Gebruik daarom hetzelfde opgeslagen object als de werkende formatkeuze.
+  const po = T.derden && T.derden[key] && T.derden[key][i];
+  if (!po || !po.a || !po.b || !Array.isArray(po.games) || !po.games.length)
+    return { ok:false, tekst:'Play-offgegevens ontbreken.' };
+  if (po.forfait || po.winnaar || po.games.some(g => g.w))
+    return { ok:false, tekst:'Startteam wijzigen kan alleen voordat een uitslag is ingevoerd.' };
+  const huidige = po.games[0].a;
+  po.eersteBreak = huidige === po.a ? po.b : po.a;
+  po.games = bouwPpGames([po.a, po.b], po.formaat || 'Best of 5', po.eersteBreak);
   return { ok:true };
 }
 /* Als een derde-plaats-play-off beslist is, vervang de plaatshouder in de volgende ronde. */
