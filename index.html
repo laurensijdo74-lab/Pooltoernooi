@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=3, user-scalable=yes">
 <title>Pooltoernooi Vue</title>
 <meta name="theme-color" content="#17613f">
-<link rel="manifest" href="./manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="192x192" href="./vue-icon-192.png">
-<link rel="apple-touch-icon" href="./vue-icon-192.png">
+<link rel="manifest" href="./beheer.webmanifest" id="pool-manifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./beheer-icon-192.png" id="pool-icon">
+<link rel="apple-touch-icon" href="./beheer-icon-192.png" id="pool-apple-icon">
 
 <style>
 :root {
@@ -1021,6 +1021,19 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  .admin-mobile-day .admin-pre-playoffs .admin-playoff-controls label.f{min-width:0!important;width:100%;font-size:12px}
  .admin-mobile-day .admin-pre-playoffs .admin-playoff-controls select{width:100%;min-width:0;padding:8px 5px;font-size:14px}
  .admin-mobile-day .admin-pre-playoffs .admin-playoff-controls .btn{white-space:normal;text-align:center;max-width:145px;min-height:37px}
+}
+
+/* Mobiele beheerapp: vaste app-navigatie, uitsluitend voor beheer. */
+.admin-bottom-nav{display:none}
+@media(max-width:700px){
+ body:not(.public-mode) #app{padding-bottom:calc(78px + env(safe-area-inset-bottom,0px))}
+ body:not(.public-mode) .admin-bottom-nav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));position:fixed;bottom:0;left:0;right:0;z-index:95;background:#151630;border-top:1px solid #35365e;padding:7px 5px calc(7px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 24px #0005}
+ .admin-bottom-nav button{border:0;background:transparent;color:#aeb0d0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;min-height:48px;font:600 11px system-ui;cursor:pointer;border-radius:10px}
+ .admin-bottom-nav button[aria-current=page]{color:#fff;background:#29294d}
+ .admin-bottom-nav .app-nav-ico{font-size:22px;line-height:1.1}
+ body:not(.public-mode) .nav-in{overflow-x:auto;scrollbar-width:none}
+ body:not(.public-mode) .hero-in{min-height:0}
+ body:not(.public-mode) .wrap{max-width:100%;min-width:0}
 }
 </style>
 </head>
@@ -3911,7 +3924,8 @@ function render() {
   const app = $('#app'); if (!app) return;
   const y = window.scrollY, focusId = UI.focusId; UI.focusId = null;
   pasThemaToe(locatieVoorWeergave());
-  app.innerHTML = heroHtml() + navHtml() + (UI.tab==='instellingen'&&!UI.viewer?'<div class="wrap" style="padding-top:12px"><button class="btn sec sm" data-act="admin-back">← Terug naar beheer</button></div>':'') + '<main class="wrap" id="main">' + view() + '</main>' + (UI.scorebord ? scorebordHtml() : '');
+  document.body.classList.toggle('public-mode', !!UI.viewer);
+  app.innerHTML = heroHtml() + navHtml() + (UI.tab==='instellingen'&&!UI.viewer?'<div class="wrap" style="padding-top:12px"><button class="btn sec sm" data-act="admin-back">← Terug naar beheer</button></div>':'') + '<main class="wrap" id="main">' + view() + '</main>' + (UI.scorebord ? scorebordHtml() : '') + (!UI.viewer ? '<nav class="admin-bottom-nav noprint" aria-label="Mobiele appnavigatie"><button data-act="tab" data-tab="overzicht"'+(UI.tab==='overzicht'?' aria-current="page"':'')+'><span class="app-nav-ico">⌂</span>Overzicht</button><button data-act="tab" data-tab="dag"'+(UI.tab==='dag'?' aria-current="page"':'')+'><span class="app-nav-ico">▦</span>Speeldagen</button><button data-act="tab" data-tab="spelers"'+(UI.tab==='spelers'?' aria-current="page"':'')+'><span class="app-nav-ico">♟</span>Spelers</button><button data-act="admin-menu"><span class="app-nav-ico">☰</span>Meer</button></nav>' : '');
   window.scrollTo(0, UI.resetScroll ? 0 : y); UI.resetScroll = false;
   updateViewerCountdown();
   /* Standnamen mogen op meerdere regels, niet kleiner worden gemaakt. */
@@ -4623,9 +4637,20 @@ function koppelEvents() {
   startPubliekeVerversing();
 }
 
+/* ---------- PWA: alleen app-shell offline, wedstrijdgegevens blijven online ---------- */
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => navigator.serviceWorker.register('./beheer-sw.js').catch(() => {}));
+}
+
 /* ---------- opstarten ---------- */
 async function start() {
   const queryPublicId = new URLSearchParams(location.search).get('tournament');
+  const publicRoute = !!queryPublicId || /\/vue\/?$/i.test(location.pathname);
+  if (publicRoute) {
+    document.getElementById('pool-manifest')?.setAttribute('href','./manifest.webmanifest');
+    document.getElementById('pool-icon')?.setAttribute('href','./vue-icon-192.png');
+    document.getElementById('pool-apple-icon')?.setAttribute('href','./vue-icon-192.png');
+  } else { document.title='Vue Beheer | Pooltoernooi'; }
   const pathPart = location.pathname.replace(/\/+$/, '').split('/').pop().toLowerCase();
   const pathPublicIds = { vue: 'tmvdkmjd0h8pa1' };
   const publicId = queryPublicId || pathPublicIds[pathPart] || '';
