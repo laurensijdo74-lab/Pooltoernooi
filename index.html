@@ -1971,16 +1971,31 @@ function derdeStatus(T, key, i) {
   return { status: 'playoff', a, b, playoff: po, ph: 'ph:' + a + '|' + b };
 }
 function zetDerdeUitslag(T, key, i, gameNr, w) {
-  derdeStatus(T, key, i);
-  const po = T.derden[key] && T.derden[key][i]; if (!po) return { ok: false };
-  if (po.forfait) return { ok: false, tekst: 'Deze play-off is beslist via een walk-over wegens verhindering.' };
-  const g = po.games.find(x => x.nr === gameNr); if (!g) return { ok: false };
-  if (po.winnaar && !po.ontgrendeld) return { ok: false, vergrendeld: true, tekst: 'Deze play-off is beslist en vergrendeld. Ontgrendel hem eerst als je iets wilt wijzigen.' };
+  // De gespeelde play-off kan bij ronde 2 staan terwijl de afgeleide
+  // derdeStatus tijdelijk 'wacht' is. Werk het opgeslagen object direct bij.
+  const po = T.derden && T.derden[key] && T.derden[key][i];
+  if (!po || !Array.isArray(po.games)) return { ok: false, tekst: 'Play-off niet gevonden.' };
+  if (po.forfait) return { ok: false, tekst: 'Deze play-off is beslist via een walk-over.' };
+  const g = po.games.find(x => x.nr === gameNr);
+  if (!g) return { ok: false, tekst: 'Wedstrijd niet gevonden.' };
+  if (w && w !== g.a && w !== g.b) return { ok: false, tekst: 'Ongeldige winnaar.' };
+  if (po.winnaar && !po.ontgrendeld) return { ok: false, tekst: 'Deze play-off is beslist en vergrendeld.' };
+  const winsVoor = ppWins({ groep: [po.a, po.b], games: po.games });
+  const doel = Math.floor(po.games.length / 2) + 1;
+  if (!g.w && (winsVoor[po.a] >= doel || winsVoor[po.b] >= doel))
+    return { ok: false, tekst: 'De play-off is al beslist.' };
   g.w = w || null; g.t = w ? Date.now() : 0;
-  verwerkDerden(T, key); derdeStatus(T, key, i);
+  const wins = ppWins({ groep: [po.a, po.b], games: po.games });
+  po.winnaar = wins[po.a] >= doel ? po.a : (wins[po.b] >= doel ? po.b : null);
   if (!po.winnaar) po.ontgrendeld = false;
-  return { ok: true };
+  T.gewijzigd = new Date().toISOString();
+  // Alleen de afgeleide kwalificatie doorrekenen wanneer de bronpoules
+  // afgerond zijn; bij oudere snapshots blijft de opgeslagen uitslag leidend.
+  const rd = T.rondes[key], pa = rd && rd.poules[2 * i], pb = rd && rd.poules[2 * i + 1];
+  if (pa && pb && reguliereKlaar(pa) && reguliereKlaar(pb)) verwerkDerden(T, key);
+  return { ok: true, winnaar: po.winnaar };
 }
+
 function zetDerdeWalkover(T, key, i, afwezigId) {
   derdeStatus(T, key, i);
   const po = T.derden[key] && T.derden[key][i]; if (!po) return { ok: false, tekst: 'Play-off niet gevonden.' };
@@ -4047,15 +4062,20 @@ async function actPpWin(b) {
   meldNaUitslag(key, nr, voor); commit();
 }
 async function actDerdeWin(b) {
-  if (await volgordeGeblokkeerd()) return;
+  // Gebruik dezelfde bron als formatkeuze en startteamwissel.
   const key = b.dataset.key, i = +b.dataset.i, gnr = +b.dataset.g, w = b.dataset.w;
-  const st = P.derdeStatus(T, key, i), g = st.playoff.games.find(x => x.nr === gnr);
-  const was = st.status;
-  P.zetDerdeUitslag(T, key, i, gnr, g.w === w ? null : w);
-  const na = P.derdeStatus(T, key, i);
-  if (was === 'playoff' && na.status === 'beslist') toast(spelerNaam(na.winnaar) + ' gaat door als beste nummer 3.');
+  const po = T.derden && T.derden[key] && T.derden[key][i];
+  const g = po && po.games && po.games.find(x => x.nr === gnr);
+  if (!g) { toast('Play-offwedstrijd niet gevonden.', true); return; }
+  // De play-off wordt op de volgende speeldag gespeeld. De normale
+  // volgordecontrole op ronde 1 mag de uitslag daarom niet blokkeren.
+  const was = po.winnaar;
+  const res = P.zetDerdeUitslag(T, key, i, gnr, g.w === w ? null : w);
+  if (!res.ok) { toast(res.tekst || 'Uitslag niet opgeslagen.', true); return; }
   commit();
+  if (!was && res.winnaar) toast(spelerNaam(res.winnaar) + ' wint de play-off en gaat door.');
 }
+
 async function herstelVorige(key, nr) {
   if (await volgordeGeblokkeerd()) return;
   const huidigePoule = P.zoekPoule(T,key,nr);
