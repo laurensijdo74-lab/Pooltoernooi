@@ -10,3 +10,12 @@
 - JavaScript-syntax gecontroleerd met Node.js.
 - Browser/PWA-installatie en Firebase-toegangsrechten moeten na upload op het daadwerkelijke toestel worden getest.
 - Bewaar de voorafgaande aantoonbaar werkende `index.html` als terugvalversie.
+
+## Vue Beheer als aparte PWA (voorbereid 10 november 2026)
+- GitHub-map: `vue-beheer/`; installatieadres: `https://laurensijdo74-lab.github.io/Pooltoernooi/vue-beheer/`.
+- Bestanden: `index.html`, `beheer.webmanifest`, `beheer-sw.js`, `beheer-icon-192.png`, `beheer-icon-512.png`.
+- Eigen manifest-ID, start-URL, scope en cache-prefix, gescheiden van de toeschouwersapp.
+- De applicatielogica en Firebase-configuratie zijn niet aangepast. De bestaande hoofdmap en `/vue/` blijven ongewijzigd.
+- Let op: icons uit eerdere upload hadden JPEG-inhoud met `.png`-extensie; opnieuw als echte PNG opgeslagen.
+- Controle: syntaxis en bestanden lokaal te verifiëren; installatie en online toegang pas aantoonbaar na publicatie en test op Samsung.
+- Bewaar de vorige werkende index per map als terugval.
