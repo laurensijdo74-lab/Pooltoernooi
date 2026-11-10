@@ -1,0 +1,12 @@
+{
+ "id":"/Pooltoernooi/vue-beheer/",
+ "name":"Vue Beheer",
+ "short_name":"Vue Beheer",
+ "description":"Beheer de pooltoernooien van Vue Grandige",
+ "start_url":"/Pooltoernooi/vue-beheer/",
+ "scope":"/Pooltoernooi/vue-beheer/",
+ "display":"standalone",
+ "background_color":"#100b1e",
+ "theme_color":"#100b1e",
+ "icons":[{"src":"../beheer-icon-192.png","sizes":"192x192","type":"image/png","purpose":"any"},{"src":"../beheer-icon-512.png","sizes":"512x512","type":"image/png","purpose":"any"}]
+}
