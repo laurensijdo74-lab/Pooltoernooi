@@ -904,6 +904,45 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  .admin-mobile-day .admin-pre-playoffs .playoff-block .btn{font-size:.8rem;padding:6px 8px}
  .admin-mobile-day .admin-day-cols .br-side,.admin-mobile-day .admin-day-cols .sect:has(.note.warn):not(:first-child){max-width:100%}
 }
+
+/* Beheer mobiel: compacte app-achtige speeldag; desktop ongewijzigd. */
+@media screen and (max-width:980px){
+  .admin-mobile-day{gap:9px!important}
+  .admin-mobile-day .sect{border-radius:11px}
+  .admin-mobile-day>.sect:first-child .body{padding:10px 12px}
+  .admin-mobile-day>.sect:first-child h2{font-size:1.13rem;line-height:1.2}
+  .admin-mobile-day>.sect:first-child .muted{font-size:.78rem}
+  .admin-mobile-day>.sect:first-child .row.between{gap:7px}
+  .admin-mobile-day>.sect:first-child .row.noprint{gap:5px}
+  .admin-mobile-day>.sect:first-child .row.noprint .btn{padding:5px 9px;font-size:.78rem}
+  .admin-mobile-day .admin-pre-playoffs .playoff-block{margin:0 0 9px!important}
+  .admin-mobile-day .admin-pre-playoffs .playoff-block>header{padding:9px 10px}
+  .admin-mobile-day .admin-pre-playoffs .playoff-block>header h3{font-size:1rem}
+  .admin-mobile-day .admin-pre-playoffs .playoff-block .body{padding:9px!important;gap:8px}
+  .admin-mobile-day .admin-pre-playoffs .playoff-block .body>p.small{display:none}
+  .admin-mobile-day .admin-pre-playoffs .playoff-block .game .pl{padding:8px 6px!important}
+  .admin-mobile-day .admin-pre-playoffs .playoff-block .row.small{font-size:.75rem}
+  .admin-mobile-day .admin-pre-playoffs .playoff-block .btn.danger{font-size:.72rem}
+  .admin-mobile-day .admin-day-cols .sect>header{padding:9px 11px}
+  .admin-mobile-day .admin-day-cols .sect>header h3{font-size:1.08rem}
+  .admin-mobile-day .admin-day-cols .sect .body{padding:7px 6px!important}
+  .admin-mobile-day .admin-day-cols .stand th,.admin-mobile-day .admin-day-cols .stand td{padding:6px 2px!important}
+  .admin-mobile-day .admin-day-cols .stand .naam{font-size:clamp(12px,3.45vw,15px)!important}
+  .admin-mobile-day .admin-day-cols .stand .naam .ball{font-size:11px}
+  .admin-mobile-day .admin-day-cols .stand .chip{font-size:9px!important}
+  .admin-mobile-day .admin-day-cols .stand th:first-child{width:45%}
+  .admin-mobile-day .admin-day-cols .stand th:nth-child(2){width:13%}
+  .admin-mobile-day .admin-day-cols .stand th:nth-child(3){width:14%}
+  .admin-mobile-day .admin-day-cols .stand th:nth-child(4){width:9%}
+  .admin-mobile-day .admin-day-cols .stand th:last-child{width:19%}
+  .admin-mobile-day .admin-day-cols .scroll-x{overflow-x:hidden!important}
+  .admin-mobile-day .admin-day-cols .stand{width:100%;table-layout:fixed}
+  .admin-mobile-day .admin-day-cols .stand td,.admin-mobile-day .admin-day-cols .stand th{overflow:hidden}
+  .admin-mobile-day .admin-day-cols .stand .naam{white-space:normal!important;overflow-wrap:anywhere}
+  .admin-mobile-day .admin-day-cols .stand .chip{white-space:normal!important;overflow-wrap:anywhere}
+  .admin-mobile-day .admin-day-cols .stand th{font-size:10px!important}
+  .admin-mobile-day .admin-day-cols .stand td.num{font-size:12px!important}
+}
 </style>
 </head>
 <body>
@@ -3303,18 +3342,63 @@ function bronnenPh(key, p) {
   if (!vk || !P.rondeGeloot(T, vk)) return { vk: null, pool, derde };
   const vr = T.rondes[vk];
   p.spelers.filter(P.isPh).forEach(id => {
-    if (id.indexOf('phx:') === 0) { const h = (T.ph || {})[id]; if (!h) return; if (h.soort === 'pool') pool[h.poule] = true; else derde[h.i] = true; }
-    else for (let i = 0; i < Math.floor(vr.poules.length / 2); i++) { if (P.derdeStatus(T, vk, i).ph === id) derde[i] = true; }
+    if (id.startsWith('phx:')) {
+      const h = (T.ph || {})[id];
+      // Herken ook oude/herstelde placeholders zonder T.ph-koppeling.
+      const m = id.match(/^phx:([^:]+):([pd])(\d+)(?::\d+)?$/);
+      if (h && h.key === vk) {
+        if (h.soort === 'pool') pool[h.poule] = true;
+        if (h.soort === 'derde') derde[h.i] = true;
+      } else if (m && m[1] === vk) {
+        if (m[2] === 'p') pool[Number(m[3])] = true;
+        else derde[Number(m[3])] = true;
+      }
+    } else {
+      for (let i = 0; i < Math.floor(vr.poules.length / 2); i++) {
+        if (P.derdeStatus(T, vk, i).ph === id) derde[i] = true;
+      }
+    }
   });
   return { vk, pool, derde };
 }
 function vorigePlayoffsHtml(key, p) {
-  const { vk, pool, derde } = bronnenPh(key, p); if (!vk) return '';
+  const { vk, pool, derde } = bronnenPh(key, p);
+  if (!vk) return '';
   let h = '';
-  Object.keys(pool).forEach(n => { const pp = P.zoekPoule(T, vk, +n); if (pp && pp.pp && !pp.pp.voltooid) h += '<h4 style="margin:4px 0">' + esc(rondeNaam(vk)) + ' · poule ' + n + '</h4>' + ppBlokHtml(vk, pp); });
-  Object.keys(derde).forEach(i => { const b = derdeBlokHtml(vk, +i); if (b) h += '<h4 style="margin:4px 0">' + esc(rondeNaam(vk)) + ' · beste nummer 3, weekend ' + (+i + 1) + '</h4>' + b; });
+  Object.keys(pool).forEach(n => {
+    const q = P.zoekPoule(T, vk, +n);
+    if (q) P.synchroniseerPoule(T, q);
+    if (q && q.pp && !q.pp.voltooid) h += ppBlokHtml(vk, q);
+  });
+  Object.keys(derde).forEach(i => {
+    const b = derdeBlokHtml(vk, +i);
+    if (b) h += b;
+  });
+  // Extra vangnet voor oudere toernooidata: vind een onbesliste play-off
+  // op basis van de namen die als A / B in de huidige poule zijn ingeloot.
+  if (!h && p.spelers.some(P.isPh)) {
+    const labels = p.spelers.filter(P.isPh).map(id => spelerNaam(id));
+    vrLoop: for (const q of (T.rondes[vk]?.poules || [])) {
+      P.synchroniseerPoule(T, q);
+      if (!q.pp || q.pp.voltooid || !q.pp.stappen?.length) continue;
+      const names = q.pp.stappen[0].groep.map(spelerNaam);
+      if (labels.some(label => names.every(name => label.includes(name)))) {
+        h += ppBlokHtml(vk, q);
+        break vrLoop;
+      }
+    }
+    if (!h) for (let i = 0; i < Math.floor((T.rondes[vk]?.poules.length || 0) / 2); i++) {
+      const st = P.derdeStatus(T, vk, i);
+      if (st.status !== 'playoff') continue;
+      const names = [st.a, st.b].map(spelerNaam);
+      if (labels.some(label => names.every(name => label.includes(name)))) {
+        h += derdeBlokHtml(vk, i);
+        break;
+      }
+    }
+  }
   if (!h) return '';
-  return '<div class="sect" style="border-color:var(--warn)"><header><h3>Eerst spelen: play-off voor een plek in deze poule</h3><span class="chip warn">Voor de poulewedstrijden</span></header><div class="body stack"><p class="small">De spelers in deze play-off zijn ingeloot als “A / B”. Zodra de play-off beslist is, neemt de winnaar automatisch de plek in en verschijnen de wedstrijden van deze poule.</p>' + h + '</div></div>';
+  return '<div class="admin-pre-playoff-content">' + h + '</div>';
 }
 function derdeBlokkenVoorPoule(key, p) {
   const pr = P.planRonde(T, key); if (!pr || !pr.derden) return '';
@@ -3407,9 +3491,9 @@ function dagDetailHtml(key, nr) {
     '<div class="row noprint' + (UI.viewer ? ' public-dag-controls' : '') + '">' + navigatie + '</div></div></div></div>';
   const vast = P.vergrendeld(T, key, nr), ontgrendeldKlaar = !vast && p.ontgrendeld && P.pouleAfgerond(T, p);
   const slot = UI.viewer ? '' : (vast ? '<div class="note good row between"><span>🔒 <b>Deze speeldag is afgerond en vergrendeld.</b> Uitslagen kunnen niet per ongeluk worden gewijzigd.</span><button class="btn sec sm noprint" data-act="ontgrendel" data-key="' + key + '" data-nr="' + nr + '">Ontgrendelen…</button></div>' : (ontgrendeldKlaar ? '<div class="note warn row between"><span>🔓 <b>Ontgrendeld.</b> Je kunt uitslagen wijzigen.</span><button class="btn sm noprint" data-act="vergrendel" data-key="' + key + '" data-nr="' + nr + '">Weer vergrendelen</button></div>' : ''));
-  const waarschuw = slot + (vorigeOpen ? '<div class="note warn">De vorige speeldag (' + esc(rondePoule(vorige.ronde, vorige.poule).replace(/^Ronde /, 'R').replace(' · poule ', ' poule ')) + ', ' + esc(P.datumKort(vorige.datum)) + ') is nog niet afgerond.</div>' : '') +
-    (wachtPh ? '<div class="note warn">Eén van de spelers is nog niet bekend: de play-off voor deze plek moet eerst worden gespeeld (zie het play-offblok boven de stand).</div>' : '');
-  const uitleg = UI.viewer ? '' : '<div class="row between noprint" style="margin-bottom:8px"><span class="muted small">Tik op de winnaar van elke wedstrijd. De speler links heeft de break. Sneltoetsen: <kbd>1</kbd> of ← links wint, <kbd>2</kbd> of → rechts wint, <kbd>Backspace</kbd> herstelt de vorige.</span><button class="btn sec sm" data-act="herstel" data-key="' + key + '" data-nr="' + nr + '"' + (kanHerstel ? '' : ' disabled') + '>Herstel vorige wedstrijd</button></div>';
+  const waarschuw = slot + (vorigeOpen && (UI.viewer || !mobielWeergave()) ? '<div class="note warn">De vorige speeldag (' + esc(rondePoule(vorige.ronde, vorige.poule).replace(/^Ronde /, 'R').replace(' · poule ', ' poule ')) + ', ' + esc(P.datumKort(vorige.datum)) + ') is nog niet afgerond.</div>' : '') +
+    (wachtPh && !mobielWeergave() ? '<div class="note warn">Eén van de spelers is nog niet bekend: de play-off voor deze plek moet eerst worden gespeeld.</div>' : '');
+  const uitleg = UI.viewer || mobielWeergave() ? '' : '<div class="row between noprint" style="margin-bottom:8px"><span class="muted small">Tik op de winnaar van elke wedstrijd. De speler links heeft de break. Sneltoetsen: <kbd>1</kbd> of ← links wint, <kbd>2</kbd> of → rechts wint, <kbd>Backspace</kbd> herstelt de vorige.</span><button class="btn sec sm" data-act="herstel" data-key="' + key + '" data-nr="' + nr + '"' + (kanHerstel ? '' : ' disabled') + '>Herstel vorige wedstrijd</button></div>';
   const links = '<div>' + uitleg + (wachtPh ? '' : gamesHtml(key, p)) + '</div>';
   const derdePp = derdeBlokkenVoorPoule(key, p);
   const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p, UI.viewer ? false : "admin") + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + brPaneel(key,nr) + testHulpHtml(key, p) + '</div>';
