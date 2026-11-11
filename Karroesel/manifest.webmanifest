@@ -1,8 +1,7 @@
 {
   "id": "/Pooltoernooi/Karroesel/",
-  "name": "Karroesel Pool – Toeschouwers",
+  "name": "Karroesel Pool - Toeschouwers",
   "short_name": "Kar Pool",
-  "description": "Volg het Karroesel pooltoernooi live.",
   "start_url": "/Pooltoernooi/Karroesel/?tournament=tmvocon68k4ij1&view=public",
   "scope": "/Pooltoernooi/Karroesel/",
   "display": "standalone",
