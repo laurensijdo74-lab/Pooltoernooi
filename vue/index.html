@@ -5,7 +5,7 @@
 <!-- De publieke Vue-weergave opent bewust iets uitgezoomd, zodat lange
      dubbelnamen en beide wedstrijdkolommen direct binnen het telefoonscherm vallen. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=3, user-scalable=yes">
-<title>Pooltoernooi Vue</title>
+<title>Vue Pool – Toeschouwers</title>
 <meta name="theme-color" content="#17613f">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="192x192" href="./vue-icon-192.png">
@@ -4563,16 +4563,50 @@ function koppelEvents() {
 }
 
 /* ---------- opstarten ---------- */
+/* Vue Pool heeft een eigen vaste publieke route. Een onjuist toernooi-ID mag
+   nooit een Karroesel-toernooi (of lokaal bewaarde beheergegevens) tonen. */
+function isVueLocationData(t) {
+  const locaties = Array.isArray(t && t.locaties) ? t.locaties : [];
+  const loc = locaties.find(x => x && x.id === t.locatieId) || locaties[0] || {};
+  const locName = String(loc.naam || '');
+  return locName ? /\bvue\b/i.test(locName) && !/karroesel/i.test(locName)
+                 : /\bvue\b/i.test(String(t && t.naam || ''));
+}
+function vuePublicUnavailable() {
+  document.title = 'Vue Pool – tijdelijk niet beschikbaar';
+  const app = document.getElementById('app');
+  if (!app) return;
+  app.innerHTML = '<main style="box-sizing:border-box;max-width:580px;margin:12vh auto;padding:28px 22px;font:16px/1.5 system-ui,Arial,sans-serif">' +
+    '<h1 style="font-size:28px;margin:0 0 12px">Vue Pool</h1>' +
+    '<p>De actuele gegevens van Vue Grandige konden niet worden opgehaald. Controleer de internetverbinding en of het toernooi openbaar is gepubliceerd.</p>' +
+    '<p><a href="/Pooltoernooi/vue/" style="display:inline-block;padding:12px 18px;border-radius:9px;background:#17613f;color:#fff;text-decoration:none;font-weight:700">Opnieuw proberen</a></p>' +
+    '</main>';
+}
 async function start() {
-  const queryPublicId = new URLSearchParams(location.search).get('tournament');
+  const params = new URLSearchParams(location.search);
+  const queryPublicId = params.get('tournament');
+  // Beide URL's, /vue/ en /vue/index.html, moeten exact dezelfde publieke app laden.
+  const isVueRoute = /\/vue(?:\/|\/index\.html)?$/i.test(location.pathname);
+  const defaultVueId = 'tmvdkmjd0h8pa1';
   const pathPart = location.pathname.replace(/\/+$/, '').split('/').pop().toLowerCase();
-  const pathPublicIds = { vue: 'tmvdkmjd0h8pa1' };
-  const publicId = queryPublicId || pathPublicIds[pathPart] || '';
+  const pathPublicIds = { vue: defaultVueId };
+  const publicId = queryPublicId || (isVueRoute ? defaultVueId : pathPublicIds[pathPart] || '');
   let opgeslagen = null, publiekGeladen = false;
+  if (isVueRoute) UI.viewer = true; // Ook bij een netwerkfout nooit terug naar beheer.
   if (publicId && window.POOL_ONLINE) {
     try {
       await window.POOL_ONLINE.ready;
-      const remote = await window.POOL_ONLINE.loadTournament(publicId, { public: true });
+      let remote = await window.POOL_ONLINE.loadTournament(publicId, { public: true });
+      if (isVueRoute && queryPublicId && queryPublicId !== defaultVueId &&
+          (!remote || !isVueLocationData(remote))) {
+        // Een gedeelde Karroesel-link op /vue/ mag de Vue-app niet overnemen.
+        const canonical = new URL(location.href);
+        canonical.searchParams.delete('tournament');
+        canonical.searchParams.delete('mode');
+        canonical.searchParams.delete('view');
+        history.replaceState(null, '', canonical.pathname + canonical.search + canonical.hash);
+        remote = await window.POOL_ONLINE.loadTournament(defaultVueId, { public: true });
+      }
       if (remote) {
         T = herstelOpenPlayoffsPubliek(remote);
         UI.viewer = true;
@@ -4583,7 +4617,12 @@ async function start() {
         if (startDag) UI.dag = { key: startDag.ronde, nr: startDag.poule };
         publiekGeladen = true;
       }
-    } catch (e) { }
+    } catch (e) { console.warn('Vue Pool: online toernooi niet geladen', e); }
+  }
+  if (!publiekGeladen && isVueRoute) {
+    // Cruciaal: geen gedeelde localStorage of demo-beheerpagina meer als fallback.
+    vuePublicUnavailable();
+    return;
   }
   if (!publiekGeladen) {
     opgeslagen = laadOpgeslagen();
