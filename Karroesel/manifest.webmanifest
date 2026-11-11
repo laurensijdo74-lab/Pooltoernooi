@@ -3,7 +3,7 @@
   "name": "Karroesel Pool – Toeschouwers",
   "short_name": "Kar Pool",
   "description": "Volg het Karroesel pooltoernooi live.",
-  "start_url": "/Pooltoernooi/Karroesel/",
+  "start_url": "/Pooltoernooi/Karroesel/?tournament=tmvocon68k4ij1&view=public",
   "scope": "/Pooltoernooi/Karroesel/",
   "display": "standalone",
   "background_color": "#160d08",
