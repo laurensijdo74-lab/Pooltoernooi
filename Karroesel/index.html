@@ -2,14 +2,14 @@
 <html lang="nl">
 <head>
 <meta charset="utf-8">
-<!-- De publieke Vue-weergave opent bewust iets uitgezoomd, zodat lange
+<!-- De publieke Karroesel-weergave opent bewust iets uitgezoomd, zodat lange
      dubbelnamen en beide wedstrijdkolommen direct binnen het telefoonscherm vallen. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=3, user-scalable=yes">
-<title>Pooltoernooi Karroesel</title>
-<meta name="theme-color" content="#241408">
-<link rel="manifest" href="../manifest.webmanifest">
-<link rel="icon" type="image/png" sizes="192x192" href="../vue-icon-192.png">
-<link rel="apple-touch-icon" href="../vue-icon-192.png">
+<title>Karroesel Pool – Toeschouwers</title>
+<meta name="theme-color" content="#3b080b">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="../kar-icon-192.png">
+<link rel="apple-touch-icon" href="../kar-icon-192.png">
 
 <style>
 :root {
@@ -899,6 +899,153 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  html.viewer-tv .viewer-day-cols .games.public-match-list>.pauze.tv-second-half-bar{display:block!important;visibility:visible!important;flex:0 0 auto;background:#ff3fa4!important;color:white!important;padding:6px 10px!important;font-size:15px!important;letter-spacing:.14em;text-align:center}
  html.viewer-tv .viewer-day-cols .tv-pause-panel{flex:1;min-height:0!important}
 }
+
+/* TV: menu uitsluitend bij aanraken van de bovenrand, geen navigatieknoppen. */
+@media screen and (min-width:981px){
+ html.viewer-tv .nav{position:relative;top:auto;left:auto;right:auto;z-index:110;height:8px;min-height:8px;overflow:visible;transform:none;opacity:1;transition:height .2s ease} html.viewer-tv .nav .nav-in{position:absolute;top:0;left:0;right:0;max-width:none;background:var(--surface);opacity:0;visibility:hidden;transform:translateY(-8px);transition:opacity .2s,transform .2s,visibility .2s} html.viewer-tv .nav:hover .nav-in,html.viewer-tv .nav:focus-within .nav-in{opacity:1;visibility:visible;transform:none}
+ html.viewer-tv .nav:hover,html.viewer-tv .nav:focus-within{height:48px}
+ html.viewer-tv .public-dag-controls{display:none!important}
+ html.viewer-tv .tv-playoff-winner{position:fixed;inset:0;z-index:100;background:var(--bg);color:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:5vh}
+ html.viewer-tv .tv-playoff-winner .heading{font-size:clamp(46px,7vw,115px);font-weight:900}
+ html.viewer-tv .tv-playoff-winner .winner{font-size:clamp(54px,8vw,140px);font-weight:900;color:var(--brand)}
+}
+.viewer-tv .tv-half-indicator{display:none!important}
+.viewer-tv .tv-first-pause-bar,.viewer-tv .tv-second-half-bar{font-size:0!important;color:transparent!important;min-height:20px}
+.viewer-playoff-block .body>.row:not(:has(.games)),.viewer-playoff-block .body>p,.viewer-playoff-block .body>.note,.viewer-playoff-block .body>.small{display:none!important}
+.viewer-playoff-block .body{padding:8px!important}
+.viewer-playoff-block .body>.stack{gap:4px}
+.viewer-playoff-block .chip{display:none!important}
+.viewer-day-cols .body>.note,.viewer-day-cols .body>.small{display:none!important}
+
+/* TV play-off presentation, with the existing regular match/stand styling. */
+@media screen and (min-width:981px){
+ html.viewer-tv .viewer-pending-playoff.tv-show-playoff>.viewer-day-cols{display:none!important}
+ html.viewer-tv .viewer-pending-playoff:not(.tv-show-playoff)>.viewer-playoff-top{display:none!important}
+ html.viewer-tv .viewer-pending-playoff.tv-show-playoff>.viewer-playoff-top{display:block!important}
+ html.viewer-tv .viewer-playoff-top .viewer-playoff-block{border:0;background:transparent;box-shadow:none}
+ html.viewer-tv .viewer-playoff-top .viewer-playoff-block>header{display:none}
+ html.viewer-tv .viewer-playoff-top .viewer-playoff-block>.body{padding:0!important}
+ html.viewer-tv .viewer-playoff-top .playoff-block{border:0;background:transparent;box-shadow:none}
+ html.viewer-tv .viewer-playoff-top .playoff-block>header{display:none}
+ html.viewer-tv .viewer-playoff-top .playoff-block>.body{display:grid!important;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px;padding:0!important;align-items:stretch}
+ html.viewer-tv .viewer-playoff-top .viewer-playoff-block>.body>.row:first-child{display:none!important}
+ html.viewer-tv .viewer-playoff-top .viewer-playoff-block>.body>.games{min-width:0}
+ html.viewer-tv .viewer-playoff-top .viewer-playoff-block>.body>.tv-po-standing{min-width:0}
+ html.viewer-tv .viewer-pending-playoff.tv-show-playoff>.viewer-day-cols{display:none!important}
+ html.viewer-tv .viewer-pending-playoff:not(.tv-show-playoff)>.viewer-playoff-top{display:none!important}
+ html.viewer-tv .viewer-playoff-top .playoff-block .games{grid-column:1;grid-row:1;width:100%!important;margin:0!important;align-self:stretch}
+ html.viewer-tv .viewer-playoff-top .playoff-block .games .game .pl{padding:8px 10px}
+ html.viewer-tv .viewer-playoff-top .playoff-block .games .game .nm{font-size:clamp(17px,1.35vw,24px);white-space:normal}
+ html.viewer-tv .viewer-playoff-top .playoff-block .games .game.skip{display:none}
+ html.viewer-tv .viewer-playoff-top .playoff-block .body>.row:last-child{display:none!important}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing{grid-column:2;grid-row:1;display:block!important;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing h3{padding:11px 14px;border-bottom:1px solid var(--line);font-size:clamp(20px,1.5vw,27px)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing table{width:100%;border-collapse:collapse;table-layout:fixed}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing th,html.viewer-tv .viewer-playoff-top .tv-po-standing td{padding:12px 8px;text-align:left;border-bottom:1px solid var(--line);font-size:clamp(15px,1.25vw,22px)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing th:last-child,html.viewer-tv .viewer-playoff-top .tv-po-standing td:last-child{text-align:right;width:25%}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing tr:first-child td{background:var(--good-soft)}
+}
+
+/* Correcte onafhankelijke tv-schermen: nooit tegelijk of onder elkaar. */
+.viewer-playoff-top{display:none}
+@media screen and (min-width:981px){
+ html.viewer-tv .viewer-pending-playoff .viewer-playoff-mobile{display:none!important}
+ html.viewer-tv .viewer-pending-playoff.tv-show-playoff>.viewer-playoff-top{display:block!important}
+ html.viewer-tv .viewer-pending-playoff.tv-show-playoff>.viewer-day-cols{display:none!important}
+ html.viewer-tv .viewer-pending-playoff:not(.tv-show-playoff)>.viewer-playoff-top{display:none!important}
+ html.viewer-tv .viewer-pending-playoff:not(.tv-show-playoff)>.viewer-day-cols{display:grid!important}
+ html.viewer-tv .tv-po-grid{display:grid!important;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:14px;align-items:stretch;width:100%}
+ html.viewer-tv .tv-po-matches,html.viewer-tv .tv-po-standings{min-width:0;width:100%}
+ html.viewer-tv .tv-po-matches .body{padding:8px 10px}
+ html.viewer-tv .tv-po-group+.tv-po-group{margin-top:10px}
+ html.viewer-tv .tv-po-subtitle{font-weight:750;font-size:clamp(16px,1.3vw,23px);padding:6px 4px}
+ html.viewer-tv .tv-po-matches .game .pl .nm{font-size:clamp(16px,1.3vw,23px);white-space:normal}
+ html.viewer-tv .tv-po-standings .tv-po-standing{height:100%;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+ html.viewer-tv .tv-po-standings .tv-po-standing h3{font-size:clamp(20px,1.5vw,27px);padding:12px 16px;border-bottom:1px solid var(--line)}
+ html.viewer-tv .tv-po-standings .tv-po-standing table{width:100%;table-layout:fixed;border-collapse:collapse}
+ html.viewer-tv .tv-po-standings .tv-po-standing th,html.viewer-tv .tv-po-standings .tv-po-standing td{padding:12px 8px;border-bottom:1px solid var(--line);font-size:clamp(16px,1.3vw,23px)}
+ html.viewer-tv .tv-po-standings .tv-po-standing tr:first-child td{background:var(--good-soft)}
+}
+
+/* Definitive TV-only split-screen. Mobile legacy block stays unchanged. */
+@media screen and (min-width:981px){
+ html.viewer-tv .viewer-pending-playoff>.viewer-playoff-mobile{display:none!important}
+ html.viewer-tv .viewer-pending-playoff>.viewer-playoff-top{display:none!important}
+ html.viewer-tv .viewer-pending-playoff.tv-show-playoff>.viewer-playoff-top{display:block!important}
+ html.viewer-tv .viewer-pending-playoff.tv-show-playoff>.viewer-day-cols{display:none!important}
+ html.viewer-tv .viewer-pending-playoff:not(.tv-show-playoff)>.viewer-day-cols{display:grid!important}
+ html.viewer-tv .viewer-playoff-top .tv-po-grid{display:grid!important;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)!important;gap:14px;align-items:stretch}
+ html.viewer-tv .viewer-playoff-top .tv-po-matches{min-width:0;overflow:hidden}
+ html.viewer-tv .viewer-playoff-top .tv-po-matches>.body{padding:0!important}
+ html.viewer-tv .viewer-playoff-top .tv-po-group{margin:0}
+ html.viewer-tv .viewer-playoff-top .tv-po-subtitle{padding:8px 12px}
+ html.viewer-tv .viewer-playoff-top .tv-po-matches .games{width:100%!important;margin:0!important;border-radius:0}
+ html.viewer-tv .viewer-playoff-top .tv-po-matches .game{grid-template-columns:minmax(0,1fr) 2rem minmax(0,1fr)!important}
+ html.viewer-tv .viewer-playoff-top .tv-po-matches .game .pl{padding:9px 10px;min-width:0}
+ html.viewer-tv .viewer-playoff-top .tv-po-matches .game .nm{font-size:clamp(17px,1.35vw,24px);white-space:normal}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing{display:flex;flex-direction:column;min-height:100%;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing h3{font-size:clamp(20px,1.5vw,27px);padding:10px 14px;border-bottom:1px solid var(--line)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing table{width:100%;table-layout:fixed;border-collapse:collapse}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing th{font-size:clamp(13px,1vw,17px)!important;color:var(--muted);text-align:left;padding:9px 8px}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing td{font-size:clamp(17px,1.4vw,24px);padding:11px 8px;border-bottom:1px solid var(--line)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing td:last-child,html.viewer-tv .viewer-playoff-top .tv-po-standing th:last-child{text-align:right}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing tbody tr:first-child{background:var(--good-soft)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing tbody tr:last-child{background:var(--bad-soft)}
+}
+@media screen and (max-width:980px){.viewer-playoff-top{display:none!important}}
+
+/* Play-offstand: identieke reguliere standkaart, zonder oude 2-kolomsregels. */
+@media screen and (min-width:981px){
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing{display:flex;flex-direction:column;height:100%;min-height:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing>header{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing>header h3{margin-right:auto;padding:0;border:0;font-size:clamp(20px,1.5vw,27px)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing>.body{padding:14px 16px;flex:1}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing table.viewer-stand-table{width:100%;table-layout:fixed;border-collapse:collapse}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing table.viewer-stand-table th{font-size:clamp(13px,1vw,17px)!important;text-align:left;padding:7px 5px!important;color:var(--muted);border-bottom:2px solid var(--line)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing table.viewer-stand-table td{padding:11px 5px!important;font-size:clamp(17px,1.4vw,24px);border-bottom:1px solid var(--line);text-align:left}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing table.viewer-stand-table th.num,html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing table.viewer-stand-table td.num{text-align:right}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing table.viewer-stand-table th:last-child,html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing table.viewer-stand-table td:last-child{text-align:left;width:24%}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing tbody tr:first-child{background:transparent}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing tbody tr:last-child{background:transparent}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing tbody tr.door td{background:var(--good-soft)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing tbody tr.uit td{background:var(--bad-soft)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing tbody tr.po td{background:var(--warn-soft)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing .viewer-team-inner{display:flex;align-items:center;gap:5px}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing .ball{display:inline-grid!important}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings .tv-po-standing .viewer-status .chip{display:inline-block!important;background:transparent;border:0;padding:1px 4px;font-size:clamp(12px,.95vw,16px)}
+}
+
+/* POOL 2026-11-09: unified regular/playoff scoreboard and compact desktop view. */
+@media screen and (min-width:981px){
+ html.viewer-tv .viewer-pending-playoff>.viewer-playoff-mobile{display:none!important}
+ html.viewer-tv .viewer-pending-playoff>.viewer-playoff-top{display:none!important}
+ html.viewer-tv .viewer-pending-playoff.tv-show-playoff>.viewer-playoff-top{display:block!important}
+ html.viewer-tv .viewer-pending-playoff.tv-show-playoff>.viewer-day-cols{display:none!important}
+ html.viewer-tv .viewer-pending-playoff:not(.tv-show-playoff)>.viewer-day-cols{display:grid!important}
+ html.viewer-tv .viewer-playoff-top .tv-po-grid{display:grid!important;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)!important;gap:14px;align-items:stretch}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings{display:flex;min-width:0}
+ html.viewer-tv .viewer-playoff-top .tv-po-standings>.tv-po-standing{flex:1;min-width:0}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing>header{padding:12px 16px}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing>.body{padding:14px 16px}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing table.viewer-stand-table{table-layout:auto!important;width:100%}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing table.viewer-stand-table th,
+ html.viewer-tv .viewer-playoff-top .tv-po-standing table.viewer-stand-table td{padding:11px 5px!important;border-bottom:1px solid var(--line);font-size:clamp(17px,1.4vw,24px)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing table.viewer-stand-table th{font-size:clamp(13px,1vw,17px)!important}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing table.viewer-stand-table td.viewer-team{width:44%}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing .viewer-team-inner{display:flex;align-items:center;gap:6px}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing .viewer-status{white-space:normal}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing tbody tr.po td{background:var(--warn-soft)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing tbody tr.door td{background:var(--good-soft)}
+ html.viewer-tv .viewer-playoff-top .tv-po-standing tbody tr.uit td{background:var(--bad-soft)}
+ html.viewer-compact .viewer-day-cols{display:grid!important;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr)!important;gap:14px}
+ html.viewer-compact .viewer-day-cols .games.public-match-list>.game{display:grid!important;min-height:0!important;flex:none!important}
+ html.viewer-compact .viewer-day-cols .games.public-match-list>.game.tv-half-hidden{display:grid!important}
+ html.viewer-compact .viewer-day-cols .games.public-match-list>.game .pl{padding:2px 8px!important}
+ html.viewer-compact .viewer-day-cols .games.public-match-list>.game .nm{font-size:clamp(11px,.85vw,15px)!important;line-height:1.1!important}
+ html.viewer-compact .viewer-day-cols .games.public-match-list>.pauze{display:block!important;padding:3px 8px!important;background:#ff3fa4!important;color:white!important}
+ html.viewer-compact .viewer-day-cols .tv-pause-panel{display:none!important}
+}
+@media screen and (max-width:980px){#viewerCompactBtn{display:none!important}}
 /* Karroesel 2027: cafégevoel, uitsluitend bij het Karroesel-thema. */
 :root[data-theme="karroesel"] body {
  background: radial-gradient(ellipse at 92% 8%,rgba(180,93,21,.16),transparent 35%),
@@ -923,9 +1070,6 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 :root[data-theme="karroesel"] .rail {box-shadow:0 2px 8px #0007}
 :root[data-theme="karroesel"] .big-winner .naam {color:#ffcb64}
 @media print { :root[data-theme="karroesel"] body {background:#fff!important} :root[data-theme="karroesel"] .sect,:root[data-theme="karroesel"] .card {box-shadow:none!important} }
-
-
-@media screen and (min-width:981px){html.viewer-tv .nav{position:fixed;top:0;left:0;right:0;z-index:80;transform:translateY(calc(-100% + 7px));transition:transform .2s ease;opacity:.96}html.viewer-tv .nav:hover,html.viewer-tv .nav:focus-within{transform:translateY(0)}html.viewer-tv .public-dag-controls{display:none!important}html.viewer-tv .viewer-day-cols .pauze.tv-first-pause-bar,html.viewer-tv .viewer-day-cols .pauze.tv-second-half-bar{font-size:0!important;min-height:24px}}
 </style>
 </head>
 <body>
@@ -2136,7 +2280,7 @@ function slug(s) { return String(s || 'toernooi').normalize('NFD').replace(/[\u0
 function nu() { return new Date(); }
 function mobielWeergave() { return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 980px)').matches; }
 const PUBLIEKE_APP_URL = 'https://laurensijdo74-lab.github.io/Pooltoernooi/';
-const PUBLIEKE_ALIASES = { tmvdkmjd0h8pa1: 'vue' };
+const PUBLIEKE_ALIASES = { tmvdkmjd0h8pa1: 'vue', tmvocon68k4ij1: 'Karroesel' };
 function publiekeToernooiUrl(id) {
   const alias = PUBLIEKE_ALIASES[String(id || '')];
   if (alias) return PUBLIEKE_APP_URL + alias + '/';
@@ -2217,6 +2361,7 @@ const THEMAS = {
       '--hero-ink': '#fff1d8', '--rail': 'linear-gradient(180deg,#ffc34b 0%,#b97920 52%,#503018 100%)', '--radius': '12px',
       '--font-display': FONTS.serif, '--display-weight': '800', '--display-tracking': '.012em', '--display-case': 'none' }
   },
+
   biljartgroen: {
     naam: 'Biljartgroen', tekst: 'Groen laken met houten band', mode: 'light', icoon: '🎱',
     v: { '--bg': '#e9eee8', '--surface': '#ffffff', '--surface2': '#f2f5f0', '--ink': '#15231b', '--muted': '#566a5d', '--line': '#cfdacf', '--brand': '#17613f', '--brand-ink': '#ffffff', '--brand-soft': '#d6e9dd',
@@ -2256,7 +2401,7 @@ const MODE_VARS = {
 const THEMA_VAR_NAMEN = ['--bg', '--surface', '--surface2', '--ink', '--muted', '--line', '--brand', '--brand-ink', '--brand-soft', '--accent', '--accent-soft', '--hero', '--hero-ink', '--hero-chip', '--hero-chip-line', '--rail', '--radius', '--font-display', '--display-weight', '--display-tracking', '--display-case', '--good', '--good-soft', '--bad', '--bad-soft', '--warn', '--warn-soft', '--shadow'];
 
 function themaVars(loc) {
-  const base = /karroesel/i.test(loc.naam || '') ? THEMAS.karroesel : (THEMAS[loc.thema] || THEMAS.biljartgroen);
+  const base = karroeselPubliekThema() || /karroesel/i.test(loc.naam || '') ? THEMAS.karroesel : (THEMAS[loc.thema] || THEMAS.biljartgroen);
   const v = Object.assign({}, base.v);
   const k = loc.kleuren || {};
   let mode = base.mode;
@@ -2299,7 +2444,7 @@ function pasThemaToe(loc) {
     root.style.setProperty(n, val);
   });
   root.setAttribute('data-mode', t.mode);
-   root.setAttribute('data-theme', /karroesel/i.test(loc.naam || '') ? 'karroesel' : (loc.thema || 'biljartgroen'));
+  root.setAttribute('data-theme', karroeselPubliekThema() || /karroesel/i.test(loc.naam || '') ? 'karroesel' : (loc.thema || 'biljartgroen'));
   document.title = (T.naam || 'Pooltoernooi') + ' – ' + (loc.naam || '');
 }
 
@@ -2644,27 +2789,30 @@ function openDag(key, nr) { UI.dag = { key, nr }; UI.tab = 'dag'; if (mobielWeer
 /* Aftellen naar de eerstvolgende niet-afgeronde gelote speeldag.
    Een nog openstaande speeldag houdt de klok vast, ook na zijn startdatum.
    De klok gebruikt expliciet Europe/Amsterdam, onafhankelijk van de telefoonzone. */
+function currentAmsterdamDay(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Amsterdam',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());}
 function countdownTarget(){
   if(!UI.viewer || !T || !T.plan || !T.plan.dagen)return null;
   const dagen=alleDagen().filter(d=>P.rondeGeloot(T,d.ronde));
-  const d=dagen.find(d=>dagStatus(d.ronde,d.poule).code!=='klaar');
+  const selected=UI.dag&&dagen.find(d=>d.ronde===UI.dag.key&&d.poule===UI.dag.nr);
+   const d=(selected&&dagStatus(selected.ronde,selected.poule).code!=='klaar')?selected:dagen.find(d=>dagStatus(d.ronde,d.poule).code!=='klaar');
   if(!d)return null;
-  const playoff=dagStatus(d.ronde,d.poule).code==='playoff';
+  const playoff=!!(UI.dag&&d.ronde===UI.dag.key&&d.poule===UI.dag.nr&&P.zoekPoule(T,d.ronde,d.poule)?.spelers.some(P.isPh));
   const hh=playoff?13:14;
-  const iso=d.datum+'T'+String(hh).padStart(2,'0')+':00:00';
+  const minute=playoff?30:0;
+   const iso=d.datum+'T'+String(hh).padStart(2,'0')+':'+String(minute).padStart(2,'0')+':00';
   // Tijdzone Nederland: offset via Intl, ook correct rond zomer-/wintertijd.
   const utc=Date.parse(iso+'Z');
   const parts=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Amsterdam',timeZoneName:'shortOffset'}).formatToParts(new Date(utc));
   const zone=(parts.find(x=>x.type==='timeZoneName')||{}).value||'GMT+1';
   const m=zone.match(/GMT([+-])(\d{1,2})(?::(\d{2}))?/);
   const offset=m?(m[1]==='+'?1:-1)*(Number(m[2])*60+Number(m[3]||0)):60;
-  return {d,playoff,hh,ms:utc-offset*60000};
+  return {d,playoff,hh,minute,ms:utc-offset*60000};
 }
 function countdownHtml(){
   if(!UI.viewer)return '';
   const t=countdownTarget();
   if(!t || UI.tab!=='dag' || !UI.dag || UI.dag.key!==t.d.ronde || UI.dag.nr!==t.d.poule)return '';
-  return '<div class="viewer-countdown noprint" id="viewerCountdown" role="timer" aria-label="Aftellen naar de eerstvolgende speeldag"><span class="cd-label">⏱ START OVER</span><span class="cd-value" id="viewerCountdownValue">--</span><span class="cd-date">'+esc(P.datumKort(t.d.datum))+' · '+t.hh+':00</span></div>';
+  return '<div class="viewer-countdown noprint" id="viewerCountdown" role="timer" aria-label="Aftellen naar de eerstvolgende speeldag"><span class="cd-label">⏱ START OVER</span><span class="cd-value" id="viewerCountdownValue">--</span><span class="cd-date">'+esc(P.datumKort(t.d.datum))+' · '+t.hh+':'+String(t.minute).padStart(2,'0')+'</span></div>';
 }
 function updatePublicDayStatus(){
  const el=document.getElementById('publicDayStatus');
@@ -2745,6 +2893,11 @@ function toggleViewerTv(){
  document.documentElement.classList.toggle('viewer-tv');
  updateViewerTvButton();applyTvHalf();
 }
+function updateViewerCompactButton(){
+ const b=document.getElementById('viewerCompactBtn');if(!b)return;
+ const active=document.documentElement.classList.contains('viewer-compact');
+ b.textContent=active?'Compact uit':'Compacte weergave';b.setAttribute('aria-pressed',String(active));
+}
 function updateViewerTvButton(){
  const b=document.getElementById('viewerTvBtn');if(!b)return;
  const active=document.documentElement.classList.contains('viewer-tv');
@@ -2775,7 +2928,7 @@ function applyTvHalf(){
  const rows=Array.from(games.children).filter(el=>el.classList.contains('game'));
  const state=enabled?tvPauseState():{phase:'first'};
  const split=state.split||Math.ceil(rows.length/2);
- const staged=enabled&&rows.length>split&&split>0;
+ const staged=enabled&&!document.documentElement.classList.contains('viewer-compact')&&rows.length>split&&split>0;
  tvHalf=state.phase==='second'?1:0;
  rows.forEach((el,i)=>el.classList.toggle('tv-half-hidden',staged&&(state.phase==='pause'||(tvHalf===0?i>=split:i<split))));
  Array.from(games.children).filter(el=>el.classList.contains('pauze')).forEach(el=>{
@@ -2785,7 +2938,7 @@ function applyTvHalf(){
  let secondBar=games.querySelector('.tv-second-half-bar');
  if(staged&&state.phase==='second'){
    if(!secondBar){secondBar=document.createElement('div');secondBar.className='pauze tv-second-half-bar';games.appendChild(secondBar);}
-   secondBar.textContent='2E HELFT';
+   secondBar.textContent='';
  }else if(secondBar)secondBar.remove();
  let panel=games.querySelector('.tv-pause-panel');
  if(staged&&state.phase==='pause'){
@@ -2803,7 +2956,7 @@ setInterval(()=>{
 function navHtml() {
   const open = alleDagen().filter(d => P.rondeGeloot(T, d.ronde) && dagStatus(d.ronde, d.poule).code === 'playoff').length;
   return '<nav class="nav noprint" aria-label="Hoofdmenu"><div class="nav-in">' + tabsVoorWeergave().map(t =>
-    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + (UI.viewer ? '<span id="tvHalfIndicator" class="tv-half-indicator" aria-live="off"></span><button type="button" id="viewerTvBtn" class="viewer-tv-btn" data-act="viewer-tv" aria-pressed="false">TV-weergave aan</button><button type="button" id="viewerFullscreenBtn" class="viewer-fullscreen-btn" data-act="viewer-fullscreen" aria-label="Volledig scherm openen">⛶</button>' : '') + '</div></nav>';
+    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + (UI.viewer ? '<span id="tvHalfIndicator" class="tv-half-indicator" aria-live="off"></span><button type="button" id="viewerCompactBtn" class="viewer-tv-btn" data-act="viewer-compact" aria-pressed="false">Compacte weergave</button><button type="button" id="viewerTvBtn" class="viewer-tv-btn" data-act="viewer-tv" aria-pressed="false">TV-weergave aan</button><button type="button" id="viewerFullscreenBtn" class="viewer-fullscreen-btn" data-act="viewer-fullscreen" aria-label="Volledig scherm openen">⛶</button>' : '') + '</div></nav>';
 }
 
 /* ---------- Overzicht ---------- */
@@ -3300,6 +3453,26 @@ function verslagBlokHtml(soort, key, nr) {
 }
 
 /* ---------- play-offs ---------- */
+function tvPlayoffStandingHtml(ids,wins,games){
+  const played=(games||[]).filter(g=>!!g.w).length;
+  const total=(games||[]).length;
+  const target=ids.length===2?Math.floor(total/2)+1:0;
+  const winner=target?ids.find(id=>(wins[id]||0)>=target):null;
+  const sorted=ids.slice().sort((a,b)=>(wins[b]||0)-(wins[a]||0)||ids.indexOf(a)-ids.indexOf(b));
+  const rows=sorted.map((id,i)=>{
+    const points=wins[id]||0;
+    const playedFor=(games||[]).filter(g=>g.w&&(g.a===id||g.b===id)).length;
+    const remaining=(games||[]).filter(g=>!g.w&&(g.a===id||g.b===id)).length;
+    const max=winner?points:Math.min(target||total,points+remaining);
+    const eliminated=!winner&&max<Math.max(...ids.map(x=>wins[x]||0));
+    const status=winner?(id===winner?'Door':'Uit'):(eliminated?'Uit':'In de race');
+    const cls=winner?(id===winner?'door':'uit'):(eliminated?'uit':'po');
+    const chip=winner?(id===winner?'ok':'bad'):(eliminated?'bad':'warn');
+    return '<tr class="'+cls+'"><td class="viewer-team"><span class="viewer-team-inner">'+ball(i+1)+'<strong>'+esc(spelerNaam(id))+'</strong></span></td><td class="num"><b>'+points+'</b></td><td class="num">'+playedFor+'</td><td class="num">'+max+'</td><td class="viewer-status"><span class="chip '+chip+'">'+status+'</span></td></tr>';
+  }).join('');
+  return '<div class="tv-po-standing sect"><header><h3>Stand Playoff</h3><span class="muted small">'+played+' van '+total+' gespeeld</span></header><div class="body stack"><div class="viewer-stand-scroll"><table class="t stand viewer-stand-table"><thead><tr><th>Speler</th><th class="num" title="Punten">Ptn</th><th class="num" title="Gespeeld">Ges</th><th class="num">Max</th><th>Status</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></div>';
+}
+
 function ppBlokHtml(key, p) {
   if (P.isFinale(T, p)) return p.fin ? p.fin.plaatsen.map(pl => ppKetenHtml(key, p, pl.pp, { plek: pl.plek, eind: pl.eind, extra: pl.extra, afgesloten: pl.pp !== p.pp })).join('') : '';
   return p.pp ? ppKetenHtml(key, p, p.pp, {}) : '';
@@ -3313,7 +3486,7 @@ function ppKetenHtml(key, p, pp, o) {
   return pp.stappen.map((s, si) => {
     const wins = P.ppWins(s), n = s.groep.length, gestart = s.games.some(g => g.w), klaar = P.ppStapKlaar(s);
     const formaten = P.ppFormaten(n);
-    const fSel = UI.viewer ? '<div><span class="muted small">Formaat</span><br><b>' + esc(s.formaat) + '</b></div>' : (formaten.length > 1 ? '<label class="f" style="min-width:200px"><span>Formaat</span><select data-chg="pp-formaat" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (gestart || vast ? ' disabled' : '') + '>' + formaten.map(f => '<option' + (f === s.formaat ? ' selected' : '') + '>' + esc(f) + '</option>').join('') + '</select></label>' : '<div><span class="muted small">Formaat</span><br><b>' + esc(s.formaat) + '</b></div>');
+    const fSel = UI.viewer ? '' : (formaten.length > 1 ? '<label class="f" style="min-width:200px"><span>Formaat</span><select data-chg="pp-formaat" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (gestart || vast ? ' disabled' : '') + '>' + formaten.map(f => '<option' + (f === s.formaat ? ' selected' : '') + '>' + esc(f) + '</option>').join('') + '</select></label>' : '<div><span class="muted small">Formaat</span><br><b>' + esc(s.formaat) + '</b></div>');
     const bSel = false ? '<label class="f" style="min-width:200px"><span>Eerste break (toss)</span><select data-chg="pp-break" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (gestart || vast ? ' disabled' : '') + '>' + s.groep.map(id => '<option value="' + id + '"' + (id === s.eersteBreak ? ' selected' : '') + '>' + esc(spelerNaam(id)) + '</option>').join('') + '</select></label>' : '';
     const rijen = s.games.map(g => gameRijHtml(g, posFn, { act: 'ppwin', attrs: 'data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"', actief: !g.w && P.ppGameNodig(s, g) && s.games.find(x => !x.w && P.ppGameNodig(s, x)) === g && si === pp.stappen.length - 1 && !o.afgesloten, skip: !g.w && !P.ppGameNodig(s, g), locked: vast })).join('');
     const stand = s.groep.slice().sort((a, b) => wins[b] - wins[a]).map(id => '<span class="row gap-s">' + esc(spelerNaam(id)) + ' <b>' + wins[id] + '</b></span>').join('<span class="muted">·</span>');
@@ -3329,11 +3502,11 @@ function derdeBlokHtml(key, i) {
   const posFn = id => { const pp = r.poules.find(x => x.spelers.indexOf(id) >= 0); return pp ? pp.spelers.indexOf(id) + 1 : 0; };
   const gestart = po.games.some(g => g.w), wins = P.ppWins({ groep: [po.a, po.b], games: po.games }), doel = Math.floor(po.games.length / 2) + 1;
   const rijen = po.games.map(g => { const nodig = !(wins[po.a] >= doel || wins[po.b] >= doel) || !!g.w; return gameRijHtml(g, posFn, { act: 'dwin', attrs: 'data-key="' + key + '" data-i="' + i + '"', actief: !g.w && nodig && po.games.find(x => !x.w) === g && !po.winnaar, skip: !g.w && !nodig, locked: vast }); }).join('');
-  const fSel = UI.viewer ? '<div><span class="muted small">Formaat</span><br><b>' + esc(po.formaat) + '</b></div>' : '<label class="f" style="min-width:160px"><span>Formaat</span><select data-chg="d-formaat" data-key="' + key + '" data-i="' + i + '"' + (gestart ? ' disabled' : '') + '>' + P.ppFormaten(2).map(f => '<option' + (f === po.formaat ? ' selected' : '') + '>' + esc(f) + '</option>').join('') + '</select></label>';
+  const fSel = UI.viewer ? '' : '<label class="f" style="min-width:160px"><span>Formaat</span><select data-chg="d-formaat" data-key="' + key + '" data-i="' + i + '"' + (gestart ? ' disabled' : '') + '>' + P.ppFormaten(2).map(f => '<option' + (f === po.formaat ? ' selected' : '') + '>' + esc(f) + '</option>').join('') + '</select></label>';
   const walkover = po.forfait ? '<div class="note good small"><b>Walk-over wegens verhindering:</b> ' + esc(spelerNaam(po.forfait.winnaar)) + ' gaat door; ' + esc(spelerNaam(po.forfait.afwezig)) + ' was verhinderd.</div>' : '';
   return '<div class="sect playoff-block public-match-card"><header><h3>Play-off beste nummer 3</h3><span class="chip ' + (po.winnaar ? 'ok' : 'warn') + '">' + (po.winnaar ? 'Beslist: ' + esc(spelerNaam(po.winnaar)) + ' gaat door' : 'Wacht op uitslag') + '</span></header><div class="body stack">' + walkover +
-    '<p class="small">De nummers 3 van poule ' + (2 * i + 1) + ' en ' + (2 * i + 2) + ' hebben evenveel punten. De winnaar gaat door naar de volgende ronde.</p>' +
-    '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + (UI.viewer ? '' : (po.forfait ? '<button class="btn sec sm noprint" data-act="d-walkover-reset" data-key="' + key + '" data-i="' + i + '">Walk-over ongedaan maken</button>' : (vast ? '<button class="btn sec sm noprint" data-act="derde-ontgrendel" data-key="' + key + '" data-i="' + i + '">🔒 Ontgrendelen</button>' : ''))) + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="d-loot-breaks" data-key="' + key + '" data-i="' + i + '"' + (vast || gestart ? ' disabled' : '') + '>🎲 Loot wie breekt</button><button class="btn sec sm noprint" data-act="d-walkover" data-key="' + key + '" data-i="' + i + '"' + (vast || po.winnaar ? ' disabled' : '') + '>Winst wegens verhindering</button></div>') + '<div class="games public-match-list">' + gameKopHtml() + rijen + '</div><div class="row small" style="gap:12px"><span class="row gap-s">' + esc(spelerNaam(po.a)) + ' <b>' + wins[po.a] + '</b></span><span class="muted">·</span><span class="row gap-s">' + esc(spelerNaam(po.b)) + ' <b>' + wins[po.b] + '</b></span></div></div></div>';
+    (UI.viewer ? '' : '<p class="small">De nummers 3 van poule ' + (2 * i + 1) + ' en ' + (2 * i + 2) + ' hebben evenveel punten. De winnaar gaat door naar de volgende ronde.</p>') +
+    '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + (UI.viewer ? '' : (po.forfait ? '<button class="btn sec sm noprint" data-act="d-walkover-reset" data-key="' + key + '" data-i="' + i + '">Walk-over ongedaan maken</button>' : (vast ? '<button class="btn sec sm noprint" data-act="derde-ontgrendel" data-key="' + key + '" data-i="' + i + '">🔒 Ontgrendelen</button>' : ''))) + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="d-loot-breaks" data-key="' + key + '" data-i="' + i + '"' + (vast || gestart ? ' disabled' : '') + '>🎲 Loot wie breekt</button><button class="btn sec sm noprint" data-act="d-walkover" data-key="' + key + '" data-i="' + i + '"' + (vast || po.winnaar ? ' disabled' : '') + '>Winst wegens verhindering</button></div>') + '<div class="games public-match-list">' + gameKopHtml() + rijen + '</div><div class="row small" style="gap:12px"><span class="row gap-s">' + esc(spelerNaam(po.a)) + ' <b>' + wins[po.a] + '</b></span><span class="muted">·</span><span class="row gap-s">' + esc(spelerNaam(po.b)) + ' <b>' + wins[po.b] + '</b></span></div>' + (UI.viewer ? tvPlayoffStandingHtml([po.a,po.b],wins,po.games) : '') + '</div></div>';
 }
 function bronnenPh(key, p) {
   const vk = P.vorigeKey(T, key), pool = {}, derde = {};
@@ -3345,13 +3518,34 @@ function bronnenPh(key, p) {
   });
   return { vk, pool, derde };
 }
+function tvPlayoffScreenHtml(key,p) {
+  const {vk,pool,derde}=bronnenPh(key,p);
+  if(!vk)return '';
+  const blocks=[];
+  Object.keys(pool).forEach(n=>{
+    const pp=P.zoekPoule(T,vk,+n)?.pp;
+    if(!pp||pp.voltooid)return;
+    const st=pp.stappen[pp.stappen.length-1];
+    blocks.push({title:'Play-off poule '+n,ids:st.groep,wins:P.ppWins(st),games:st.games,needed:g=>P.ppGameNodig(st,g)});
+  });
+  Object.keys(derde).forEach(i=>{
+    const st=P.derdeStatus(T,vk,+i);
+    if(st.status!=='playoff')return;
+    const po=st.playoff,wins=P.ppWins({groep:[po.a,po.b],games:po.games});
+    blocks.push({title:'Play-off beste nummer 3',ids:[po.a,po.b],wins,games:po.games,needed:g=>!(wins[po.a]>=Math.floor(po.games.length/2)+1||wins[po.b]>=Math.floor(po.games.length/2)+1)||!!g.w});
+  });
+  if(!blocks.length)return '';
+  const games=blocks.map(b=>'<div class="tv-po-group"><div class="tv-po-subtitle">'+esc(b.title)+'</div><div class="games public-match-list">'+gameKopHtml()+b.games.filter(b.needed).map(g=>gameRijHtml(g,()=>0,{locked:true})).join('')+'</div></div>').join('');
+  const standings=blocks.map(b=>tvPlayoffStandingHtml(b.ids,b.wins,b.games)).join('');
+  return '<div class="viewer-playoff-top"><div class="tv-po-grid"><section class="sect tv-po-matches"><header><h3>Play-off wedstrijden</h3></header><div class="body">'+games+'</div></section><div class="tv-po-standings">'+standings+'</div></div></div>';
+}
 function vorigePlayoffsHtml(key, p) {
   const { vk, pool, derde } = bronnenPh(key, p); if (!vk) return '';
   let h = '';
-  Object.keys(pool).forEach(n => { const pp = P.zoekPoule(T, vk, +n); if (pp && pp.pp && !pp.pp.voltooid) h += '<h4 style="margin:4px 0">' + esc(rondeNaam(vk)) + ' · poule ' + n + '</h4>' + ppBlokHtml(vk, pp); });
-  Object.keys(derde).forEach(i => { const b = derdeBlokHtml(vk, +i); if (b) h += '<h4 style="margin:4px 0">' + esc(rondeNaam(vk)) + ' · beste nummer 3, weekend ' + (+i + 1) + '</h4>' + b; });
+  Object.keys(pool).forEach(n => { const pp = P.zoekPoule(T, vk, +n); if (pp && pp.pp && !pp.pp.voltooid) h += (UI.viewer ? '' : '<h4 style="margin:4px 0">' + esc(rondeNaam(vk)) + ' · poule ' + n + '</h4>') + ppBlokHtml(vk, pp); });
+  Object.keys(derde).forEach(i => { const b = derdeBlokHtml(vk, +i); if (b) h += (UI.viewer ? '' : '<h4 style="margin:4px 0">' + esc(rondeNaam(vk)) + ' · beste nummer 3, weekend ' + (+i + 1) + '</h4>') + b; });
   if (!h) return '';
-  return '<div class="sect" style="border-color:var(--warn)"><header><h3>Eerst spelen: play-off voor een plek in deze poule</h3><span class="chip warn">Voor de poulewedstrijden</span></header><div class="body stack"><p class="small">De spelers in deze play-off zijn ingeloot als “A / B”. Zodra de play-off beslist is, neemt de winnaar automatisch de plek in en verschijnen de wedstrijden van deze poule.</p>' + h + '</div></div>';
+  return '<div class="sect viewer-playoff-block" style="border-color:var(--warn)"><header><h3>Play-off wedstrijden</h3></header><div class="body stack">' + h + '</div></div>';
 }
 function derdeBlokkenVoorPoule(key, p) {
   const pr = P.planRonde(T, key); if (!pr || !pr.derden) return '';
@@ -3441,21 +3635,105 @@ function dagDetailHtml(key, nr) {
     '<div class="row noprint' + (UI.viewer ? ' public-dag-controls' : '') + '">' + navigatie + '</div></div></div></div>';
   const vast = P.vergrendeld(T, key, nr), ontgrendeldKlaar = !vast && p.ontgrendeld && P.pouleAfgerond(T, p);
   const slot = UI.viewer ? '' : (vast ? '<div class="note good row between"><span>🔒 <b>Deze speeldag is afgerond en vergrendeld.</b> Uitslagen kunnen niet per ongeluk worden gewijzigd.</span><button class="btn sec sm noprint" data-act="ontgrendel" data-key="' + key + '" data-nr="' + nr + '">Ontgrendelen…</button></div>' : (ontgrendeldKlaar ? '<div class="note warn row between"><span>🔓 <b>Ontgrendeld.</b> Je kunt uitslagen wijzigen.</span><button class="btn sm noprint" data-act="vergrendel" data-key="' + key + '" data-nr="' + nr + '">Weer vergrendelen</button></div>' : ''));
-  const waarschuw = slot + (vorigeOpen ? '<div class="note warn">De vorige speeldag (' + esc(rondePoule(vorige.ronde, vorige.poule).replace(/^Ronde /, 'R').replace(' · poule ', ' poule ')) + ', ' + esc(P.datumKort(vorige.datum)) + ') is nog niet afgerond.</div>' : '') +
+  const waarschuw = UI.viewer ? '' : slot + (vorigeOpen ? '<div class="note warn">De vorige speeldag (' + esc(rondePoule(vorige.ronde, vorige.poule).replace(/^Ronde /, 'R').replace(' · poule ', ' poule ')) + ', ' + esc(P.datumKort(vorige.datum)) + ') is nog niet afgerond.</div>' : '') +
     (wachtPh ? '<div class="note warn">Eén van de spelers is nog niet bekend: de play-off voor deze plek moet eerst worden gespeeld (zie hieronder).</div>' : '');
   const uitleg = UI.viewer ? '' : '<div class="row between noprint" style="margin-bottom:8px"><span class="muted small">Tik op de winnaar van elke wedstrijd. De speler links heeft de break. Sneltoetsen: <kbd>1</kbd> of ← links wint, <kbd>2</kbd> of → rechts wint, <kbd>Backspace</kbd> herstelt de vorige.</span><button class="btn sec sm" data-act="herstel" data-key="' + key + '" data-nr="' + nr + '"' + (kanHerstel && !vast ? '' : ' disabled') + '>Herstel vorige wedstrijd</button></div>';
-  const links = '<div>' + uitleg + (wachtPh ? '' : gamesHtml(key, p)) + '</div>';
+  const links = '<div>' + uitleg + gamesHtml(key, p) + '</div>';
   const derdePp = derdeBlokkenVoorPoule(key, p);
-  const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p) + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted" id="viewerNextMatch">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + brPaneel(key,nr) + testHulpHtml(key, p) + '</div>';
-  const playoffs = ppBlokHtml(key, p) + derdePp;
+  const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p) + (UI.viewer ? '' : pouleSamenvatting(key, p)) + (!UI.viewer && actief && actief.soort === 'reg' ? '<div class="small muted" id="viewerNextMatch">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + brPaneel(key,nr) + testHulpHtml(key, p) + '</div>';
+  const playoffs = (UI.viewer && wachtPh ? '' : ppBlokHtml(key, p) + derdePp);
+  const tvPlayoffOnly = UI.viewer && wachtPh && !!tvPlayoffScreenHtml(key,p);
+  const tvPlayoffMode = tvPlayoffOnly ? ' viewer-pending-playoff' : '';
   const verslagen = verslagBlokHtml('poule', key, nr) + verslagBlokHtml('weekend', key, nr);
-  return '<div class="stack-l dag-detail-stack">' + kop + waarschuw + (wachtPh ? vorigePlayoffsHtml(key, p) : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols' + (UI.viewer ? ' viewer-day-cols' : '') + '">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + (UI.viewer ? brVoetnoot() : '') + verslagen + '</div>';
+  return '<div class="stack-l dag-detail-stack' + tvPlayoffMode + '">' + kop + waarschuw + (wachtPh ? '<div class="viewer-playoff-mobile">' + vorigePlayoffsHtml(key, p) + '</div>' + (UI.viewer ? tvPlayoffScreenHtml(key,p) : '') : '') + '<div class="printtitle"><h2>' + esc(T.naam) + ' – ' + esc(rondePoule(key, nr)) + ' – ' + esc(P.datumLang(d.datum)) + ' – ' + esc(locNaam(dagLocatie(key, nr))) + '</h2></div><div class="cols' + (UI.viewer ? ' viewer-day-cols' : '') + '">' + links + rechts + '</div>' + (playoffs ? '<div class="playoff-fullwidth">' + playoffs + '</div>' : '') + (UI.viewer ? brVoetnoot() : '') + verslagen + '</div>';
+}
+function updateTvPlayoffPhase(){
+ const root=document.querySelector('.viewer-pending-playoff');
+ if(!root)return;
+ const target=countdownTarget();
+ if(!target||!target.playoff){
+   const d=UI.dag&&P.planDag(T,UI.dag.key,UI.dag.nr);
+   if(!d){root.classList.add('tv-show-playoff');return;}
+   const start=Date.parse(d.datum+'T13:30:00+01:00');
+   const now=Date.now();
+   root.classList.toggle('tv-show-playoff',now>=start-300000||Math.floor(now/30000)%2===0);
+   return;
+ }
+ const now=Date.now();
+ // Until 13:25 alternate every 30 seconds. From 13:25 only the play-off.
+ const cutoff=target.ms-5*60000;
+ const show=now>=cutoff || Math.floor(now/30000)%2===0;
+ root.classList.toggle('tv-show-playoff',show);
+}
+setInterval(()=>{if(UI.viewer&&document.documentElement.classList.contains('viewer-tv')&&!document.hidden)updateTvPlayoffPhase();},1000);
+let tvPlayoffAnnouncement=null;
+function notePlayoffResolution(oldT,newT){
+ if(!oldT||!newT||!oldT.rondes||!newT.rondes)return;
+ for(const key of Object.keys(newT.rondes)){
+  const before=oldT.rondes[key],after=newT.rondes[key];if(!before||!after||!before.poules||!after.poules)continue;
+  for(const np of after.poules){const op=before.poules.find(p=>p.nr===np.nr);if(!op)continue;
+   for(let i=0;i<np.spelers.length;i++){
+    const old=op.spelers[i],now=np.spelers[i];
+    if(P.isPh(old)&&now&&!P.isPh(now)&&old!==now){
+     const player=P.spelerById(newT,now);if(player){tvPlayoffAnnouncement={name:player.naam,until:Date.now()+120000,day:currentAmsterdamDay()};return;}
+    }
+   }
+  }
+ }
+}
+function updateTvPlayoffWinner(){
+ let el=document.getElementById('tvPlayoffWinner');
+ const on=tvPlayoffAnnouncement&&Date.now()<tvPlayoffAnnouncement.until&&UI.viewer&&!mobielWeergave()&&document.documentElement.classList.contains('viewer-tv');
+ if(!on){if(el)el.remove();return;}
+ if(!el){el=document.createElement('div');el.id='tvPlayoffWinner';el.className='tv-playoff-winner';document.body.appendChild(el);}
+ el.replaceChildren();
+ const h=document.createElement('div'),n=document.createElement('div');h.className='heading';n.className='winner';h.textContent='WINNAAR PLAYOFF';n.textContent=tvPlayoffAnnouncement.name;el.append(h,n);
+}
+setInterval(updateTvPlayoffWinner,1000);
+/* Publieke herstelweergave: een ingetrokken uitslag mag geen oude winnaar
+   in de volgende ronde laten staan. Alleen een ondubbelzinnige, nog niet
+   gespeelde plaats wordt tijdelijk als placeholder weergegeven.
+   De Firestore-bron en de beheerdersgegevens worden niet gewijzigd. */
+function herstelOpenPlayoffsPubliek(bron) {
+  if (!bron || !bron.plan || !bron.rondes) return bron;
+  const kopie = JSON.parse(JSON.stringify(bron));
+  const rondes = kopie.plan.rondes || [];
+  for (let ri = 0; ri + 1 < rondes.length; ri++) {
+    const key = rondes[ri].key, volgende = rondes[ri + 1].key;
+    const rd = kopie.rondes[key], nxt = kopie.rondes[volgende];
+    if (!rd || !nxt || !nxt.geloot || !Array.isArray(nxt.poules)) continue;
+    const entries = Object.entries((kopie.derden || {})[key] || {});
+    for (const [i, po] of entries) {
+      if (!po || !po.a || !po.b || po.a === po.b) continue;
+      // Controleer de echte stand: alleen een nog onbesliste play-off herstellen.
+      const st = P.derdeStatus(kopie, key, Number(i));
+      if (st.status !== 'playoff') continue;
+      const kandidaat = [po.a, po.b];
+      const gevonden = [];
+      nxt.poules.forEach(p => p.spelers.forEach((id, pos) => {
+        if (kandidaat.includes(id)) gevonden.push({p, pos, id});
+      }));
+      if (gevonden.length !== 1) continue;
+      const {p, pos, id} = gevonden[0];
+      if (P.heeftScores(p)) continue;
+      const token = 'phx:' + key + ':d' + i;
+      p.spelers[pos] = token;
+      (p.schema || []).forEach(g => {
+        if (g.a === id) g.a = token;
+        if (g.b === id) g.b = token;
+      });
+      kopie.ph = kopie.ph || {};
+      kopie.ph[token] = {key, soort:'derde', i:Number(i)};
+    }
+  }
+  return kopie;
 }
 function pasPubliekeStandToe(remote, melding) {
   if (!remote || !remote.id || !T || remote.id !== T.id) return false;
   const huidigeTab = UI.tab;
   const huidigeDag = UI.dag && { key: UI.dag.key, nr: UI.dag.nr };
   const huidigeStand = UI.stand;
+  notePlayoffResolution(T,remote);
   T = remote; migreerNaLaden(); UI.viewer = true; UI.tab = huidigeTab;
   UI.dag = huidigeDag && P.planDag(T, huidigeDag.key, huidigeDag.nr) ? huidigeDag : null;
   UI.stand = huidigeStand && P.planRonde(T, huidigeStand) ? huidigeStand : null;
@@ -3805,8 +4083,11 @@ function render() {
   updateViewerCountdown();
   updateViewerFullscreenButton();
   updateViewerTvButton();
+  updateViewerCompactButton();
   applyTvHalf();
+  updateTvPlayoffWinner();
   updateViewerFrozenStand();
+  updateTvPlayoffPhase();
   /* Standnamen mogen op meerdere regels, niet kleiner worden gemaakt. */
   ververscScorebordVenster();
   if (UI.scrollNaar) { const el = document.getElementById(UI.scrollNaar); UI.scrollNaar = null; if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 60); }
@@ -3992,6 +4273,7 @@ const ACT = {
   'br-adjust'(b) { const matches=brMatches(UI.dag.key,UI.dag.nr); const m=matches.find(x=>x.id===b.dataset.match); if(!m||![m.g.a,m.g.b].includes(b.dataset.id))return; T.breakRuns=T.breakRuns||{}; const v=T.breakRuns[m.id]||(T.breakRuns[m.id]={}); v[b.dataset.id]=Math.max(0,(Number(v[b.dataset.id])||0)+Number(b.dataset.delta)); if(!v[b.dataset.id])delete v[b.dataset.id]; UI.brSelected=m.id;UI.brOpen=true;commit(); },
   'viewer-fullscreen'() { toggleViewerFullscreen(); },
   'viewer-tv'() { toggleViewerTv(); },
+  'viewer-compact'() { if(UI.viewer&&!mobielWeergave()){document.documentElement.classList.toggle('viewer-compact');updateViewerCompactButton();applyTvHalf();} },
   'dag-lijst'() { UI.dagLijst = UI.dagLijst === false; render(); },
   tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = mobielWeergave() ? false : true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
   'ga-gegevens'() { UI.tab = 'instellingen'; UI.inst = 'gegevens'; render(); },
@@ -4315,18 +4597,55 @@ function koppelEvents() {
 }
 
 /* ---------- opstarten ---------- */
+/* Karroesel Pool gebruikt dezelfde actuele toeschouwers- en TV-code als Vue. */
+function isKarroeselRoute() {
+  return /\/karroesel(?:\/|\/index\.html)?$/i.test(location.pathname);
+}
+function isKarroeselTournamentData(t) {
+  if (!t || typeof t !== 'object') return false;
+  const locaties = Array.isArray(t.locaties) ? t.locaties : [];
+  const loc = locaties.find(x => x && x.id === t.locatieId) || locaties[0] || {};
+  return /karroesel/i.test(String(loc.naam || '')) || /karroesel/i.test(String(t.naam || ''));
+}
+function karroeselPubliekThema() {
+  return UI.viewer && isKarroeselRoute() && isKarroeselTournamentData(T);
+}
+function karroeselPublicUnavailable() {
+  document.title = 'Karroesel Pool – tijdelijk niet beschikbaar';
+  const app = document.getElementById('app');
+  if (!app) return;
+  app.innerHTML = '<main style="box-sizing:border-box;max-width:580px;margin:12vh auto;padding:28px 22px;font:16px/1.5 system-ui,Arial,sans-serif">' +
+    '<h1 style="font-size:28px;margin:0 0 12px">Karroesel Pool</h1>' +
+    '<p>De actuele gegevens van Karroesel konden niet worden opgehaald. Controleer de internetverbinding en of het toernooi openbaar is gepubliceerd.</p>' +
+    '<p><a href="/Pooltoernooi/Karroesel/" style="display:inline-block;padding:12px 18px;border-radius:9px;background:#6c3914;color:#fff;text-decoration:none;font-weight:700">Opnieuw proberen</a></p>' +
+    '</main>';
+}
 async function start() {
-  const queryPublicId = new URLSearchParams(location.search).get('tournament');
+  const params = new URLSearchParams(location.search);
+  const queryPublicId = params.get('tournament');
+  const isKarRoute = isKarroeselRoute();
+  const defaultKarId = 'tmvocon68k4ij1';
   const pathPart = location.pathname.replace(/\/+$/, '').split('/').pop().toLowerCase();
-  const pathPublicIds = { vue: 'tmvdkmjd0h8pa1' };
-  const publicId = queryPublicId || pathPublicIds[pathPart] || '';
+  const pathPublicIds = { karroesel: defaultKarId };
+  const publicId = queryPublicId || (isKarRoute ? defaultKarId : pathPublicIds[pathPart] || '');
   let opgeslagen = null, publiekGeladen = false;
+  if (isKarRoute) UI.viewer = true; // Ook bij een netwerkfout nooit terug naar beheer.
   if (publicId && window.POOL_ONLINE) {
     try {
       await window.POOL_ONLINE.ready;
-      const remote = await window.POOL_ONLINE.loadTournament(publicId, { public: true });
-      if (remote) {
-        T = remote;
+      let remote = await window.POOL_ONLINE.loadTournament(publicId, { public: true });
+      if (isKarRoute && queryPublicId && queryPublicId !== defaultKarId &&
+          (!remote || !isKarroeselTournamentData(remote))) {
+        // Een Vue-link mag de Karroesel-app niet overnemen.
+        const canonical = new URL(location.href);
+        canonical.searchParams.delete('tournament');
+        canonical.searchParams.delete('mode');
+        canonical.searchParams.delete('view');
+        history.replaceState(null, '', canonical.pathname + canonical.search + canonical.hash);
+        remote = await window.POOL_ONLINE.loadTournament(defaultKarId, { public: true });
+      }
+      if (remote && (!isKarRoute || isKarroeselTournamentData(remote))) {
+        T = herstelOpenPlayoffsPubliek(remote);
         UI.viewer = true;
         UI.publicLink = location.href;
         UI.tab = 'dag';
@@ -4335,7 +4654,12 @@ async function start() {
         if (startDag) UI.dag = { key: startDag.ronde, nr: startDag.poule };
         publiekGeladen = true;
       }
-    } catch (e) { }
+    } catch (e) { console.warn('Karroesel Pool: online toernooi niet geladen', e); }
+  }
+  if (!publiekGeladen && isKarRoute) {
+    // Geen oude lokaal opgeslagen beheerapp als terugval op de publieke URL.
+    karroeselPublicUnavailable();
+    return;
   }
   if (!publiekGeladen) {
     opgeslagen = laadOpgeslagen();
