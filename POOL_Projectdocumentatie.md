@@ -18,3 +18,11 @@
 - Manifest cacheversie v3; serviceworker cache v3. Bestaande toernooigegevens/Firebase-logica niet gewijzigd.
 - Installatie moet op Samsung Chrome worden getest; een al geregistreerde PWA kan nog door Android worden herkend.
 - Oude werkende `index.html` als terugval bewaren; geen live-test uitgevoerd.
+
+
+## 13 november 2026 – Beheer mobiel: play-off
+- GitHub-hoofdmap `Pooltoernooi/index.html`. Alleen mobiele beheerweergave aangepast.
+- Play-offstand krijgt een leesbare tweekolomsweergave met volledige koppelnaam en gewonnen wedstrijden.
+- Bij een opgeslagen play-off markeert de blauwe streep alleen de eerstvolgende nog open wedstrijd, niet alle open wedstrijden.
+- Desktop en publieke toeschouwersweergave blijven buiten scope.
+- JavaScript-syntax lokaal controleren; daadwerkelijke Samsung/Firebase-test nog nodig. Oude werkende index bewaren als terugval.
