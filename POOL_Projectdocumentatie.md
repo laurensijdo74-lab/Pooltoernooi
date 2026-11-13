@@ -26,3 +26,11 @@
 - Bij een opgeslagen play-off markeert de blauwe streep alleen de eerstvolgende nog open wedstrijd, niet alle open wedstrijden.
 - Desktop en publieke toeschouwersweergave blijven buiten scope.
 - JavaScript-syntax lokaal controleren; daadwerkelijke Samsung/Firebase-test nog nodig. Oude werkende index bewaren als terugval.
+
+## 13 november 2026 – aanvullende correctie mobiele beheerapp
+- GitHub-map: `Pooltoernooi/`, bestand `index.html`.
+- Openstaande play-offs verschijnen direct vóór de reguliere speeldagkop en het reguliere programma, zonder openklapactie.
+- Mobiele play-offstand gebruikt een eigen compacte tweekolomsweergave (volledige koppelnaam en aantal gewonnen wedstrijden); geen smalle vijfkolomstand.
+- De blauwe linkermarkering is op mobiel uitsluitend zichtbaar bij de eerstvolgende nog te spelen play-offwedstrijd. Ook het opgeslagen/fallback-play-offblok gebruikt diezelfde selectie.
+- Publieke app en desktop zijn niet aangepast. JavaScript-syntax lokaal te controleren; visuele test op Samsung en Firebase na upload blijft nodig.
+- Bewaar de vorige aantoonbaar werkende `index.html` als terugvalversie.
