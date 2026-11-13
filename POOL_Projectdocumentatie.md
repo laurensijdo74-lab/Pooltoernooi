@@ -1,49 +1,20 @@
-# POOL – wijziging 10 november 2026
+# POOL – Aanvulling locatiebeheer Stijn (13 november 2026)
 
-## Beheerlinks in Alle toernooien
-- De knop **Beheerdersapp** wisselt nu binnen de bestaande beheerapp naar het gekozen toernooi, zonder een nieuw Chrome-tabblad te openen.
-- De deelbare beheer-URL gebruikt voortaan `?beheer=<toernooi-id>` in plaats van `?tournament=<toernooi-id>`; de laatste parameter activeert de publieke toeschouwersmodus.
-- Bij openen van een beheer-URL wordt na initialisatie het juiste toernooi opgehaald uit de lokale beheercatalogus of, indien aangemeld, uit Firebase.
-- De bestaande toeschouwerslink, scorelogica, desktopopmaak en mobiele navigatie zijn niet gewijzigd.
+## Bron en afbakening
+Gebaseerd op de door gebruiker aangeleverde hoofdindex `index (5).html`. De bestaande mobiele playoff-CSS en publieke layouts zijn behouden. De laatste aantoonbaar werkende GitHub-hoofdindex moet vóór vervanging als terugval bewaard worden.
 
-## Controle
-- JavaScript-syntax gecontroleerd met Node.js.
-- Browser/PWA-installatie en Firebase-toegangsrechten moeten na upload op het daadwerkelijke toestel worden getest.
-- Bewaar de voorafgaande aantoonbaar werkende `index.html` als terugvalversie.
+## Toegang
+Stijn: Firebase Authentication UID `2jVMZAebdobk6XqlTR7xcc1dnph1`, profiel `/users/<UID>` met `globalRole: locationAdmin` en `locatieId: lmvdkozjc6n8116` (Vue Grandige). Superadmin behoudt toegang tot alle toernooien. De rol wordt na login uit Firestore gelezen. De toernooilijst gebruikt voor locationAdmin een query op `locatieId` en de interface filtert lokale gegevens eveneens.
 
+## Veilig opslaan
+Bij een bestaand toernooi blijft `eigenaarUid` ongewijzigd. Nieuwe toernooien krijgen de UID van de maker als eigenaar. Een locatiebeheerder mag alleen opslaan onder zijn eigen `locatieId`; de wizard gebruikt deze vaste locatie-ID. De bijgeleverde `firestore.rules` beperkt dit ook server-side, verbiedt locatie- en eigenaarwijzigingen en laat alleen superadmin locaties en gebruikersrechten wijzigen.
 
-## Vue Beheer PWA - installatie-identiteit (10 november 2026)
-- Map: `Pooltoernooi/vue-beheer/`, los van de hoofdmap en de toeschouwersapp.
-- Manifest: unieke `id` `/Pooltoernooi/vue-beheer/?identity=vue-beheer-2026`, start-URL `/Pooltoernooi/vue-beheer/?app=vue-beheer`, scope `/Pooltoernooi/vue-beheer/`.
-- Manifest cacheversie v3; serviceworker cache v3. Bestaande toernooigegevens/Firebase-logica niet gewijzigd.
-- Installatie moet op Samsung Chrome worden getest; een al geregistreerde PWA kan nog door Android worden herkend.
-- Oude werkende `index.html` als terugval bewaren; geen live-test uitgevoerd.
+## Uitrol – nog niet live getest
+1. Maak een back-up van de werkende hoofdindex en de huidige Firebase Rules.
+2. Controleer Stijns Firestore-profiel en dat het Vue-toernooi de juiste `locatieId` heeft.
+3. Test de regels eerst in Firebase Rules Playground/Emulator: superadmin kan alle toernooien beheren; Stijn kan Vue lezen/schrijven en Karroesel niet; publiek kan uitsluitend openbare toernooien lezen.
+4. Publiceer pas daarna de Rules en de nieuwe hoofdindex. Test login, toernooilijst, bestaande uitslag en nieuw Vue-toernooi met Stijns account.
+5. Test ook de hoofdbeheerder, publieke weergaven, mobiel en desktop. Geen live Firebase-test of echte browserregressietest uitgevoerd; alleen JavaScript-syntax lokaal gecontroleerd.
 
-
-## 13 november 2026 – Beheer mobiel: play-off
-- GitHub-hoofdmap `Pooltoernooi/index.html`. Alleen mobiele beheerweergave aangepast.
-- Play-offstand krijgt een leesbare tweekolomsweergave met volledige koppelnaam en gewonnen wedstrijden.
-- Bij een opgeslagen play-off markeert de blauwe streep alleen de eerstvolgende nog open wedstrijd, niet alle open wedstrijden.
-- Desktop en publieke toeschouwersweergave blijven buiten scope.
-- JavaScript-syntax lokaal controleren; daadwerkelijke Samsung/Firebase-test nog nodig. Oude werkende index bewaren als terugval.
-
-## 13 november 2026 – mobiele beheer-playoff (vervolg)
-- Alleen mobiele beheerweergave (maximaal 980 px): de play-offstand heeft nu dezelfde compacte drie kolommen als de reguliere stand: Speler, Ptn en Status. Namen blijven bij elkaar met normale woordafbreking; poolballen staan voor de teams.
-- De blauwe actieve markering staat bij de opgeslagen play-off uitsluitend op de eerste nog niet gespeelde wedstrijd, niet op alle openstaande wedstrijden.
-- Geen wijzigingen aan publieke app, desktop, uitslagberekening of gegevensopslag.
-- Syntaxcontrole uitgevoerd; daadwerkelijke Samsung/Firebase-test nog nodig. Vorige werkende versie als terugval bewaren.
-
-## 13 november 2026 – mobiele beheerweergave, vergelijking publieke app
-- Alleen `Pooltoernooi/index.html` in de hoofdmap gewijzigd; publieke `vue/index.html` is uitsluitend als leesvoorbeeld gebruikt en niet aangepast.
-- Bij mobiele beheerstand van een speeldag met openstaande placeholder wordt de bestaande play-offkaart direct boven de reguliere stand getoond, zonder eerst op `Open` te hoeven klikken.
-- De compacte play-offstand blijft drie kolommen: Speler, Ptn, Status; koppelnamen breken alleen op spaties.
-- Blauwe actieve markering uitsluitend op de eerste nog openstaande play-offwedstrijd.
-- Desktop en Firebase/uitslagfuncties niet gewijzigd. Browsercontrole op Samsung blijft noodzakelijk.
-
-## 13 november 2026 – correctie juiste beheerlocatie
-- Te publiceren bestand: `Pooltoernooi/vue-beheer/index.html` (niet de hoofdmap).
-- Alleen mobiele beheer-play-off aangepast: stand in drie kolommen Speler/Ptn/Status, met normale woordafbreking en dezelfde ruimteverdeling als reguliere mobiele stand.
-- Opgeslagen derde-plaats-play-off: uitsluitend eerstvolgende ongespeelde wedstrijd blauw gemarkeerd.
-- Mobiele play-offkaart direct zichtbaar boven reguliere speeldag; geen extra uitklapkaart toegevoegd.
-- Publieke app, desktop en uitslag-/Firebase-logica niet gewijzigd. JavaScript-syntax van klassieke scripts gecontroleerd; live Samsung-test nog nodig.
-- Bestaande werkende `vue-beheer/index.html` bewaren als terugvalversie.
+## Open aandachtspunten
+De beheerapp bevat oudere lokale import- en resetfuncties. De Firestore-regels blijven de definitieve beveiligingslaag. Synchronisatie gebruikt bestaande last-write-wins-logica; gelijktijdig bewerken van hetzelfde toernooi kan conflicten geven. De volledige eerdere projectdocumentatie blijft van kracht; dit is een aanvulling en geen vervanging van de historische beschrijving.
