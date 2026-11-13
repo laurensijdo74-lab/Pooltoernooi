@@ -1186,6 +1186,24 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  .admin-playoff-stand{border:1px solid #ddd;padding:2mm}
 }
 
+
+/* 13-11: uitsluitend mobiele beheer-play-off; publieke app en desktop onaangetast. */
+@media screen and (max-width:980px){
+ body:not(.public-mode) .admin-mobile-day .admin-pre-playoffs .admin-pre-playoff-content,
+ body:not(.public-mode) .admin-mobile-day .admin-pre-playoffs .playoff-block,
+ body:not(.public-mode) .admin-mobile-day .admin-pre-playoffs .admin-playoff-grid{display:flex!important;flex-direction:column!important;visibility:visible!important;max-height:none!important;overflow:visible!important}
+ body:not(.public-mode) .admin-mobile-day .admin-pre-playoffs .admin-playoff-stand{order:-1;width:100%;min-width:0}
+ body:not(.public-mode) .admin-mobile-day .admin-pre-playoffs .admin-playoff-stand .scroll-x{overflow-x:hidden!important}
+ body:not(.public-mode) .admin-mobile-day .admin-pre-playoffs .admin-playoff-stand table{width:100%!important;table-layout:fixed!important}
+ body:not(.public-mode) .admin-mobile-day .admin-pre-playoffs .admin-playoff-stand th:first-child{width:62%!important}
+ body:not(.public-mode) .admin-mobile-day .admin-pre-playoffs .admin-playoff-stand th:nth-child(2){width:14%!important;text-align:center}
+ body:not(.public-mode) .admin-mobile-day .admin-pre-playoffs .admin-playoff-stand th:last-child{width:24%!important}
+ body:not(.public-mode) .admin-mobile-day .admin-pre-playoffs .admin-playoff-stand td,
+ body:not(.public-mode) .admin-mobile-day .admin-pre-playoffs .admin-playoff-stand th{padding:8px 3px!important;overflow:hidden;vertical-align:middle}
+ body:not(.public-mode) .admin-mobile-day .admin-pre-playoffs .admin-playoff-stand .naam{display:grid!important;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:5px;white-space:normal!important;overflow-wrap:normal!important;word-break:normal!important;font-size:clamp(12px,3.5vw,16px)!important}
+ body:not(.public-mode) .admin-mobile-day .admin-pre-playoffs .admin-playoff-stand .admin-po-naam{min-width:0;white-space:normal;overflow-wrap:normal;word-break:normal;line-height:1.2}
+ body:not(.public-mode) .admin-mobile-day .admin-pre-playoffs .admin-playoff-stand .chip{font-size:10px;white-space:normal;overflow-wrap:normal}
+}
 </style>
 </head>
 <body>
@@ -3653,6 +3671,7 @@ function verslagBlokHtml(soort, key, nr) {
 // Gedeelde mini-stand voor poule-play-offs, beste nummer 3 en historische play-offs.
 // Alleen de beheerdersweergave gebruikt dit nieuwe formaat; toeschouwers blijven zoals ze waren.
 function adminPlayoffStandHtml(ids, games, wins, posFn, klaar, winnaarId) {
+  const mobielBeheer = !UI.viewer && mobielWeergave();
   const volgorde = (ids || []).slice().sort((a, b) => (wins[b] || 0) - (wins[a] || 0));
   const maxWinst = Math.max(0, ...volgorde.map(id => wins[id] || 0));
   const explicieteWinnaar = winnaarId || (klaar && volgorde.length === 2 && maxWinst > (wins[volgorde[1]] || 0) ? volgorde[0] : null);
@@ -3662,10 +3681,10 @@ function adminPlayoffStandHtml(ids, games, wins, posFn, klaar, winnaarId) {
     const status = gewonnen ? '<span class="chip ok">Winnaar</span>' : klaar ? '<span class="chip muted">Gespeeld</span>' : '<span class="chip info">In strijd</span>';
     const nummer = posFn(id) > 0 ? posFn(id) : i + 1;
     return '<tr' + (gewonnen ? ' class="door"' : '') + '><td><span class="naam">' + ball(nummer) + '<span class="admin-po-naam">' + esc(spelerNaam(id)) + '</span></span></td>' +
-      '<td class="num"><b>' + n + '</b></td><td class="num">' + gespeeld + '</td><td>' + status + '</td></tr>';
+      '<td class="num"><b>' + n + '</b></td>' + (mobielBeheer ? '' : '<td class="num">' + gespeeld + '</td>') + '<td>' + status + '</td></tr>';
   }).join('');
   return '<div class="admin-playoff-stand"><div class="admin-playoff-stand-head"><h4>Stand</h4><span class="muted small">Play-off</span></div>' +
-    '<div class="scroll-x"><table class="t stand"><thead><tr><th>Speler / koppel</th><th class="num" title="Gewonnen">Gew.</th><th class="num" title="Gespeeld">Ges.</th><th>Status</th></tr></thead><tbody>' + rijen + '</tbody></table></div></div>';
+    '<div class="scroll-x"><table class="t stand"><thead><tr><th>' + (mobielBeheer ? 'Speler' : 'Speler / koppel') + '</th><th class="num" title="Gewonnen">' + (mobielBeheer ? 'Ptn' : 'Gew.') + '</th>' + (mobielBeheer ? '' : '<th class="num" title="Gespeeld">Ges.</th>') + '<th>Status</th></tr></thead><tbody>' + rijen + '</tbody></table></div></div>';
 }
 function playoffWedstrijdenEnStandHtml(wedstrijden, samenvatting, ids, games, wins, posFn, klaar, winnaarId) {
   if (UI.viewer) return wedstrijden + samenvatting;
@@ -3766,7 +3785,8 @@ function derdeBlokOpgeslagenHtml(key,i,po) {
   const gestart=po.games.some(g=>g.w), vast=!!po.winnaar || !!po.forfait;
   const wins=P.ppWins({groep:[po.a,po.b],games:po.games});
   const doel=Math.floor(po.games.length/2)+1;
-  const rijen=po.games.map(g=>gameRijHtml(g,()=>0,{act:'dwin',attrs:'data-key="'+key+'" data-i="'+i+'"',actief:!g.w && !vast,locked:vast})).join('');
+  const eerstOpen=po.games.find(g=>!g.w);
+  const rijen=po.games.map(g=>gameRijHtml(g,()=>0,{act:'dwin',attrs:'data-key="'+key+'" data-i="'+i+'"',actief:!vast && g===eerstOpen,locked:vast})).join('');
   const fSel=UI.viewer?'<b>'+esc(po.formaat||'Best of 5')+'</b>':'<label class="f"><span>Format</span><select data-chg="d-formaat" data-key="'+key+'" data-i="'+i+'"'+(gestart||vast?' disabled':'')+'>'+P.ppFormaten(2).map(f=>'<option'+(f===(po.formaat||'Best of 5')?' selected':'')+'>'+esc(f)+'</option>').join('')+'</select></label>';
   const controls=UI.viewer||gestart||vast?'':'<div class="row admin-playoff-controls">'+fSel+'<button class="btn sec sm noprint" data-act="d-swap-start" data-key="'+key+'" data-i="'+i+'">⇄ Startteam wisselen</button></div>';
   return '<div class="sect playoff-block public-match-card"><header><h3>Play-off beste nummer 3</h3><span class="chip warn">Nog te spelen</span></header><div class="body stack">'+controls+playoffWedstrijdenEnStandHtml('<div class="games">'+gameKopHtml()+rijen+'</div>', '<div class="row small"><b>'+esc(spelerNaam(po.a))+' '+(wins[po.a]||0)+'</b><span>–</span><b>'+esc(spelerNaam(po.b))+' '+(wins[po.b]||0)+'</b></div>', [po.a,po.b], po.games, wins, ()=>0, !!po.winnaar, po.winnaar)+'</div></div>';
