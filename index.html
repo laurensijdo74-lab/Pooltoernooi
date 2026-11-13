@@ -1136,6 +1136,27 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  /* De oude vierkoloms-playoffstand is op mobiel vervangen door de compacte stand. */
  body:not(.public-mode) .admin-mobile-day .playoff-block .admin-playoff-stand ~ .row.small:last-child{display:none!important}
 }
+
+/* 13-11: uitsluitend mobiele beheerplayoffs; publieke en desktop-HTML intact. */
+@media screen and (max-width:980px){
+ body:not(.public-mode) .admin-mobile-day .playoff-block .admin-playoff-stand,
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .admin-playoff-stand{display:block!important;width:100%;min-width:0;margin:8px 0 10px}
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs{padding:0 8px 8px;min-width:0}
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .playoff-block{width:100%;min-width:0}
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .playoff-block .body{padding:8px!important}
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .admin-playoff-stand table{width:100%;table-layout:fixed;border-collapse:collapse}
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .admin-playoff-stand th:first-child{width:64%}
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .admin-playoff-stand th:nth-child(2){width:13%}
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .admin-playoff-stand th:last-child{width:23%}
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .admin-playoff-stand th,
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .admin-playoff-stand td{padding:9px 3px;text-align:left;vertical-align:middle}
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .admin-playoff-team{display:flex;align-items:center;gap:6px;font-weight:750;min-width:0}
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .admin-playoff-team .ball{display:inline-grid!important;flex:none;font-size:12px}
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .admin-playoff-team span:last-child{white-space:normal;word-break:normal;overflow-wrap:normal;min-width:0}
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .admin-playoff-stand td:nth-child(2),
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .admin-playoff-stand td:last-child{text-align:center}
+ body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .admin-playoff-stand ~ .row.small:last-child{display:none!important}
+}
 </style>
 </head>
 <body>
@@ -3886,7 +3907,7 @@ function viewStanden() {
     const openKnop = '<button class="btn sec sm noprint" data-act="open-dag" data-key="' + key + '" data-nr="' + p.nr + '">Open</button>';
     return UI.viewer
       ? '<div class="sect viewer-standings-card"><header><h3 class="stand-dag-titel">' + esc(P.datumLang(d.datum)) + '</h3><div class="viewer-standings-actions">' + statusHtml + openKnop + '</div></header><div class="body">' + standHtml(key, p, true) + '</div></div>'
-      : '<div class="sect admin-stand-card"><header><h3 class="stand-dag-titel">' + esc(P.datumLang(d.datum)) + '</h3>' + statusHtml + openKnop + '</header><div class="body">' + standHtml(key, p, true) + '</div></div>'; }).join('');
+      : '<div class="sect admin-stand-card"><header><h3 class="stand-dag-titel">' + esc(P.datumLang(d.datum)) + '</h3>' + statusHtml + openKnop + '</header>' + (mobielWeergave() ? '<div class="admin-inline-playoffs">' + vorigePlayoffsHtml(key, p) + '</div>' : '') + '<div class="body">' + standHtml(key, p, true) + '</div></div>'; }).join('');
   let extra = '';
   const kw = P.kwalificatie(T, key);
   if (!P.volgendeKey(T, key)) {

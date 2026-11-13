@@ -32,3 +32,10 @@
 - De blauwe actieve markering staat bij de opgeslagen play-off uitsluitend op de eerste nog niet gespeelde wedstrijd, niet op alle openstaande wedstrijden.
 - Geen wijzigingen aan publieke app, desktop, uitslagberekening of gegevensopslag.
 - Syntaxcontrole uitgevoerd; daadwerkelijke Samsung/Firebase-test nog nodig. Vorige werkende versie als terugval bewaren.
+
+## 13 november 2026 – mobiele beheerweergave, vergelijking publieke app
+- Alleen `Pooltoernooi/index.html` in de hoofdmap gewijzigd; publieke `vue/index.html` is uitsluitend als leesvoorbeeld gebruikt en niet aangepast.
+- Bij mobiele beheerstand van een speeldag met openstaande placeholder wordt de bestaande play-offkaart direct boven de reguliere stand getoond, zonder eerst op `Open` te hoeven klikken.
+- De compacte play-offstand blijft drie kolommen: Speler, Ptn, Status; koppelnamen breken alleen op spaties.
+- Blauwe actieve markering uitsluitend op de eerste nog openstaande play-offwedstrijd.
+- Desktop en Firebase/uitslagfuncties niet gewijzigd. Browsercontrole op Samsung blijft noodzakelijk.
