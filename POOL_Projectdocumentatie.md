@@ -39,3 +39,11 @@
 - De compacte play-offstand blijft drie kolommen: Speler, Ptn, Status; koppelnamen breken alleen op spaties.
 - Blauwe actieve markering uitsluitend op de eerste nog openstaande play-offwedstrijd.
 - Desktop en Firebase/uitslagfuncties niet gewijzigd. Browsercontrole op Samsung blijft noodzakelijk.
+
+## 13 november 2026 – correctie juiste beheerlocatie
+- Te publiceren bestand: `Pooltoernooi/vue-beheer/index.html` (niet de hoofdmap).
+- Alleen mobiele beheer-play-off aangepast: stand in drie kolommen Speler/Ptn/Status, met normale woordafbreking en dezelfde ruimteverdeling als reguliere mobiele stand.
+- Opgeslagen derde-plaats-play-off: uitsluitend eerstvolgende ongespeelde wedstrijd blauw gemarkeerd.
+- Mobiele play-offkaart direct zichtbaar boven reguliere speeldag; geen extra uitklapkaart toegevoegd.
+- Publieke app, desktop en uitslag-/Firebase-logica niet gewijzigd. JavaScript-syntax van klassieke scripts gecontroleerd; live Samsung-test nog nodig.
+- Bestaande werkende `vue-beheer/index.html` bewaren als terugvalversie.
