@@ -2657,16 +2657,6 @@ function pasThemaToe(loc) {
   document.title = (T.naam || 'Pooltoernooi') + ' – ' + (loc.naam || '');
 }
 
-/* Locatiebeheer: UI-beperking; Firestore Rules zijn de definitieve beveiliging. */
-function adminAllowed(t){
- const role=window.POOL_ONLINE?.state?.role;
- return !role || role.globalRole!=='locationAdmin' || (!!t && String(t.locatieId)===String(role.locatieId));
-}
-function adminGuard(){
- if(UI.viewer) return true;
- if(!adminAllowed(T)){toast('Geen beheerrechten voor deze locatie.',true);return false;}
- return true;
-}
 /* ---------- opslag ---------- */
 const LS_KEY = 'pooltoernooi.v1.actief', LS_HP = 'pooltoernooi.v1.herstelpunten';
 let saveTimer = null, fileTimer = null, laatsteHerstelpunt = 0;
@@ -2745,7 +2735,7 @@ function startOnlineSynchronisatie() {
 
 async function synchroniseerOnlineNu() {
   const o = window.POOL_ONLINE;
-  if (!onlineActief() || !adminAllowed(T)) return false;
+  if (!onlineActief()) return false;
   try {
     await o.saveTournament(T, { status: 'actief', toegang: T.online.toegang || 'besloten' });
     T.laatsteOnline = new Date().toISOString();
@@ -2762,7 +2752,6 @@ function planOnlineSynchronisatie() {
 }
 
 function commit(opties) {
-  if(!adminGuard()) return;
   opties = opties || {};
   T.gewijzigd = new Date().toISOString();
   if (Date.now() - laatsteHerstelpunt > 6 * 3600 * 1000 && P.spelerById) maakHerstelpunt('Automatisch');
@@ -4358,7 +4347,6 @@ function adminCatalog(){try{return JSON.parse(localStorage.getItem(ADMIN_CATALOG
 function adminRemember(){if(!T||!T.id||UI.viewer)return;const all=adminCatalog();all[T.id]={id:T.id,naam:T.naam,datum:T.instellingen.startdatum,gewijzigd:T.gewijzigd,locatie:locatieVoorWeergave().naam};try{localStorage.setItem(ADMIN_CATALOG_KEY,JSON.stringify(all));localStorage.setItem('pooltoernooi.admin.data.'+T.id,JSON.stringify(T))}catch(e){}}
 function adminCloseMenu(){UI.adminMenu=false}
 function adminWizard(){
- if(!adminAllowed(T)){toast('Geen toegang tot dit toernooi.',true);return;}
  adminCloseMenu();const w={step:0,naam:'',locatie:'',datum:'2027-01-02',type:'koppels',aantal:10,namen:'',thema:'biljartgroen',pauze:'half',lotingMethode:'app',derden:'auto',starttijd:'14:00',breakRun:false,openbaar:false};
  const pages=[['Basisgegevens','Naam, locatie en eerste speeldag'],['Deelnemers','Spelers of koppels'],['Speelopzet','Bestaande poulecompetitie met thuis- en uitwedstrijden'],['Planning','Speeldagen en pauze'],['Uiterlijk en opties','Thema en extra mogelijkheden'],['Controleren','Controleer je keuzes voor het aanmaken']];
  const field=(label,html)=>'<label class="f"><span>'+label+'</span>'+html+'</label>';
@@ -4379,7 +4367,7 @@ function adminWizard(){
  function draw(){let ov=document.getElementById('adminWizardOverlay');if(!ov){ov=document.createElement('div');ov.id='adminWizardOverlay';ov.className='overlay admin-wizard';document.body.appendChild(ov)}
  ov.innerHTML='<div class="dialog wide"><h3>Nieuw toernooi · stap '+(w.step+1)+' van '+pages.length+'</h3><div class="db"><div class="steps">'+pages.map((x,i)=>'<i class="'+(i<=w.step?'done':'')+'"></i>').join('')+'</div><h4>'+pages[w.step][0]+'</h4><p class="muted small">'+pages[w.step][1]+'</p>'+body()+'</div><div class="df"><button class="btn sec" id="wiz-cancel">Annuleren</button>'+(w.step?'<button class="btn sec" id="wiz-back">Vorige</button>':'')+'<button class="btn" id="wiz-next">'+(w.step===5?'Toernooi aanmaken':'Volgende')+'</button></div></div>';
  document.getElementById('wiz-cancel').onclick=()=>ov.remove();const back=document.getElementById('wiz-back');if(back)back.onclick=()=>{save();w.step--;draw()};
- document.getElementById('wiz-next').onclick=()=>{if(!save())return;if(w.step<5){w.step++;draw();return}adminRemember();stopOnlineSynchronisatie();const role=window.POOL_ONLINE?.state?.role; if(role?.globalRole==='locationAdmin' && !adminAllowed(T)){toast('Geen toegang tot deze locatie.',true);return;} const nieuw=P.nieuwToernooi({naam:w.naam,startdatum:w.datum,locatieNaam:role?.globalRole==='locationAdmin'?(T.locaties.find(x=>x.id===role.locatieId)?.naam||'Vue Grandige'):(w.locatie||'Hoofdlocatie')}); if(role?.globalRole==='locationAdmin'){nieuw.locatieId=role.locatieId;nieuw.locaties[0].id=role.locatieId;} nieuw.locaties[0].thema=w.thema;nieuw.instellingen.pauzeNa=w.pauze;nieuw.instellingen.lotingMethode=w.lotingMethode;nieuw.instellingen.derden={0:w.derden};nieuw.instellingen.breakRun=w.breakRun;nieuw.instellingen.starttijdVoorkeur=w.starttijd;nieuw.deelnemersvorm=w.type;nieuw.verwachtAantal=w.aantal;nieuw.online.toegang=w.openbaar?'openbaar':'besloten';nieuw.online.gepubliceerd=w.openbaar;w.namen.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).forEach(n=>nieuw.spelers.push(P.nieuweSpeler(n)));P.herplan(nieuw);T=nieuw;UI.dag=null;UI.lotingKey=null;UI.tab='overzicht';ov.remove();commit();adminRemember();startOnlineSynchronisatie();toast('Nieuw toernooi aangemaakt. Vul zo nodig de overige deelnemers in en start daarna de loting.');};}
+ document.getElementById('wiz-next').onclick=()=>{if(!save())return;if(w.step<5){w.step++;draw();return}adminRemember();stopOnlineSynchronisatie();const nieuw=P.nieuwToernooi({naam:w.naam,startdatum:w.datum,locatieNaam:w.locatie||'Hoofdlocatie'});nieuw.locaties[0].thema=w.thema;nieuw.instellingen.pauzeNa=w.pauze;nieuw.instellingen.lotingMethode=w.lotingMethode;nieuw.instellingen.derden={0:w.derden};nieuw.instellingen.breakRun=w.breakRun;nieuw.instellingen.starttijdVoorkeur=w.starttijd;nieuw.deelnemersvorm=w.type;nieuw.verwachtAantal=w.aantal;nieuw.online.toegang=w.openbaar?'openbaar':'besloten';nieuw.online.gepubliceerd=w.openbaar;w.namen.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).forEach(n=>nieuw.spelers.push(P.nieuweSpeler(n)));P.herplan(nieuw);T=nieuw;UI.dag=null;UI.lotingKey=null;UI.tab='overzicht';ov.remove();commit();adminRemember();startOnlineSynchronisatie();toast('Nieuw toernooi aangemaakt. Vul zo nodig de overige deelnemers in en start daarna de loting.');};}
  draw();
 }
 function adminTournamentStatus(item){
@@ -4405,9 +4393,7 @@ function adminAll(){
  adminCloseMenu();adminRemember();
  const local=adminCatalog(),online=(window.POOL_ONLINE?.state?.tournaments||[]),all={...local};
  online.forEach(x=>{all[x.id]={...(all[x.id]||{}),...x,online:true}});
- const role=window.POOL_ONLINE?.state?.role;
- const allowed=x=>role?.globalRole!=='locationAdmin'||String(adminTournamentData(x.id)?.locatieId||x.locatieId||'')===String(role.locatieId);
- const rows=Object.values(all).filter(allowed).sort((a,b)=>String(a.datum||a.startdatum||'9999').localeCompare(String(b.datum||b.startdatum||'9999'))||String(a.naam||'').localeCompare(String(b.naam||''),'nl'));
+ const rows=Object.values(all).sort((a,b)=>String(a.datum||a.startdatum||'9999').localeCompare(String(b.datum||b.startdatum||'9999'))||String(a.naam||'').localeCompare(String(b.naam||''),'nl'));
  const groepen=new Map();
  rows.forEach(x=>{const naam=x.locatie||x.locatieNaam||adminTournamentData(x.id)?.locaties?.[0]?.naam||'Locatie onbekend';if(!groepen.has(naam))groepen.set(naam,[]);groepen.get(naam).push(x)});
  const html=[...groepen.entries()].sort((a,b)=>a[0].localeCompare(b[0],'nl')).map(([loc,items])=>'<section class="admin-tourney-group"><h4>📍 '+esc(loc)+' <span class="muted small">('+items.length+')</span></h4>'+items.map(x=>{
@@ -4431,7 +4417,7 @@ async function adminDelete(id){
  delete catalog[id];localStorage.setItem(ADMIN_CATALOG_KEY,JSON.stringify(catalog));localStorage.removeItem('pooltoernooi.admin.data.'+id);
  document.querySelector('.overlay')?.remove();toast('Concepttoernooi verwijderd');adminAll();
 }
-async function adminLoad(id,duplicate){let item=null;try{item=JSON.parse(localStorage.getItem('pooltoernooi.admin.data.'+id)||'null')}catch(e){}if(!item&&window.POOL_ONLINE?.loadTournament){try{item=await window.POOL_ONLINE.loadTournament(id)}catch(e){}}if(item && !adminAllowed(item)){toast('Geen toegang tot deze locatie.',true);return}if(!item){toast('Toernooi niet beschikbaar. Meld je aan voor online toernooien.',true);return}if(!duplicate&&!(await bevestig('Open '+esc(item.naam)+'? De huidige stand wordt apart bewaard.',{titel:'Toernooi wisselen',ja:'Openen'})))return;adminRemember();stopOnlineSynchronisatie();if(duplicate){item=JSON.parse(JSON.stringify(item));item.id=P.uid('t');item.naam+=' (kopie)';item.online={toegang:'besloten',synchroniseren:true,gepubliceerd:false};item.gewijzigd=new Date().toISOString()}T=item;migreerNaLaden();UI.tab='overzicht';UI.dag=null;UI.lotingKey=null;commit();adminRemember();startOnlineSynchronisatie();toast(duplicate?'Kopie gemaakt':'Toernooi geopend');}
+async function adminLoad(id,duplicate){let item=null;try{item=JSON.parse(localStorage.getItem('pooltoernooi.admin.data.'+id)||'null')}catch(e){}if(!item&&window.POOL_ONLINE?.loadTournament){try{item=await window.POOL_ONLINE.loadTournament(id)}catch(e){}}if(!item){toast('Toernooi niet beschikbaar. Meld je aan voor online toernooien.',true);return}if(!duplicate&&!(await bevestig('Open '+esc(item.naam)+'? De huidige stand wordt apart bewaard.',{titel:'Toernooi wisselen',ja:'Openen'})))return;adminRemember();stopOnlineSynchronisatie();if(duplicate){item=JSON.parse(JSON.stringify(item));item.id=P.uid('t');item.naam+=' (kopie)';item.online={toegang:'besloten',synchroniseren:true,gepubliceerd:false};item.gewijzigd=new Date().toISOString()}T=item;migreerNaLaden();UI.tab='overzicht';UI.dag=null;UI.lotingKey=null;commit();adminRemember();startOnlineSynchronisatie();toast(duplicate?'Kopie gemaakt':'Toernooi geopend');}
 function adminTheme(){adminCloseMenu();const loc=locatieVoorWeergave();dialoog({titel:'Thema huidig toernooi',html:'<p>Wijzig het uiterlijk zonder loting of uitslagen te veranderen.</p><label class="f">Thema<select id="admin-theme">'+Object.keys(THEMAS).map(k=>'<option value="'+k+'"'+(loc.thema===k?' selected':'')+'>'+esc(THEMAS[k].naam)+'</option>').join('')+'</select></label>',knoppen:[{label:'Annuleren',val:null,cls:'sec'},{label:'Thema toepassen',val:'apply'}],lees:ov=>$('#admin-theme',ov).value}).then(v=>{if(!v)return;loc.thema=v;commit();toast('Thema aangepast');});}
 function adminChangelog(){adminCloseMenu();melding('Changelog',ADMIN_CHANGELOG.map(([d,t])=>'<p><b>'+esc(d)+'</b> · '+esc(t)+'</p>').join('')+'<p class="small muted">Alleen wijzigingen die betrouwbaar zijn vastgelegd worden getoond.</p>');}
 const ACT = {
@@ -4615,12 +4601,12 @@ const ACT = {
   'hp-maak'() { if (maakHerstelpunt('Handmatig')) toast('Herstelpunt gemaakt'); else toast('Herstelpunt maken is niet gelukt (opslag vol?)', true); render(); },
   async 'nieuw-toernooi'() {
     if (!(await bevestig('Er wordt een leeg toernooi gestart. Het huidige toernooi blijft als herstelpunt bewaard (en je kunt eerst een bestand bewaren).', { ja: 'Nieuw toernooi', gevaar: true }))) return;
-    if(window.POOL_ONLINE?.state?.role?.globalRole==='locationAdmin'){toast('Gebruik Nieuw toernooi in het beheermenu.',true);return;} maakHerstelpunt('Voor nieuw toernooi'); const loc = T.locaties; const nieuw = P.nieuwToernooi({ naam: 'Nieuw pooltoernooi' });
+    maakHerstelpunt('Voor nieuw toernooi'); const loc = T.locaties; const nieuw = P.nieuwToernooi({ naam: 'Nieuw pooltoernooi' });
     nieuw.locaties = JSON.parse(JSON.stringify(loc)); nieuw.locatieId = T.locatieId; T = nieuw; stopAnimatie(); UI.dag = null; UI.lotingKey = null; UI.tab = 'spelers'; commit();
   },
   async 'reset-alles'() {
     if (!(await bevestig('Alles wordt gewist: spelers, loting, uitslagen, locaties en instellingen. Het toernooi begint weer helemaal leeg. Er wordt eerst een herstelpunt bewaard.', { titel: 'Alles resetten?', ja: 'Alles resetten', gevaar: true }))) return;
-    if(window.POOL_ONLINE?.state?.role?.globalRole==='locationAdmin'){toast('Reset naar andere locatie niet toegestaan.',true);return;} maakHerstelpunt('Voor reset'); T = P.nieuwToernooi({ naam: 'Pooltoernooi 2027' }); stopAnimatie();
+    maakHerstelpunt('Voor reset'); T = P.nieuwToernooi({ naam: 'Pooltoernooi 2027' }); stopAnimatie();
     UI.dag = null; UI.lotingKey = null; UI.stand = null; UI.manual = null; UI.modus = null; UI.sel = null; UI.locEdit = T.locatieId; UI.bevestigd = {}; UI.tab = 'overzicht'; commit(); toast('Alles is gereset');
   },
   async 'reset-spelers'() {
@@ -4768,19 +4754,16 @@ function koppelEvents() {
     if(e.target.closest('[data-br-summary]')) UI.brOpen=!e.target.closest('details').open;
     const b = e.target.closest('[data-act]'); if (!b || b.disabled || b.classList.contains('off')) return;
     if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'dag-lijst', 'viewer-refresh', 'stand-ronde'].indexOf(b.dataset.act) < 0) return;
-    if (!adminGuard() && !['admin-all','admin-open','admin-open-direct','admin-menu','online-login','online-logout'].includes(b.dataset.act)) return;
     const f = ACT[b.dataset.act]; if (f) { e.preventDefault(); f(b, e); }
   });
   document.addEventListener('change', e => {
     const el = e.target.closest('[data-chg]'); if (!el) return;
     if (UI.viewer) return;
     if (el.id === 'bestandInput') return;
-    if (!adminGuard()) return;
     const f = CHG[el.dataset.chg]; if (f) f(el, e);
   });
   document.addEventListener('keydown', e => {
     const t = e.target;
-    if (!adminGuard()) return;
     if (e.key === 'Enter' && t.id === 'nieuweNaam') { e.preventDefault(); ACT['sp-toevoegen'](); return; }
     if ((e.key === 'Enter' || e.key === ' ') && t.matches && t.matches('[data-act="kies-speler"]')) { e.preventDefault(); kiesSpeler(t.dataset.id); return; }
     if (e.key === 'Escape' && UI.adminMenu) { UI.adminMenu=false; render(); return; }
@@ -4803,7 +4786,7 @@ function koppelEvents() {
     const tekst = await f.text(), r = leesImport(tekst);
     if (r.fout) { melding('Openen mislukt', '<p>' + esc(r.fout) + '</p>'); return; }
     const ja = await bevestig('Het bestand “' + esc(f.name) + '” (toernooi: <b>' + esc(r.T.naam) + '</b>, bewaard ' + esc(tijdTekst(r.T.gewijzigd)) + ') vervangt het toernooi dat nu open staat. De huidige stand wordt eerst als herstelpunt bewaard.', { titel: 'Bestand openen', ja: 'Openen' });
-    if (!ja) return; if(!adminAllowed(r.T)){toast('Geen toegang tot deze locatie.',true);return;} maakHerstelpunt('Voor openen bestand'); T = r.T; migreerNaLaden(); stopAnimatie(); UI.dag = null; UI.lotingKey = null; UI.tab = 'overzicht'; commit(); toast('Toernooi geopend');
+    if (!ja) return; maakHerstelpunt('Voor openen bestand'); T = r.T; migreerNaLaden(); stopAnimatie(); UI.dag = null; UI.lotingKey = null; UI.tab = 'overzicht'; commit(); toast('Toernooi geopend');
   });
   window.addEventListener('beforeunload', () => { try { bewaarNu(); } catch (e) { } });
   window.addEventListener('pagehide', () => { try { bewaarNu(); } catch (e) { } });
@@ -4867,7 +4850,6 @@ async function start() {
       if(window.POOL_ONLINE?.state?.user && window.POOL_ONLINE.loadTournament){
         try{const remote=await window.POOL_ONLINE.loadTournament(targetId);if(remote)selected=remote}catch(e){}
       }
-      if(selected && !adminAllowed(selected)){toast('Geen toegang tot deze locatie.',true);return;}
       if(!selected){toast('Toernooi niet beschikbaar. Meld je aan met een bevoegd beheeraccount.',true);return;}
       stopOnlineSynchronisatie();T=selected;migreerNaLaden();UI.tab='overzicht';UI.dag=null;UI.lotingKey=null;
       bewaarNu();adminRemember();render();startOnlineSynchronisatie();
@@ -4878,7 +4860,7 @@ async function start() {
   if (!UI.viewer && T && T.id && T.online && T.online.synchroniseren && window.POOL_ONLINE) {
     Promise.resolve(window.POOL_ONLINE.ready).then(async () => {
       const o = window.POOL_ONLINE;
-      if (!o.state || !o.state.user || !T || !T.id || UI.viewer || !adminAllowed(T)) return;
+      if (!o.state || !o.state.user || !T || !T.id || UI.viewer) return;
       const id = T.id;
       try {
         const remote = await o.loadTournament(id);
@@ -4948,7 +4930,7 @@ const required = ['apiKey', 'authDomain', 'projectId', 'appId'];
 const configured = cfg.enabled === true && required.every(k => String(firebaseConfig[k] || '').trim());
 
 let app = null, auth = null, db = null, unsubscribe = null, publicUnsubscribe = null;
-let currentUser = null;
+let currentUser = null, currentProfile = null;
 let readyResolve;
 const ready = new Promise(resolve => { readyResolve = resolve; });
 
@@ -4956,9 +4938,9 @@ const state = {
   configured,
   status: configured ? 'initialiseren' : 'lokaal',
   user: null,
+  profile: null,
   error: '',
   tournaments: [],
-  role: null,
   remoteId: null,
   lastRemoteWrite: null,
   lastRemoteRead: null
@@ -4988,18 +4970,18 @@ async function init() {
     db = getFirestore(app);
     onAuthStateChanged(auth, async user => {
       currentUser = user || null;
+      currentProfile = null;
+      if (user) {
+        try { const profileSnap = await getDoc(doc(db, 'users', user.uid));
+          if (auth.currentUser?.uid !== user.uid) return;
+          currentProfile = profileSnap.exists() ? profileSnap.data() : null;
+        } catch (e) { state.error = 'Gebruikersrechten konden niet worden geladen: ' + e.message; }
+      }
+      state.profile = currentProfile;
       state.user = user ? { uid: user.uid, email: user.email || '' } : null;
       state.status = user ? 'online' : 'niet-aangemeld';
       state.error = '';
-      state.role = null; state.tournaments = [];
-      if (user) {
-        try { const profile = await getDoc(doc(db, 'users', user.uid));
-          if (currentUser?.uid !== user.uid) return;
-          const d = profile.exists() ? profile.data() : {};
-          state.role = {globalRole:d.globalRole || '', locatieId:d.locatieId || ''};
-          await listTournaments();
-        } catch(e) { state.error='Beheerdersrol kon niet worden geladen: '+e.message; }
-      }
+      if (user && currentProfile) listTournaments().catch(() => {});
       notify();
     });
     state.status = 'niet-aangemeld';
@@ -5029,6 +5011,14 @@ async function logout() {
   if (auth) await signOut(auth);
 }
 
+function assertTournamentAccess(locationId) {
+  if (!currentProfile) throw new Error('Beheerprofiel ontbreekt of is niet geladen');
+  if (currentProfile.globalRole === 'superadmin') return;
+  if (currentProfile.globalRole === 'locationAdmin' &&
+      typeof locationId === 'string' && locationId === currentProfile.locatieId) return;
+  throw new Error('Geen beheerdersrechten voor deze locatie');
+}
+
 function assertOnline() {
   if (!configured || !db) throw new Error('Online configuratie ontbreekt');
   if (!currentUser) throw new Error('Meld eerst aan');
@@ -5040,6 +5030,14 @@ async function saveTournament(T, extra) {
     assertOnline();
     const id = String(T.id || '').trim();
     if (!id) throw new Error('Toernooi heeft geen id');
+    const existingSnap = await getDoc(doc(db, 'tournaments', id));
+    const existing = existingSnap.exists() ? existingSnap.data() : null;
+    const locationId = String(T.locatieId || '');
+    assertTournamentAccess(locationId);
+    if (existing) {
+      if (existing.locatieId !== locationId) throw new Error('Locatie van bestaand toernooi mag niet wijzigen');
+      if (existing.state?.locatieId && existing.state.locatieId !== locationId) throw new Error('Locatiekoppeling komt niet overeen');
+    }
     const payload = {
       id,
       naam: T.naam || 'Pooltoernooi',
@@ -5048,18 +5046,10 @@ async function saveTournament(T, extra) {
       status: extra && extra.status || 'actief',
       toegang: extra && extra.toegang || 'besloten',
       access: extra && extra.toegang || 'besloten',
+      eigenaarUid: existing ? existing.eigenaarUid : currentUser.uid,
       state: T,
       updatedAt: serverTimestamp()
     };
-    const role=state.role;
-    if (!role || !['superadmin','locationAdmin'].includes(role.globalRole)) throw new Error('Geen beheerrechten');
-    if (role.globalRole==='locationAdmin' && String(T.locatieId)!==String(role.locatieId)) throw new Error('Alleen eigen locatie');
-    const existing=await getDoc(doc(db,'tournaments',id));
-    if (existing.exists()) {
-      const old=existing.data();
-      if (role.globalRole==='locationAdmin' && String(old.locatieId)!==String(role.locatieId)) throw new Error('Toernooi buiten eigen locatie');
-      if (String(old.locatieId)!==String(T.locatieId)) throw new Error('Locatie van bestaand toernooi kan niet worden gewijzigd');
-    } else payload.eigenaarUid=currentUser.uid;
     await setDoc(doc(db, 'tournaments', id), payload, { merge: true });
     state.remoteId = id;
     state.lastRemoteWrite = Date.now();
@@ -5076,7 +5066,7 @@ async function saveLocation(location, extra) {
     assertOnline();
     const id = String(location && location.id || '').trim();
     if (!id) throw new Error('Locatie heeft geen id');
-    if (state.role?.globalRole !== 'superadmin') throw new Error('Alleen hoofdbeheerder mag locaties wijzigen');
+    if (currentProfile?.globalRole !== 'superadmin') throw new Error('Alleen hoofdbeheerder mag locaties wijzigen');
     await setDoc(doc(db, 'locations', id), {
       id,
       naam: location.naam || 'Locatie',
@@ -5106,8 +5096,8 @@ async function loadTournament(id, options) {
     if (!configured || !db) throw new Error('Online configuratie ontbreekt');
     const snap = await getDoc(doc(db, 'tournaments', String(id)));
     if (!snap.exists()) return null;
-    if (!publicRead && state.role?.globalRole==='locationAdmin' && String(snap.data().locatieId)!==String(state.role.locatieId)) throw new Error('Geen toegang tot deze locatie');
     if (publicRead && snap.data().toegang !== 'openbaar') return null;
+    if (!publicRead) assertTournamentAccess(snap.data().locatieId);
     state.remoteId = String(id);
     state.lastRemoteRead = Date.now();
     notify();
@@ -5119,13 +5109,17 @@ async function listTournaments() {
   await ready;
   try {
     assertOnline();
-    if (!state.role || !['superadmin','locationAdmin'].includes(state.role.globalRole)) throw new Error('Geen beheerrechten');
-    const base=collection(db,'tournaments');
-    const snap = await getDocs(state.role.globalRole==='locationAdmin' ? query(base,where('locatieId','==',state.role.locatieId)) : base);
+    if (!currentProfile) throw new Error('Beheerprofiel ontbreekt');
+    const q = currentProfile.globalRole === 'superadmin'
+      ? collection(db, 'tournaments')
+      : currentProfile.globalRole === 'locationAdmin' && currentProfile.locatieId
+        ? query(collection(db, 'tournaments'), where('locatieId', '==', currentProfile.locatieId))
+        : null;
+    if (!q) throw new Error('Geen beheerdersrechten');
+    const snap = await getDocs(q);
     const lijst = [];
     snap.forEach(item => {
       const d = item.data() || {};
-      if(state.role.globalRole==='locationAdmin' && String(d.locatieId)!==String(state.role.locatieId)) return;
       const t = d.state || {};
       const locaties = Array.isArray(t.locaties) ? t.locaties : [];
       const loc = locaties.find(x => x && x.id === t.locatieId) || locaties[0] || {};
@@ -5194,7 +5188,8 @@ const api = {
   listTournaments,
   subscribeTournament,
   subscribePublicTournament,
-  get user() { return currentUser; }
+  get user() { return currentUser; },
+  get profile() { return currentProfile; }
 };
 window.POOL_ONLINE = api;
 window.dispatchEvent(new CustomEvent('pool-online-ready', { detail: api }));
