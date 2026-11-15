@@ -1205,10 +1205,45 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .admin-playoff-stand td:last-child{text-align:center}
  body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .admin-playoff-stand ~ .row.small:last-child{display:none!important}
 }
+
+/* Vue A4 voortgangsoverzicht: uitsluitend bij afdrukken van de loting. */
+#print-overview{display:none}
+@media print{
+ body.print-overview #app,body.print-overview #bestandInput,body.print-overview #toasts{display:none!important}
+ body.print-overview #print-overview{display:block!important;position:static!important;width:100%!important;color:#15251c!important;font:9pt/1.25 Arial,sans-serif!important}
+ body.print-overview{margin:0!important;background:white!important}
+ body.print-overview .po-head{background:linear-gradient(110deg,#073c2e,#126849)!important;color:white!important;border-radius:4mm;padding:5mm 7mm 4mm;display:flex;justify-content:space-between;align-items:center;gap:4mm}
+ body.print-overview .po-logo{font:italic bold 19pt Georgia,serif;line-height:1.05}
+ body.print-overview .po-logo small{display:block;font:7pt Arial,sans-serif;letter-spacing:1.3px;margin-top:2mm}
+ body.print-overview .po-title{text-align:right;font-size:14pt;font-weight:800}
+ body.print-overview .po-title small{display:block;font-size:9pt;font-weight:600;margin-top:1mm}
+ body.print-overview .po-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:4mm;margin-top:4mm}
+ body.print-overview .po-card{border:1px solid #b6c6bb;border-radius:3mm;overflow:hidden;break-inside:avoid;background:white!important}
+ body.print-overview .po-card-head{background:#07523b!important;color:white!important;display:flex;justify-content:space-between;align-items:center;padding:2.4mm 3mm;font-size:12pt;font-weight:bold}
+ body.print-overview .po-card-head small{font-size:8pt;font-weight:600}
+ body.print-overview .po-cols,body.print-overview .po-entry{display:grid;grid-template-columns:6mm minmax(0,1fr) 9mm 21mm;align-items:center;gap:1.2mm;padding:1.8mm 2.5mm;border-bottom:1px solid #e1e6e1}
+ body.print-overview .po-cols{background:#edf2ed!important;color:#34483d;font-size:7pt;font-weight:bold;padding-top:1.4mm;padding-bottom:1.4mm}
+ body.print-overview .po-entry:last-child{border-bottom:0}
+ body.print-overview .po-rank{display:grid;place-items:center;border-radius:50%;width:5.5mm;height:5.5mm;background:#e3e9e4!important;color:#16452e;font-weight:bold;font-size:8pt}
+ body.print-overview .po-name{font-size:8.5pt;font-weight:650;overflow-wrap:anywhere}
+ body.print-overview .po-points{text-align:center;font-weight:700;font-size:8pt}
+ body.print-overview .po-status{border-radius:2mm;padding:1mm .6mm;text-align:center;font-size:6.7pt;font-weight:800;white-space:nowrap;background:#e6e6e6!important;color:#333!important}
+ body.print-overview .po-status.door{background:#168047!important;color:white!important}
+ body.print-overview .po-status.playoff{background:#77278a!important;color:white!important}
+ body.print-overview .po-status.uit{background:#e2e4e3!important;color:#525c55!important}
+ body.print-overview .po-status.wacht{background:#e8ece9!important;color:#4c5b52!important}
+ body.print-overview .po-playoffs{margin:4mm 0 0;padding:2.5mm 4mm;border:1.5px solid #872f97;border-radius:3mm;background:#f7eef9!important;break-inside:avoid}
+ body.print-overview .po-playoffs b{color:#6c237d!important}
+ body.print-overview .po-duel{font-weight:750;font-size:10pt;margin-top:1mm}
+ body.print-overview .po-legend{margin-top:4mm;padding:2.5mm 3mm;border-top:1px solid #bcc9c0;font-size:7.5pt;display:flex;gap:4mm;flex-wrap:wrap}
+ body.print-overview .po-legend span{white-space:nowrap}
+ body.print-overview .po-footer{margin-top:2mm;font-size:7pt;color:#526358!important;text-align:right}
+}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<div id="print-overview" aria-hidden="true"></div>
 <input type="file" id="bestandInput" accept=".json,application/json" class="sr" aria-hidden="true" tabindex="-1">
 <noscript><div class="noscript">Deze pagina heeft JavaScript nodig. Open het bestand in een gewone browser (Chrome, Edge, Firefox of Safari).</div></noscript>
 <script>
@@ -3260,6 +3295,61 @@ function pouleKaartHtml(key, p, anim) {
   return '<div class="card"><div class="ch"><h4>' + (enkelPoule(key) ? esc(rondeNaam(key)) : 'Poule ' + p.nr) + '</h4><span class="chip">' + esc(P.datumKort(d.datum)) + '</span></div><div class="rows">' + rijen + '</div>' +
     '<div class="row between" style="padding:7px 14px;border-top:1px solid var(--line);background:var(--surface2)"><span class="tiny muted">' + esc(P.hoofd(P.dagNaam(d.datum))) + (loc !== T.locatieId ? ' · ' + esc(locNaam(loc)) : '') + '</span><span class="row" style="gap:8px"><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span><button class="btn sec sm" data-act="open-dag" data-key="' + key + '" data-nr="' + p.nr + '">Wedstrijden openen</button></span></div></div>';
 }
+
+/* A4-overzicht: echte standen en kwalificaties, geen voorbeeldscores. */
+function printOverzichtHtml(key){
+ const rd=T.rondes[key],pr=P.planRonde(T,key);
+ if(!rd||!rd.geloot)return '';
+ const locatie=locatieVoorWeergave();
+ const isVue=/vue/i.test(locatie.naam||'');
+ const playoffNamen=new Set(),doorNamen=new Set(),uitNamen=new Set(),duels=[];
+ const isFinal=!P.volgendeKey(T,key);
+ rd.poules.forEach(p=>{
+   if(!P.reguliereKlaar(p))return;
+   P.synchroniseerPoule(T,p);
+   const ids=P.eindvolgorde(T,p);
+   if(p.pp&&!p.pp.voltooid){
+     const groep=p.pp.stappen[0]?.groep||[];
+     groep.forEach(id=>playoffNamen.add(id));
+     ids.slice(0,Math.max(0,p.pp.start-1)).forEach(id=>doorNamen.add(id));
+     if(groep.length>=2)duels.push(groep.map(spelerNaam).join(' vs '));
+   }else if(!isFinal){ids.slice(0,P.DOORGAAN).forEach(id=>doorNamen.add(id));}
+ });
+ if(pr&&pr.derden){
+  for(let i=0;i<Math.floor(rd.poules.length/2);i++){
+   const a=rd.poules[i*2],b=rd.poules[i*2+1];
+   if(!P.reguliereKlaar(a)||!P.reguliereKlaar(b))continue;
+   const saved=T.derden?.[key]?.[i];
+   const st=P.derdeStatus(T,key,i);
+   const ids=st.a&&st.b?[st.a,st.b]:saved&&saved.a&&saved.b?[saved.a,saved.b]:[];
+   if(!ids.length)continue;
+   const winner=(saved&&saved.winnaar)||((st.status==='beslist')?st.winnaar:null);
+   if(winner){doorNamen.add(winner);ids.filter(id=>id!==winner).forEach(id=>uitNamen.add(id));}
+   else if(st.status==='playoff'||(saved&&!saved.winnaar)){
+     ids.forEach(id=>{playoffNamen.add(id);doorNamen.delete(id)});
+     duels.push(ids.map(spelerNaam).join(' vs '));
+   }else if(st.status==='beslist'&&st.winnaar)doorNamen.add(st.winnaar);
+  }
+ }
+ const status=id=>playoffNamen.has(id)?['PLAY-OFF','playoff']:doorNamen.has(id)?['DOOR ✓','door']:uitNamen.has(id)?['UIT','uit']:['UIT','uit'];
+ const cards=rd.poules.map(p=>{
+  const dag=P.planDag(T,key,p.nr),regular=P.reguliereKlaar(p),played=p.schema.filter(g=>g.w).length;
+  const rows=P.standPoule(T,p),byId=Object.fromEntries(rows.map(r=>[r.id,r]));
+  const ids=regular?P.eindvolgorde(T,p):played?rows.map(r=>r.id):p.spelers.slice();
+  const kop=regular?'Eindstand':played?'Tussenstand':'Loting';
+  const rijen=ids.map((id,i)=>{
+   const r=byId[id];let st=regular?status(id):played?['IN SPEL','wacht']:['NOG TE SPELEN','wacht'];
+   if(regular&&isFinal)st=i===0?['WINNAAR','door']:['UIT','uit'];
+   return '<div class="po-entry"><span class="po-rank">'+(i+1)+'</span><span class="po-name">'+esc(spelerNaam(id))+'</span><span class="po-points">'+(played?r.punten:'–')+'</span><span class="po-status '+st[1]+'">'+st[0]+'</span></div>';
+  }).join('');
+  return '<section class="po-card"><div class="po-card-head"><span>Poule '+p.nr+'</span><small>'+esc(dag?P.datumKort(dag.datum):'')+' · '+kop+'</small></div><div class="po-cols"><span>#</span><span>Koppel</span><span>Ptn</span><span>Status</span></div>'+rijen+'</section>';
+ });
+ // Toon het beslissingsblok na het eerste paar poules, indien aanwezig.
+ const play=duels.length?'<section class="po-playoffs"><b>◎ Openstaande play-off'+(duels.length>1?'s':'')+' · winnaar gaat door</b>'+duels.map(x=>'<div class="po-duel">'+esc(x)+'</div>').join('')+'</section>':'';
+ const first=cards.slice(0,2).join(''),rest=cards.slice(2).join('');
+ return '<header class="po-head"><div class="po-logo">'+(isVue?'Vue Grandige':esc(locatie.naam||'Pooltoernooi'))+'<small>CAFÉ · BILJART · POOL</small></div><div class="po-title">'+esc(T.naam)+'<small>'+esc(pr?.naam||'Ronde')+' · standen & voortgang</small></div></header><div class="po-grid">'+first+'</div>'+play+(rest?'<div class="po-grid">'+rest+'</div>':'')+'<div class="po-legend"><span>🟢 DOOR = geplaatst</span><span>🟣 PLAY-OFF = beslissing open</span><span>UIT = uitgeschakeld</span><span>NOG TE SPELEN = lotingsvolgorde</span></div><div class="po-footer">Automatisch samengesteld uit de actuele toernooigegevens · '+esc(new Date().toLocaleDateString('nl-NL'))+'</div>';
+}
+
 function lotingKaartenHtml(key) {
   const r = T.rondes[key], anim = UI.anim && UI.anim.key === key ? UI.anim : null;
   return r.poules.map(p => pouleKaartHtml(key, p, anim)).join('');
@@ -4572,8 +4662,10 @@ const ACT = {
   'scorebord-uit'() { UI.scorebord = false; render(); },
   print() {
     const loting = UI.tab === 'loting' && !!document.getElementById('lotkaarten');
-    document.body.classList.toggle('print-loting', loting);
-    const cleanup = () => document.body.classList.remove('print-loting');
+    const sheet=document.getElementById('print-overview');
+    if(loting && sheet){sheet.innerHTML=printOverzichtHtml(lotingKey());document.body.classList.add('print-overview');}
+    else document.body.classList.toggle('print-loting', loting);
+    const cleanup=()=>{document.body.classList.remove('print-loting','print-overview');if(sheet)sheet.innerHTML='';};
     window.addEventListener('afterprint', cleanup, { once: true });
     window.print();
   },
