@@ -1280,6 +1280,31 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
   body.print-overview .po-legend { flex: 0 0 auto; margin-top: 5mm !important; }
   body.print-overview .po-footer { flex: 0 0 auto; margin-top: 2mm !important; }
 }
+
+/* Mobiel spelersbeheer: compacte lijst; bestaande velden alleen bij openklappen. */
+.sp-mobile-list{display:none}
+@media screen and (max-width:980px){
+ #spelers-overzicht .sp-desktop-table{display:none!important}
+ #spelers-overzicht .sp-mobile-list{display:block}
+ #spelers-overzicht .sp-mobile-item{border-bottom:1px solid var(--line)}
+ #spelers-overzicht .sp-mobile-item>summary{list-style:none;display:flex;align-items:center;gap:9px;min-height:47px;padding:8px 3px;cursor:pointer}
+ #spelers-overzicht .sp-mobile-item>summary::-webkit-details-marker{display:none}
+ #spelers-overzicht .sp-mobile-number{color:var(--muted);width:24px;flex:none;text-align:center;font-size:12px}
+ #spelers-overzicht .sp-mobile-item>summary strong{font-size:14px;line-height:1.2;min-width:0;flex:1;overflow-wrap:anywhere}
+ #spelers-overzicht .sp-mobile-status{display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end;max-width:42%}
+ #spelers-overzicht .sp-mobile-status .chip{font-size:9px;padding:1px 5px}
+ #spelers-overzicht .sp-mobile-arrow{font-size:19px;color:var(--muted);flex:none}
+ #spelers-overzicht .sp-mobile-item[open] .sp-mobile-arrow{transform:rotate(180deg)}
+ #spelers-overzicht .sp-mobile-edit{padding:8px 8px 13px 33px;background:var(--surface2);border-radius:8px}
+ #spelers-overzicht .sp-mobile-edit table.t,#spelers-overzicht .sp-mobile-edit tbody{display:block;width:100%}
+ #spelers-overzicht .sp-mobile-edit tr{display:flex!important;flex-direction:column;gap:8px;padding:0!important;border:0!important}
+ #spelers-overzicht .sp-mobile-edit td{display:block!important;width:100%;padding:0!important;border:0!important}
+ #spelers-overzicht .sp-mobile-edit td:first-child{display:none!important}
+ #spelers-overzicht .sp-mobile-edit td:nth-child(2) input{width:100%;font-size:16px}
+ #spelers-overzicht .sp-mobile-edit select,#spelers-overzicht .sp-mobile-edit input[type=date]{width:100%;max-width:100%}
+ #spelers-overzicht .sp-mobile-edit td:nth-child(3)::before{content:'Reserve';margin-right:10px;font-size:12px;color:var(--muted)}
+ #spelers-overzicht .sp-mobile-edit td:last-child{display:flex!important;justify-content:flex-end}
+}
 </style>
 </head>
 <body>
@@ -3293,13 +3318,21 @@ function viewSpelers() {
       '<td class="center"><input type="checkbox" data-chg="sp-reserve" data-id="' + s.id + '"' + (s.reserve ? ' checked' : '') + (vrij ? '' : ' disabled') + ' aria-label="Reserve"></td>' + cellen + '<td>' + chips + '</td>' +
       '<td><button class="btn sec sm" data-act="sp-weg" data-id="' + s.id + '"' + (kanWeg ? '' : ' disabled title="Na de loting kan een speler niet meer worden verwijderd. Gebruik Vervangen bij de loting."') + ' aria-label="Verwijder ' + esc(s.naam) + '">✕</button></td></tr>';
   };
+  const mobielRijen = T.spelers.map((sp, i) => {
+    const status = T.plan.rondes.map(r => {
+      const st = P.spelerRondeStatus(T, r.key, sp.id);
+      const m = { door:['ok','Door'], uit:['bad','Uit'], bezig:['info','Bezig'], playoff:['warn','Play-off'], winnaar:['ok','Winnaar'] }[st.s];
+      return m ? '<span class="chip '+m[0]+'">'+esc(r.kort)+' '+m[1]+'</span>' : '';
+    }).join('');
+    return '<details class="sp-mobile-item"><summary><span class="sp-mobile-number">'+(i+1)+'</span><strong>'+esc(sp.naam)+'</strong><span class="sp-mobile-status">'+status+'</span><span class="sp-mobile-arrow">⌄</span></summary><div class="sp-mobile-edit"><table class="t"><tbody>'+rij(sp,i)+'</tbody></table></div></details>';
+  }).join('');
   const cap = vrij ? capCheckHtml() : '';
   return '<div id="spelers-overzicht" class="stack-l"><div class="sect"><header><h3>Deelnemers</h3><span class="chip solid">' + plural(nAct, 'speler', 'spelers') + '</span>' + (nRes ? '<span class="chip">' + plural(nRes, 'reserve', 'reserves') + '</span>' : '') +
     '<label class="row small" style="gap:6px"><input type="checkbox" data-chg="alle-rondes"' + (UI.alleRondes ? ' checked' : '') + '> Voorkeuren alle rondes</label></header>' +
     '<div class="body stack"><div class="note">' + esc(formatSamenvatting()) + '</div>' + cap +
     (vrij ? '' : '<div class="note warn">Ronde 1 is geloot. Namen kunnen nog worden aangepast; nieuwe aanmeldingen komen als reserve op de lijst. Vervangen doe je bij de loting.</div>') +
     '<div class="row"><input type="text" id="nieuweNaam" placeholder="Naam van nieuwe speler" aria-label="Naam nieuwe speler" style="min-width:240px" autocomplete="off"><button class="btn" data-act="sp-toevoegen">' + (vrij ? 'Toevoegen' : 'Toevoegen als reserve') + '</button><button class="btn sec" data-act="sp-plakken">Namen plakken…</button>' + (vrij ? '<button class="btn sec" data-act="voorbeeld">Voorbeeldspelers…</button>' : '') + (vrij && T.spelers.length ? '<button class="btn danger sm" data-act="sp-leeg">Lijst leegmaken</button>' : '') + '</div>' +
-    '<div class="scroll-x"><table class="t"><thead><tr><th class="num">Nr</th><th>Naam</th><th class="center">Reserve</th>' + kopRondes + '<th>Verloop</th><th></th></tr></thead><tbody>' + (T.spelers.length ? T.spelers.map(rij).join('') : '<tr><td colspan="9" class="muted center" style="padding:24px">Nog geen spelers. Typ een naam hierboven en druk op Enter.</td></tr>') + '</tbody></table></div></div></div></div>';
+    '<div class="sp-mobile-list">'+mobielRijen+'</div><div class="scroll-x sp-desktop-table"><table class="t"><thead><tr><th class="num">Nr</th><th>Naam</th><th class="center">Reserve</th>' + kopRondes + '<th>Verloop</th><th></th></tr></thead><tbody>' + (T.spelers.length ? T.spelers.map(rij).join('') : '<tr><td colspan="9" class="muted center" style="padding:24px">Nog geen spelers. Typ een naam hierboven en druk op Enter.</td></tr>') + '</tbody></table></div></div></div></div>';
 }
 function capCheckHtml() {
   if (!T.plan.rondes.length) return '';
