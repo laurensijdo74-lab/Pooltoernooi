@@ -1071,6 +1071,18 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
     min-height:20px;
   }
 }
+
+/* TV: tijdelijke winnaar- en volgende-wedstrijdpresentatie, uitsluitend desktop. */
+@media screen and (min-width:981px){
+ html.viewer-tv .tv-regular-announcement{flex:1 1 auto;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:clamp(12px,3vh,30px);padding:24px;background:var(--surface);color:var(--ink)}
+ html.viewer-tv .tv-regular-announcement .tv-announce-heading{font-size:clamp(20px,2vw,35px);font-weight:800}
+ html.viewer-tv .tv-regular-announcement .tv-announce-name{font-size:clamp(35px,4.2vw,75px);font-weight:900;line-height:1.12;overflow-wrap:anywhere}
+ html.viewer-tv .tv-regular-announcement .tv-announce-action{font-size:clamp(30px,3.6vw,65px);font-weight:900;color:var(--accent)}
+ html.viewer-tv .viewer-day-cols .games.public-match-list.tv-announcing>.game,
+ html.viewer-tv .viewer-day-cols .games.public-match-list.tv-announcing>.ghead{display:none!important}
+ html.viewer-tv .viewer-day-cols .games.public-match-list.tv-announcing>.pauze{display:none!important}
+ html.viewer-tv .viewer-day-cols .games.public-match-list.tv-announcing>.pauze.tv-announce-bar{display:block!important;flex:0 0 20px!important;min-height:20px!important;font-size:0!important;color:transparent!important;background:#ff3fa4!important}
+}
 </style>
 </head>
 <body>
@@ -2877,6 +2889,52 @@ function toggleViewerFullscreen(){
 }
 document.addEventListener('fullscreenchange',updateViewerFullscreenButton);
 document.addEventListener('webkitfullscreenchange',updateViewerFullscreenButton);
+/* Tijdelijke TV-aankondigingen op basis van nieuwe online uitslagen. */
+let tvRegularAnnouncement=null;
+function noteRegularResult(oldT,newT){
+ if(!UI.viewer||!oldT||!newT||!UI.dag)return;
+ const key=UI.dag.key,nr=UI.dag.nr;
+ const oldP=oldT.rondes?.[key]?.poules?.find(p=>p.nr===nr);
+ const newP=newT.rondes?.[key]?.poules?.find(p=>p.nr===nr);
+ if(!oldP||!newP||!Array.isArray(newP.schema))return;
+ const newly=newP.schema.filter(g=>g.w&&!oldP.schema?.find(x=>x.nr===g.nr&&x.w===g.w));
+ if(!newly.length){
+   if(tvRegularAnnouncement&&tvRegularAnnouncement.key===key&&tvRegularAnnouncement.nr===nr){
+     const g=newP.schema.find(x=>x.nr===tvRegularAnnouncement.gameNr);
+     if(!g||g.w!==tvRegularAnnouncement.winner)tvRegularAnnouncement=null;
+   }
+   return;
+ }
+ const g=newly.sort((a,b)=>(Number(b.t)||0)-(Number(a.t)||0))[0];
+ const winner=newT.spelers?.find(x=>x.id===g.w)?.naam;
+ if(!winner)return;
+ const next=newP.schema.find(x=>x.nr>g.nr&&!x.w)||newP.schema.find(x=>!x.w);
+ const name=id=>newT.spelers?.find(x=>x.id===id)?.naam||'';
+ tvRegularAnnouncement={key,nr,gameNr:g.nr,winner:g.w,winnerName:winner,
+   plural:winner.includes('&'),nextA:next?name(next.a):'',nextB:next?name(next.b):'',until:Date.now()+70000,started:Date.now()};
+}
+function updateTvRegularAnnouncement(){
+ const games=document.querySelector('.viewer-day-cols .games.public-match-list');
+ if(!games)return;
+ const old=games.querySelector('.tv-regular-announcement');
+ const bar=games.querySelector('.tv-announce-bar');
+ const a=tvRegularAnnouncement;
+ const enabled=!!(a&&Date.now()<a.until&&UI.viewer&&!mobielWeergave()&&UI.tab==='dag'&&
+  UI.dag?.key===a.key&&UI.dag?.nr===a.nr&&document.documentElement.classList.contains('viewer-tv')&&
+  !document.documentElement.classList.contains('viewer-compact')&&!document.querySelector('.viewer-pending-playoff.tv-show-playoff'));
+ // Pauze gaat voor op de aankondiging zodra het pauzescherm begint.
+ const pause=enabled?tvPauseState().phase==='pause':false;
+ if(!enabled||pause){games.classList.remove('tv-announcing');old?.remove();bar?.remove();return;}
+ const winnerPhase=Date.now()-a.started<10000;
+ if(!winnerPhase&&!a.nextA){games.classList.remove('tv-announcing');old?.remove();bar?.remove();return;}
+ games.classList.add('tv-announcing');
+ let panel=old;
+ if(!panel){panel=document.createElement('div');panel.className='tv-regular-announcement';games.appendChild(panel);}
+ if(winnerPhase){panel.innerHTML='<div class="tv-announce-name">'+esc(a.winnerName)+'</div><div class="tv-announce-action">'+(a.plural?'WINNEN!':'WINT!')+'</div>';}
+ else{panel.innerHTML='<div class="tv-announce-heading">VOLGENDE WEDSTRIJD</div><div class="tv-announce-name">'+esc(a.nextA)+'</div><div class="tv-announce-action">VS</div><div class="tv-announce-name">'+esc(a.nextB)+'</div>';}
+ if(!bar){const b=document.createElement('div');b.className='pauze tv-announce-bar';b.setAttribute('aria-hidden','true');games.appendChild(b);}
+}
+setInterval(()=>{if(UI.viewer&&!document.hidden)updateTvRegularAnnouncement();},1000);
 /* TV-pauze volgt de echte uitslagen, niet een vaste wisseltimer. */
 let tvHalf=0;
 function toggleViewerTv(){
@@ -3723,6 +3781,7 @@ function herstelOpenPlayoffsPubliek(bron) {
 }
 function pasPubliekeStandToe(remote, melding) {
   if (!remote || !remote.id || !T || remote.id !== T.id) return false;
+  noteRegularResult(T,remote);
   const huidigeTab = UI.tab;
   const huidigeDag = UI.dag && { key: UI.dag.key, nr: UI.dag.nr };
   const huidigeStand = UI.stand;
@@ -4078,6 +4137,7 @@ function render() {
   updateViewerTvButton();
   updateViewerCompactButton();
   applyTvHalf();
+  updateTvRegularAnnouncement();
   updateTvPlayoffWinner();
   updateViewerFrozenStand();
   updateTvPlayoffPhase();
