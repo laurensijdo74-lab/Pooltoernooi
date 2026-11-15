@@ -1239,6 +1239,47 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  body.print-overview .po-legend span{white-space:nowrap}
  body.print-overview .po-footer{margin-top:2mm;font-size:7pt;color:#526358!important;text-align:right}
 }
+/* A4 voortgangsoverzicht: benut de volledige afdrukhoogte, ook op Samsung. */
+@media print {
+  body.print-overview #print-overview {
+    height: 276mm !important;
+    min-height: 276mm !important;
+    max-height: 276mm !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
+  }
+  body.print-overview .po-head { flex: 0 0 auto; }
+  body.print-overview .po-grid {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    display: grid !important;
+    grid-template-columns: repeat(2,minmax(0,1fr)) !important;
+    grid-template-rows: minmax(0,1fr) !important;
+    align-items: stretch !important;
+    gap: 5mm !important;
+    margin-top: 5mm !important;
+  }
+  body.print-overview .po-card {
+    height: 100% !important;
+    min-height: 0 !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  body.print-overview .po-card-head { flex: 0 0 auto; padding: 3.5mm 3mm !important; font-size: 13pt !important; }
+  body.print-overview .po-cols { flex: 0 0 auto; padding-top: 2.5mm !important; padding-bottom: 2.5mm !important; }
+  body.print-overview .po-entry {
+    flex: 1 1 0 !important;
+    min-height: 0 !important;
+    padding: 2.5mm 3mm !important;
+  }
+  body.print-overview .po-name { font-size: 10pt !important; line-height: 1.25 !important; }
+  body.print-overview .po-points { font-size: 10pt !important; }
+  body.print-overview .po-status { font-size: 7.5pt !important; }
+  body.print-overview .po-playoffs { flex: 0 0 auto; margin-top: 5mm !important; padding: 3mm 4mm !important; }
+  body.print-overview .po-legend { flex: 0 0 auto; margin-top: 5mm !important; }
+  body.print-overview .po-footer { flex: 0 0 auto; margin-top: 2mm !important; }
+}
 </style>
 </head>
 <body>
