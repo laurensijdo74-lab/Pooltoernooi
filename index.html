@@ -453,7 +453,7 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 }
 
 /* ---------- Afdrukken: compact, liggend A4, kleuren los van het thema ---------- */
-@page { size: A4 landscape; margin: 7mm; }
+@page { size: A4 portrait; margin: 10mm; }
 @media print {
   :root { --bg: #fff !important; --surface: #fff !important; --surface2: #f1f1f1 !important; --ink: #000 !important; --muted: #444 !important; --line: #b5b5b5 !important;
     --good: #14653a !important; --good-soft: #e1f2e7 !important; --bad: #9a2b22 !important; --bad-soft: #f8e1de !important; --warn: #7b4b00 !important; --warn-soft: #faefd2 !important;
@@ -474,6 +474,20 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
   /* loting */
   .cols:has(#lotkaarten) { display: block !important; }
   .cols:has(#lotkaarten) > .stack { display: none !important; }
+  #lotkaarten.cards { grid-template-columns: minmax(0, 1fr) !important; gap: 3mm !important; }
+  body.print-loting #main > .stack-l > .sect,
+  body.print-loting #main > .stack-l > .note,
+  body.print-loting #main > .stack-l > .tabs2 { display: none !important; }
+  body.print-loting #lotkaarten { width: 100% !important; display: grid !important; }
+  body.print-loting #lotkaarten .card { width: 100%; break-inside: avoid; }
+  body.print-loting #lotkaarten .card .rows .nm { white-space: normal !important; overflow: visible !important; text-overflow: clip !important; }
+  body.print-loting #lotkaarten .card .rows .sym,
+  body.print-loting #lotkaarten .card > div:last-child { display: none !important; }
+  body.print-loting #lotkaarten .card .rows > div { padding: 1.4mm 3mm !important; }
+  body.print-loting #lotkaarten .card > .ch { padding: 2mm 3mm !important; }
+  body.print-loting #lotkaarten .card > .ch h4 { font-size: 11pt !important; }
+  body.print-loting #lotkaarten .card .rows .nm { font-size: 10pt !important; }
+  body.print-loting .printtitle h2 { font-size: 15pt !important; }
   #lotkaarten.cards { grid-template-columns: repeat(5, 1fr) !important; gap: 2.5mm !important; }
   .card > .ch { padding: 1.2mm 2.5mm !important; } .card > .ch h4 { font-size: 9.5pt; }
   .card .rows > div { padding: 0.8mm 2.5mm !important; min-height: 0 !important; gap: 1.5mm; } .card .rows .nm { font-size: 9pt; }
@@ -4522,7 +4536,13 @@ const ACT = {
   scorebord() { UI.scorebord = true; render(); },
   'scorebord-venster'() { openScorebordVenster(); },
   'scorebord-uit'() { UI.scorebord = false; render(); },
-  print() { window.print(); },
+  print() {
+    const loting = UI.tab === 'loting' && !!document.getElementById('lotkaarten');
+    document.body.classList.toggle('print-loting', loting);
+    const cleanup = () => document.body.classList.remove('print-loting');
+    window.addEventListener('afterprint', cleanup, { once: true });
+    window.print();
+  },
   'sp-toevoegen'() { const el = $('#nieuweNaam'); const s = voegSpelerToe(el.value); if (!s) return; planOpnieuw(); UI.focusId = 'nieuweNaam'; commit(); },
   'sp-plakken'() { plakNamen(); },
   voorbeeld() { voorbeeldSpelers(); },
