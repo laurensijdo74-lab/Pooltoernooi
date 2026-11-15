@@ -3341,6 +3341,57 @@ function capCheckHtml() {
   return '<div class="note bad"><b>Voorkeuren zijn niet allemaal haalbaar.</b><br>' + c.meldingen.map(esc).join('<br>') + '<br>Pas een voorkeur aan of laat hem leeg; de loting doet dan zijn best.</div>';
 }
 
+/* ---------- Deelbare speeldagflyer (canvas, geen externe bestanden) ---------- */
+function flyerRoundRect(ctx,x,y,w,h,r,fill){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fillStyle=fill;ctx.fill();}
+function flyerText(ctx,text,x,y,maxWidth,size=40,color='#fff',weight=700){
+ ctx.fillStyle=color;ctx.font=weight+' '+size+'px "Arial Narrow",Arial,sans-serif';ctx.textAlign='center';
+ const words=String(text).split(/\s+/), lines=[];let line='';
+ for(const word of words){const next=line?line+' '+word:word;if(ctx.measureText(next).width>maxWidth&&line){lines.push(line);line=word;}else line=next;}if(line)lines.push(line);
+ const step=size*1.12;lines.forEach((t,i)=>ctx.fillText(t,x,y+(i-(lines.length-1)/2)*step));return lines.length;
+}
+function flyerBall(ctx,x,y,r,num,color){
+ const g=ctx.createRadialGradient(x-r*.4,y-r*.45,r*.1,x,y,r);g.addColorStop(0,'#ffffff');g.addColorStop(.17,color);g.addColorStop(1,'#120e0b');ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle='#f6eacb';ctx.beginPath();ctx.arc(x,y,r*.46,0,Math.PI*2);ctx.fill();ctx.fillStyle='#161616';ctx.font='900 '+Math.round(r*.65)+'px Arial';ctx.textAlign='center';ctx.fillText(String(num),x,y+r*.22);
+}
+function flyerCanvas(key,nr){
+ const p=P.zoekPoule(T,key,nr),d=P.planDag(T,key,nr);if(!p||!d)return null;
+ const c=document.createElement('canvas');c.width=1080;c.height=1440;const x=c.getContext('2d');
+ const bg=x.createLinearGradient(0,0,1080,1440);bg.addColorStop(0,'#073a2c');bg.addColorStop(.6,'#09543a');bg.addColorStop(1,'#042c22');x.fillStyle=bg;x.fillRect(0,0,1080,1440);
+ // Subtiel biljartlaken en goudkleurige kaderlijnen.
+ for(let i=0;i<500;i++){const px=(i*179)%1080,py=(i*263)%1440;x.fillStyle='rgba(255,238,180,.025)';x.fillRect(px,py,2,2);}
+ x.strokeStyle='#cda65e';x.lineWidth=5;x.strokeRect(35,35,1010,1370);x.lineWidth=2;x.strokeRect(49,49,982,1342);
+ flyerBall(x,235,245,175,8,'#141414');flyerBall(x,935,385,170,3,'#e72e21');flyerBall(x,75,1240,145,1,'#e7b916');
+ x.textAlign='center';x.fillStyle='#f4e5bf';x.font='700 30px Georgia';x.fillText('POOLTOERNOOI',540,94);
+ x.fillStyle='#fff7dd';x.font='900 78px Impact,"Arial Narrow",Arial';x.fillText('DOUBLE',540,530);x.fillText('TOERNOOI',540,620);
+ const loc=T.locaties.find(l=>l.id===dagLocatie(key,nr))||T.locaties[0];
+ x.fillStyle='#e6c986';x.font='700 32px Arial';x.fillText((loc?.naam||T.naam).toUpperCase(),540,685);
+ x.font='700 30px Arial';x.fillText(P.datumLang(d.datum),540,735);
+ flyerRoundRect(x,126,775,828,Math.min(475,120+p.spelers.length*69),22,'#f9edcd');
+ x.fillStyle='#17402d';x.font='900 33px Arial';x.textAlign='center';x.fillText(rondePoule(key,nr).toUpperCase(),540,822);
+ x.strokeStyle='#c1aa7d';x.lineWidth=2;x.beginPath();x.moveTo(164,844);x.lineTo(916,844);x.stroke();
+ const rows=p.spelers.map(id=>spelerNaam(id));const colW=375,half=Math.ceil(rows.length/2);
+ rows.forEach((name,i)=>{const col=i<half?0:1,idx=col?i-half:i;flyerText(x,name,col?735:345,897+idx*76,colW,31,'#173c2c',800);});
+ if(rows.length>half){x.beginPath();x.moveTo(540,862);x.lineTo(540,862+Math.max(half,rows.length-half)*76);x.stroke();}
+ const ph=rows.some(n=>n.includes(' / '));
+ if(ph){x.fillStyle='#b23e22';x.font='italic 800 27px Arial';x.fillText('PLAY-OFF  🔥',540,1268);}
+ x.fillStyle='#f5e5bb';x.font='700 31px Arial';x.fillText('13:00  OPEN TAFEL     •     14:00  START',540,1332);
+ if(ph){x.font='700 23px Arial';x.fillText('PLAY-OFF 12:30',540,1367);}
+ return c;
+}
+async function flyerOpen(key){
+ const days=P.planDagen(T,key),options=days.map(d=>'<option value="'+d.poule+'">'+esc(P.datumLang(d.datum))+' · Poule '+d.poule+'</option>').join('');
+ const ov=document.createElement('div');ov.className='overlay';ov.style.zIndex='250';
+ ov.innerHTML='<div class="dialog wide" style="max-height:96dvh"><h3>🎱 Flyer maken</h3><div class="db stack"><label class="f">Speeldag<select id="flyer-day">'+options+'</select></label><img id="flyer-preview" alt="Voorbeeld van de flyer" style="display:block;width:min(100%,350px);max-height:55dvh;object-fit:contain;margin:auto;border-radius:10px"><p class="small muted">De afbeelding wordt automatisch opgebouwd uit de actuele loting. Controleer de namen voordat je deelt.</p></div><div class="df"><button class="btn sec" id="flyer-close">Sluiten</button><button class="btn sec" id="flyer-save">PNG bewaren</button><button class="btn" id="flyer-share">Delen via WhatsApp</button></div></div>';
+ document.body.appendChild(ov);let canvas=null;
+ const draw=()=>{canvas=flyerCanvas(key,Number(ov.querySelector('#flyer-day').value));ov.querySelector('#flyer-preview').src=canvas?canvas.toDataURL('image/png'):'';};
+ ov.querySelector('#flyer-day').onchange=draw;ov.querySelector('#flyer-close').onclick=()=>ov.remove();ov.addEventListener('click',e=>{if(e.target===ov)ov.remove()});
+ const file=()=>new Promise(resolve=>canvas.toBlob(b=>resolve(new File([b],'Pooltoernooi_flyer_'+key+'_poule'+ov.querySelector('#flyer-day').value+'.png',{type:'image/png'})),'image/png'));
+ ov.querySelector('#flyer-save').onclick=()=>{if(!canvas)return;const a=document.createElement('a');a.download='Pooltoernooi_flyer.png';a.href=canvas.toDataURL('image/png');a.click();};
+ ov.querySelector('#flyer-share').onclick=async()=>{if(!canvas)return;const f=await file();try{if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Pooltoernooi flyer'});return;}}catch(e){if(e.name==='AbortError')return;}
+ toast('Rechtstreeks delen niet beschikbaar. Bewaar de PNG en voeg deze toe in WhatsApp.',true);};
+ draw();
+}
+
 /* ---------- Loting ---------- */
 function lotingKey() {
   if (!T.plan.rondes.length) return null;
@@ -3487,7 +3538,7 @@ function viewLoting() {
   const toonReserves = P.rondeIndex(T, key) === 0;
   return '<div class="stack-l">' + lotingTabs(key) + walkoverHerstelHtml() + '<div class="row between noprint"><div class="row"><span class="chip ' + (P.rondeAfgerond(T, key) ? 'ok' : 'info') + '">' + (rd.volgorde ? 'Ingedeeld in lijstvolgorde' : (rd.handmatig ? 'Handmatig geloot' : 'Geloot')) + (rd.geloot_op ? ' · ' + esc(tijdTekst(rd.geloot_op)) : '') + '</span></div><div class="row">' +
     (anim ? '<button class="btn sec" data-act="anim-skip">Loting overslaan</button>' : '') +
-    '<button class="btn sec' + (UI.modus === 'wissel' ? ' act' : '') + '" data-act="modus" data-m="wissel">Wissel spelers</button><button class="btn sec' + (UI.modus === 'vervang' ? ' act' : '') + '" data-act="modus" data-m="vervang">Speler vervangen</button><button class="btn sec" data-act="print">Afdrukken</button>' +
+    '<button class="btn sec' + (UI.modus === 'wissel' ? ' act' : '') + '" data-act="modus" data-m="wissel">Wissel spelers</button><button class="btn sec' + (UI.modus === 'vervang' ? ' act' : '') + '" data-act="modus" data-m="vervang">Speler vervangen</button><button class="btn sec" data-act="print">Afdrukken</button><button class="btn" data-act="flyer-open" data-key="' + key + '">🎱 Flyer maken</button>' +
     '<button class="btn danger" data-act="loot-reset" data-key="' + key + '"' + (gescoord ? ' disabled title="Er zijn al uitslagen ingevoerd"' : '') + '>Opnieuw loten</button></div></div>' +
     (modusTekst ? '<div class="note"><b>' + (UI.modus === 'wissel' ? 'Wisselen' : 'Vervangen') + ':</b> ' + modusTekst + ' <button class="btn sec sm" data-act="modus" data-m="">Stoppen</button></div>' : '') +
     '<div class="printtitle"><h2>' + esc(T.naam) + ' – loting ' + esc(r.naam) + '</h2></div>' +
@@ -4633,6 +4684,7 @@ async function adminLoad(id,duplicate){let item=null;try{item=JSON.parse(localSt
 function adminTheme(){adminCloseMenu();const loc=locatieVoorWeergave();dialoog({titel:'Thema huidig toernooi',html:'<p>Wijzig het uiterlijk zonder loting of uitslagen te veranderen.</p><label class="f">Thema<select id="admin-theme">'+Object.keys(THEMAS).map(k=>'<option value="'+k+'"'+(loc.thema===k?' selected':'')+'>'+esc(THEMAS[k].naam)+'</option>').join('')+'</select></label>',knoppen:[{label:'Annuleren',val:null,cls:'sec'},{label:'Thema toepassen',val:'apply'}],lees:ov=>$('#admin-theme',ov).value}).then(v=>{if(!v)return;loc.thema=v;commit();toast('Thema aangepast');});}
 function adminChangelog(){adminCloseMenu();melding('Changelog',ADMIN_CHANGELOG.map(([d,t])=>'<p><b>'+esc(d)+'</b> · '+esc(t)+'</p>').join('')+'<p class="small muted">Alleen wijzigingen die betrouwbaar zijn vastgelegd worden getoond.</p>');}
 const ACT = {
+  'flyer-open'(b) { flyerOpen(b.dataset.key || lotingKey()); },
   'admin-menu'(){UI.adminMenu=!UI.adminMenu;render()},
   'admin-new'(){adminWizard()},
   'admin-all'(){adminAll()},
