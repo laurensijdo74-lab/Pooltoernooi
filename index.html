@@ -1374,7 +1374,7 @@ function bouwFormat(N, opt) {
   rondes.forEach((r, i) => {
     r.key = i === K - 1 ? 'FIN' : 'R' + (i + 1);
     r.kort = i === K - 1 ? 'FIN' : (i === K - 2 && K >= 3 ? 'HF' : 'R' + (i + 1));
-    r.naam = i === K - 1 ? 'Finale' : (i === K - 2 && K >= 3 ? 'Halve finale' : 'Ronde ' + (i + 1));
+    r.naam = i === 0 ? '1e ronde' : r.sizes.length === 1 ? 'Finale' : r.sizes.length === 2 ? 'Halve finale' : r.sizes.length === 4 ? 'Kwartfinale' : 'Ronde ' + (i + 1);
   });
   return rondes;
 }
@@ -1507,7 +1507,7 @@ function herplanVanaf(T, key, M) {
   alles.forEach((r, j) => {
     r.key = j === K - 1 ? 'FIN' : 'R' + (j + 1);
     r.kort = j === K - 1 ? 'FIN' : (j === K - 2 && K >= 3 ? 'HF' : 'R' + (j + 1));
-    r.naam = j === K - 1 ? 'Finale' : (j === K - 2 && K >= 3 ? 'Halve finale' : 'Ronde ' + (j + 1));
+    r.naam = j === 0 ? '1e ronde' : r.sizes.length === 1 ? 'Finale' : r.sizes.length === 2 ? 'Halve finale' : r.sizes.length === 4 ? 'Kwartfinale' : 'Ronde ' + (j + 1);
   });
   const gedaan = T.plan.dagen.filter(d => voor.some(r => r.key === d.ronde));
   const w0 = gedaan.length ? Math.max.apply(null, gedaan.map(d => d.weekend)) + 1 + (T.instellingen.wekenTussen || 0) : 0;
@@ -3057,8 +3057,11 @@ const TABS = [
   ['overzicht', 'Overzicht'], ['spelers', 'Spelers'], ['loting', 'Loting'], ['dag', 'Speeldagen'],
   ['standen', 'Standen'], ['planning', 'Planning'], ['regels', 'Regels']
 ];
-const rondeNaam = k => { const r = P.planRonde(T, k); return r ? r.naam : k; };
-const rondeKort = k => { const r = P.planRonde(T, k); return r ? r.kort : k; };
+const rondeNaam = k => { const r = P.planRonde(T, k); return r ? faseNaam(T.plan.rondes, r) : k; };
+function faseNaam(rondes,r){ if(!r)return ''; if(r===rondes[0])return '1e ronde'; const n=(r.sizes||[]).length;return n===1?'Finale':n===2?'Halve finale':n===4?'Kwartfinale':r.naam; }
+function faseKort(rondes,r){const n=faseNaam(rondes,r);return n==='Kwartfinale'?'KF':n==='Halve finale'?'HF':n==='Finale'?'FIN':r.kort;}
+
+const rondeKort = k => { const r = P.planRonde(T, k); return r ? faseKort(T.plan.rondes,r) : k; };
 const dagLabelLang = (dag) => P.dagLabel(T, dag);
 const spelerNaam = id => P.naamVan(T, id);
 const wijzigbaar = () => !UI.viewer && !P.rondeGeloot(T, T.plan.rondes.length ? T.plan.rondes[0].key : 'R1');
@@ -3355,35 +3358,35 @@ function flyerBall(ctx,x,y,r,num,color){
 }
 function flyerCanvas(key,nr){
  const p=P.zoekPoule(T,key,nr),d=P.planDag(T,key,nr);if(!p||!d)return null;
- const c=document.createElement('canvas');c.width=1080;c.height=1440;const x=c.getContext('2d');
- const bg=x.createLinearGradient(0,0,1080,1440);bg.addColorStop(0,'#073a2c');bg.addColorStop(.6,'#09543a');bg.addColorStop(1,'#042c22');x.fillStyle=bg;x.fillRect(0,0,1080,1440);
- // Subtiel biljartlaken en goudkleurige kaderlijnen.
- for(let i=0;i<500;i++){const px=(i*179)%1080,py=(i*263)%1440;x.fillStyle='rgba(255,238,180,.025)';x.fillRect(px,py,2,2);}
- x.strokeStyle='#cda65e';x.lineWidth=5;x.strokeRect(35,35,1010,1370);x.lineWidth=2;x.strokeRect(49,49,982,1342);
- flyerBall(x,235,245,175,8,'#141414');flyerBall(x,935,385,170,3,'#e72e21');flyerBall(x,75,1240,145,1,'#e7b916');
- x.textAlign='center';x.fillStyle='#f4e5bf';x.font='700 30px Georgia';x.fillText('POOLTOERNOOI',540,94);
- x.fillStyle='#fff7dd';x.font='900 78px Impact,"Arial Narrow",Arial';x.fillText('DOUBLE',540,530);x.fillText('TOERNOOI',540,620);
+ const c=document.createElement('canvas');c.width=900;c.height=1200;const x=c.getContext('2d');
+ const bg=x.createRadialGradient(440,490,100,450,550,950);bg.addColorStop(0,'#12694b');bg.addColorStop(.55,'#07503b');bg.addColorStop(1,'#022b24');x.fillStyle=bg;x.fillRect(0,0,900,1200);
+ for(let i=0;i<1000;i++){x.fillStyle='rgba(255,239,188,.025)';x.fillRect((i*179)%900,(i*263)%1200,2,2)}
+ x.strokeStyle='#b99a59';x.lineWidth=2;x.beginPath();x.arc(450,620,495,0,Math.PI*2);x.stroke();
+ flyerBall(x,175,190,152,8,'#111111');flyerBall(x,843,405,150,3,'#d6271f');flyerBall(x,35,1050,112,1,'#e7b916');
+ // Exacte herkenbare compositie van Stijn: biljartballen, hoge witte titel, crèmekleurige deelnemerskaart.
+ x.textAlign='center';x.fillStyle='#fff7e6';x.font='900 75px Impact,"Arial Narrow",Arial';x.fillText('DOUBLE',450,452);x.fillText('TOERNOOI',450,535);
  const loc=T.locaties.find(l=>l.id===dagLocatie(key,nr))||T.locaties[0];
- x.fillStyle='#e6c986';x.font='700 32px Arial';x.fillText((loc?.naam||T.naam).toUpperCase(),540,685);
- x.font='700 30px Arial';x.fillText(P.datumLang(d.datum),540,735);
- flyerRoundRect(x,126,775,828,Math.min(475,120+p.spelers.length*69),22,'#f9edcd');
- x.fillStyle='#17402d';x.font='900 33px Arial';x.textAlign='center';x.fillText(rondePoule(key,nr).toUpperCase(),540,822);
- x.strokeStyle='#c1aa7d';x.lineWidth=2;x.beginPath();x.moveTo(164,844);x.lineTo(916,844);x.stroke();
- const rows=p.spelers.map(id=>spelerNaam(id));const colW=375,half=Math.ceil(rows.length/2);
- rows.forEach((name,i)=>{const col=i<half?0:1,idx=col?i-half:i;flyerText(x,name,col?735:345,897+idx*76,colW,31,'#173c2c',800);});
- if(rows.length>half){x.beginPath();x.moveTo(540,862);x.lineTo(540,862+Math.max(half,rows.length-half)*76);x.stroke();}
- const ph=rows.some(n=>n.includes(' / '));
- if(ph){x.fillStyle='#b23e22';x.font='italic 800 27px Arial';x.fillText('PLAY-OFF  🔥',540,1268);}
- x.fillStyle='#f5e5bb';x.font='700 31px Arial';x.fillText('13:00  OPEN TAFEL     •     14:00  START',540,1332);
- if(ph){x.font='700 23px Arial';x.fillText('PLAY-OFF 12:30',540,1367);}
+ x.font='bold 25px Arial';x.fillStyle='#efd4a0';x.fillText((loc?.naam||T.naam).toUpperCase(),450,582);
+ x.font='bold 28px Arial';x.fillText(faseNaam(T.plan.rondes,P.planRonde(T,key)).toUpperCase()+' · POULE '+nr,450,626);
+ x.font='bold 24px Arial';x.fillText(P.datumLang(d.datum),450,666);
+ const hasPlayoff=p.spelers.some(id=>P.isPh(id))||playoffsVoorDag(d).length>0;
+ x.fillStyle='#f6e9ca';x.strokeStyle='#c6aa70';x.lineWidth=5;x.beginPath();x.roundRect(112,695,676,375,25);x.fill();x.stroke();
+ x.strokeStyle='#c6b28e';x.lineWidth=2;x.beginPath();x.moveTo(450,720);x.lineTo(450,1039);x.stroke();
+ const names=p.spelers.map(id=>spelerNaam(id));const half=Math.ceil(names.length/2);
+ names.forEach((name,i)=>{const col=i<half?0:1,idx=col?i-half:i;const cx=col?618:282;const text=String(name).replace(/\s*&\s*/g,' & ');flyerText(x,text,cx,760+idx*93,286,30,'#164332',800);if(idx<Math.max(half,names.length-half)-1){x.beginPath();x.moveTo(cx-136,802+idx*93);x.lineTo(cx+136,802+idx*93);x.stroke();}});
+ x.fillStyle='#f8ebcf';x.font='bold 24px Arial';x.textAlign='center';x.fillText('13:00  OPEN TAFEL',690,84);x.fillText('14:00  START POULE',690,118);
+ if(hasPlayoff){x.fillStyle='#ffe3a4';x.fillText('12:30  PLAY-OFF',690,152);x.fillStyle='#ffcd80';x.font='italic bold 25px Arial';x.fillText('🔥 PLAY-OFF 🔥',450,1105)}
+ x.fillStyle='#f6e5c4';x.font='bold 27px Arial';x.fillText(P.isoNaarDatum(d.datum).toLocaleDateString('nl-NL'),450,1162);
  return c;
 }
-async function flyerOpen(key){
+
+async function flyerOpen(key,selectedNr){
  const days=P.planDagen(T,key),options=days.map(d=>'<option value="'+d.poule+'">'+esc(P.datumLang(d.datum))+' · Poule '+d.poule+'</option>').join('');
  const ov=document.createElement('div');ov.className='overlay';ov.style.zIndex='250';
  ov.innerHTML='<div class="dialog wide" style="max-height:96dvh"><h3>🎱 Flyer maken</h3><div class="db stack"><label class="f">Speeldag<select id="flyer-day">'+options+'</select></label><img id="flyer-preview" alt="Voorbeeld van de flyer" style="display:block;width:min(100%,350px);max-height:55dvh;object-fit:contain;margin:auto;border-radius:10px"><p class="small muted">De afbeelding wordt automatisch opgebouwd uit de actuele loting. Controleer de namen voordat je deelt.</p></div><div class="df"><button class="btn sec" id="flyer-close">Sluiten</button><button class="btn sec" id="flyer-save">PNG bewaren</button><button class="btn" id="flyer-share">Delen via WhatsApp</button></div></div>';
  document.body.appendChild(ov);let canvas=null;
- const draw=()=>{canvas=flyerCanvas(key,Number(ov.querySelector('#flyer-day').value));ov.querySelector('#flyer-preview').src=canvas?canvas.toDataURL('image/png'):'';};
+ if(selectedNr)ov.querySelector('#flyer-day').value=String(selectedNr);
+  const draw=()=>{canvas=flyerCanvas(key,Number(ov.querySelector('#flyer-day').value));ov.querySelector('#flyer-preview').src=canvas?canvas.toDataURL('image/png'):'';};
  ov.querySelector('#flyer-day').onchange=draw;ov.querySelector('#flyer-close').onclick=()=>ov.remove();ov.addEventListener('click',e=>{if(e.target===ov)ov.remove()});
  const file=()=>new Promise(resolve=>canvas.toBlob(b=>resolve(new File([b],'Pooltoernooi_flyer_'+key+'_poule'+ov.querySelector('#flyer-day').value+'.png',{type:'image/png'})),'image/png'));
  ov.querySelector('#flyer-save').onclick=()=>{if(!canvas)return;const a=document.createElement('a');a.download='Pooltoernooi_flyer.png';a.href=canvas.toDataURL('image/png');a.click();};
@@ -3418,7 +3421,7 @@ function pouleKaartHtml(key, p, anim) {
   }).join('');
   const loc = dagLocatie(key, p.nr);
   return '<div class="card"><div class="ch"><h4>' + (enkelPoule(key) ? esc(rondeNaam(key)) : 'Poule ' + p.nr) + '</h4><span class="chip">' + esc(P.datumKort(d.datum)) + '</span></div><div class="rows">' + rijen + '</div>' +
-    '<div class="row between" style="padding:7px 14px;border-top:1px solid var(--line);background:var(--surface2)"><span class="tiny muted">' + esc(P.hoofd(P.dagNaam(d.datum))) + (loc !== T.locatieId ? ' · ' + esc(locNaam(loc)) : '') + '</span><span class="row" style="gap:8px"><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span><button class="btn sec sm" data-act="open-dag" data-key="' + key + '" data-nr="' + p.nr + '">Wedstrijden openen</button></span></div></div>';
+    '<div class="row between" style="padding:7px 14px;border-top:1px solid var(--line);background:var(--surface2)"><span class="tiny muted">' + esc(P.hoofd(P.dagNaam(d.datum))) + (loc !== T.locatieId ? ' · ' + esc(locNaam(loc)) : '') + '</span><span class="row" style="gap:8px"><span class="chip ' + s.cls + '">' + esc(s.tekst) + '</span><button class="btn sec sm noprint" data-act="flyer-poule" data-key="' + key + '" data-nr="' + p.nr + '">🎱 Flyer</button><button class="btn sec sm" data-act="open-dag" data-key="' + key + '" data-nr="' + p.nr + '">Wedstrijden openen</button></span></div></div>';
 }
 
 /* A4-overzicht: echte standen en kwalificaties, geen voorbeeldscores. */
@@ -4338,6 +4341,7 @@ function fitViewerStandNames(){
 }
 
 function render() {
+  if(T&&T.plan&&T.plan.rondes)T.plan.rondes.forEach(r=>{r.naam=faseNaam(T.plan.rondes,r);r.kort=faseKort(T.plan.rondes,r);});
   const app = $('#app'); if (!app) return;
   const y = window.scrollY, focusId = UI.focusId; UI.focusId = null;
   pasThemaToe(locatieVoorWeergave());
@@ -4685,6 +4689,7 @@ function adminTheme(){adminCloseMenu();const loc=locatieVoorWeergave();dialoog({
 function adminChangelog(){adminCloseMenu();melding('Changelog',ADMIN_CHANGELOG.map(([d,t])=>'<p><b>'+esc(d)+'</b> · '+esc(t)+'</p>').join('')+'<p class="small muted">Alleen wijzigingen die betrouwbaar zijn vastgelegd worden getoond.</p>');}
 const ACT = {
   'flyer-open'(b) { flyerOpen(b.dataset.key || lotingKey()); },
+  'flyer-poule'(b) { flyerOpen(b.dataset.key || lotingKey(),Number(b.dataset.nr)); },
   'admin-menu'(){UI.adminMenu=!UI.adminMenu;render()},
   'admin-new'(){adminWizard()},
   'admin-all'(){adminAll()},
