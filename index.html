@@ -3372,24 +3372,50 @@ function flyerBall(ctx,x,y,r,num,color){
 function flyerCanvas(key,nr){
  const p=P.zoekPoule(T,key,nr),d=P.planDag(T,key,nr);if(!p||!d)return null;
  const c=document.createElement('canvas');c.width=900;c.height=1200;const x=c.getContext('2d');
- const bg=x.createRadialGradient(440,490,100,450,550,950);bg.addColorStop(0,'#12694b');bg.addColorStop(.55,'#07503b');bg.addColorStop(1,'#022b24');x.fillStyle=bg;x.fillRect(0,0,900,1200);
- for(let i=0;i<1000;i++){x.fillStyle='rgba(255,239,188,.025)';x.fillRect((i*179)%900,(i*263)%1200,2,2)}
- x.strokeStyle='#b99a59';x.lineWidth=2;x.beginPath();x.arc(450,620,495,0,Math.PI*2);x.stroke();
- flyerBall(x,175,190,152,8,'#111111');flyerBall(x,843,405,150,3,'#d6271f');flyerBall(x,35,1050,112,1,'#e7b916');
- // Exacte herkenbare compositie van Stijn: biljartballen, hoge witte titel, crèmekleurige deelnemerskaart.
- x.textAlign='center';x.fillStyle='#fff7e6';x.font='900 75px Impact,"Arial Narrow",Arial';x.fillText('DOUBLE',450,452);x.fillText('TOERNOOI',450,535);
+ // Klassieke Vue-flyer: donkergroen biljartlaken, grote ballen en crèmekleurige kaart.
+ const bg=x.createRadialGradient(440,540,60,450,590,850);
+ bg.addColorStop(0,'#126447');bg.addColorStop(.65,'#064630');bg.addColorStop(1,'#012d22');x.fillStyle=bg;x.fillRect(0,0,900,1200);
+ let seed=23;const rnd=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
+ for(let i=0;i<26000;i++){x.fillStyle=rnd()>.5?'rgba(255,242,182,.028)':'rgba(0,0,0,.034)';x.fillRect(rnd()*900,rnd()*1200,1+rnd()*2,1+rnd()*2);}
+ x.strokeStyle='rgba(209,179,94,.55)';x.lineWidth=1.6;
+ for(const radius of [490,540]){x.beginPath();x.arc(455,655,radius,0,Math.PI*2);x.stroke();}
+ function bigBall(cx,cy,r,n,col){
+  x.save();x.shadowColor='#000b';x.shadowBlur=24;x.shadowOffsetX=10;x.shadowOffsetY=12;
+  const g=x.createRadialGradient(cx-r*.36,cy-r*.46,r*.07,cx+r*.15,cy+r*.12,r*1.22);
+  g.addColorStop(0,'#ffffff');g.addColorStop(.12,col);g.addColorStop(.68,col);g.addColorStop(1,'#090d0b');
+  x.fillStyle=g;x.beginPath();x.arc(cx,cy,r,0,Math.PI*2);x.fill();x.restore();
+  x.fillStyle='#f9eac8';x.beginPath();x.arc(cx,cy,r*.49,0,Math.PI*2);x.fill();
+  x.fillStyle='#101311';x.font='900 '+Math.round(r*.66)+'px Arial';x.textAlign='center';x.textBaseline='middle';x.fillText(n,cx,cy+r*.045);x.textBaseline='alphabetic';
+  x.save();x.translate(cx-r*.32,cy-r*.54);x.rotate(-.5);const shine=x.createRadialGradient(0,0,0,0,0,r*.35);shine.addColorStop(0,'#fff9');shine.addColorStop(1,'#fff0');x.fillStyle=shine;x.beginPath();x.ellipse(0,0,r*.27,r*.13,0,0,Math.PI*2);x.fill();x.restore();
+ }
+ bigBall(-30,-12,118,'4','#65328b');bigBall(245,140,188,'8','#151515');bigBall(920,300,164,'3','#d72b20');bigBall(-15,1065,135,'1','#f4bf00');bigBall(945,1190,105,'5','#e77d19');
+ x.fillStyle='#fff4d8';x.textAlign='center';x.shadowColor='#0006';x.shadowBlur=4;
+ x.font='900 87px Impact,"Arial Narrow",sans-serif';x.fillText('DOUBLE',450,460);x.font='900 100px Impact,"Arial Narrow",sans-serif';x.fillText('TOERNOOI',450,555);x.shadowBlur=0;
  const loc=T.locaties.find(l=>l.id===dagLocatie(key,nr))||T.locaties[0];
- x.font='bold 25px Arial';x.fillStyle='#efd4a0';x.fillText((loc?.naam||T.naam).toUpperCase(),450,582);
- x.font='bold 28px Arial';x.fillText(faseNaam(T.plan.rondes,P.planRonde(T,key)).toUpperCase()+' · POULE '+nr,450,626);
- x.font='bold 24px Arial';x.fillText(P.datumLang(d.datum),450,666);
+ const phase=faseNaam(T.plan.rondes,P.planRonde(T,key));
+ x.font='bold 22px Arial';x.fillStyle='#f3dfb5';x.fillText((loc?.naam||T.naam).toUpperCase(),450,596);
+ x.font='bold 26px Arial';x.fillText(phase.toUpperCase()+(phase==='Finale'?'':' · POULE '+nr),450,631);
+ // De originele kaart met donkere, smalle namen en horizontale scheidingslijnen.
+ x.fillStyle='#f8edcf';x.strokeStyle='#bda875';x.lineWidth=4;x.beginPath();x.roundRect(145,670,610,422,29);x.fill();x.stroke();
+ x.strokeStyle='#b8a889';x.lineWidth=5;x.beginPath();x.moveTo(450,700);x.lineTo(450,1060);x.stroke();
+ const names=p.spelers.map(id=>spelerNaam(id));const half=Math.ceil(names.length/2),rows=Math.max(half,names.length-half);
+ function teamText(name,cx,cy){
+  const parts=String(name).split(/\s*&\s*/);let lines=parts.length===2?[parts[0],'&',parts[1]]:[String(name)];
+  x.fillStyle='#164735';x.textAlign='center';let sz=lines.length===3?27:30;
+  x.font='800 '+sz+'px "Arial Narrow",Arial,sans-serif';
+  while(sz>16&&lines.some(t=>x.measureText(t).width>260)){sz--;x.font='800 '+sz+'px "Arial Narrow",Arial,sans-serif';}
+  const step=lines.length===3?29:32;lines.forEach((line,i)=>x.fillText(line,cx,cy+(i-(lines.length-1)/2)*step));
+ }
+ names.forEach((name,i)=>{const col=i<half?0:1,idx=col?i-half:i,cx=col?605:295;teamText(name,cx,755+idx*(300/Math.max(rows-1,2)));});
+ x.strokeStyle='#c3b294';x.lineWidth=3;for(let i=1;i<rows;i++){const y=705+i*350/rows;for(const [x1,x2] of [[175,420],[480,725]]){x.beginPath();x.moveTo(x1,y);x.lineTo(x2,y);x.stroke();}}
  const hasPlayoff=p.spelers.some(id=>P.isPh(id))||playoffsVoorDag(d).length>0;
- x.fillStyle='#f6e9ca';x.strokeStyle='#c6aa70';x.lineWidth=5;x.beginPath();x.roundRect(112,695,676,375,25);x.fill();x.stroke();
- x.strokeStyle='#c6b28e';x.lineWidth=2;x.beginPath();x.moveTo(450,720);x.lineTo(450,1039);x.stroke();
- const names=p.spelers.map(id=>spelerNaam(id));const half=Math.ceil(names.length/2);
- names.forEach((name,i)=>{const col=i<half?0:1,idx=col?i-half:i;const cx=col?618:282;const text=String(name).replace(/\s*&\s*/g,' & ');flyerText(x,text,cx,760+idx*93,286,30,'#164332',800);if(idx<Math.max(half,names.length-half)-1){x.beginPath();x.moveTo(cx-136,802+idx*93);x.lineTo(cx+136,802+idx*93);x.stroke();}});
- x.fillStyle='#f8ebcf';x.font='bold 24px Arial';x.textAlign='center';x.fillText('13:00  OPEN TAFEL',690,84);x.fillText('14:00  START POULE',690,118);
- if(hasPlayoff){x.fillStyle='#ffe3a4';x.fillText('12:30  PLAY-OFF',690,152);x.fillStyle='#ffcd80';x.font='italic bold 25px Arial';x.fillText('🔥 PLAY-OFF 🔥',450,1105)}
- x.fillStyle='#f6e5c4';x.font='bold 27px Arial';x.fillText(P.isoNaarDatum(d.datum).toLocaleDateString('nl-NL'),450,1162);
+ x.fillStyle='#fff1d3';x.textAlign='left';x.font='bold 25px Arial';x.fillText('13:00',585,64);x.fillText('14:00',585,106);
+ x.font='bold 18px Arial';x.fillText('OPEN TAFEL',705,64);x.fillText('START',705,106);
+ x.strokeStyle='#f0e1bc';x.lineWidth=2;x.beginPath();x.moveTo(575,30);x.lineTo(864,30);x.moveTo(575,120);x.lineTo(864,120);x.stroke();
+ if(hasPlayoff){x.fillStyle='#ffe6b0';x.font='bold 20px Arial';x.textAlign='center';x.fillText('12:30 PLAY-OFF',715,158);}
+ x.fillStyle='#fff1d3';x.textAlign='center';x.font='bold 29px Impact,"Arial Narrow",Arial';
+ x.fillText(P.isoNaarDatum(d.datum).toLocaleDateString('nl-NL'),450,1163);
+ x.strokeStyle='#ddc894';x.lineWidth=2;x.beginPath();x.moveTo(230,1153);x.lineTo(310,1153);x.moveTo(590,1153);x.lineTo(670,1153);x.stroke();
  return c;
 }
 
