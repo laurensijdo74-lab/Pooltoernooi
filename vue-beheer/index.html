@@ -2881,7 +2881,9 @@ document.addEventListener('webkitfullscreenchange',updateViewerFullscreenButton)
 let tvHalf=0;
 function toggleViewerTv(){
  if(!UI.viewer || mobielWeergave())return;
- document.documentElement.classList.toggle('viewer-tv');
+ const active=document.documentElement.classList.toggle('viewer-tv');
+ if(active && !viewerFullscreenActive()) toggleViewerFullscreen();
+ else if(!active && viewerFullscreenActive()) toggleViewerFullscreen();
  updateViewerTvButton();applyTvHalf();
 }
 function updateViewerCompactButton(){
