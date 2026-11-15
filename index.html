@@ -3058,8 +3058,21 @@ const TABS = [
   ['standen', 'Standen'], ['planning', 'Planning'], ['regels', 'Regels']
 ];
 const rondeNaam = k => { const r = P.planRonde(T, k); return r ? faseNaam(T.plan.rondes, r) : k; };
-function faseNaam(rondes,r){ if(!r)return ''; if(r===rondes[0])return '1e ronde'; const n=(r.sizes||[]).length;return n===1?'Finale':n===2?'Halve finale':n===4?'Kwartfinale':r.naam; }
-function faseKort(rondes,r){const n=faseNaam(rondes,r);return n==='Kwartfinale'?'KF':n==='Halve finale'?'HF':n==='Finale'?'FIN':r.kort;}
+function faseNaam(rondes,r){
+  if(!r)return '';
+  const i=(rondes||[]).findIndex(x=>x===r||x.key===r.key);
+  if(i===0)return '1e ronde';
+  const n=(r.sizes||[]).length;
+  return n===1?'Finale':n===2?'Halve finale':n===4?'Kwartfinale':'Ronde '+(i>=0?i+1:2);
+}
+function faseKort(rondes,r){
+  const naam=faseNaam(rondes,r);
+  return naam==='Kwartfinale'?'KF':naam==='Halve finale'?'HF':naam==='Finale'?'FIN':naam==='1e ronde'?'R1':(r.kort||r.key);
+}
+function actualiseerFasen(){
+  if(!T||!T.plan||!Array.isArray(T.plan.rondes))return;
+  T.plan.rondes.forEach(r=>{r.naam=faseNaam(T.plan.rondes,r);r.kort=faseKort(T.plan.rondes,r);});
+}
 
 const rondeKort = k => { const r = P.planRonde(T, k); return r ? faseKort(T.plan.rondes,r) : k; };
 const dagLabelLang = (dag) => P.dagLabel(T, dag);
@@ -4341,7 +4354,7 @@ function fitViewerStandNames(){
 }
 
 function render() {
-  if(T&&T.plan&&T.plan.rondes)T.plan.rondes.forEach(r=>{r.naam=faseNaam(T.plan.rondes,r);r.kort=faseKort(T.plan.rondes,r);});
+  actualiseerFasen();
   const app = $('#app'); if (!app) return;
   const y = window.scrollY, focusId = UI.focusId; UI.focusId = null;
   pasThemaToe(locatieVoorWeergave());
