@@ -492,6 +492,40 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
   .card > .ch { padding: 1.2mm 2.5mm !important; } .card > .ch h4 { font-size: 9.5pt; }
   .card .rows > div { padding: 0.8mm 2.5mm !important; min-height: 0 !important; gap: 1.5mm; } .card .rows .nm { font-size: 9pt; }
   .card > div:last-child { padding: 1mm 2.5mm !important; }
+  /* Loting op A4 staand: twee kolommen en twee rijen, ruim over de pagina. */
+  body.print-loting #lotkaarten.cards {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-template-rows: repeat(2, minmax(0, 1fr)) !important;
+    gap: 9mm !important;
+    height: 248mm !important;
+    align-items: stretch !important;
+  }
+  body.print-loting #lotkaarten .card {
+    display: flex !important;
+    flex-direction: column !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    border: 1px solid #b5b5b5 !important;
+  }
+  body.print-loting #lotkaarten .card > .ch { padding: 4mm !important; }
+  body.print-loting #lotkaarten .card > .ch h4 { font-size: 15pt !important; }
+  body.print-loting #lotkaarten .card .rows { flex: 1; display: flex; flex-direction: column; }
+  body.print-loting #lotkaarten .card .rows > div {
+    flex: 1; min-height: 0 !important; padding: 3mm 4mm !important;
+    align-items: center !important;
+  }
+  body.print-loting #lotkaarten .card .rows .nm { font-size: 13pt !important; line-height: 1.3 !important; }
+  body.print-loting #lotkaarten .card .ball { font-size: 1rem !important; }
+  body.print-loting #lotkaarten .card .ch .chip { font-size: 10pt !important; }
+  body.print-loting .printtitle { margin-bottom: 5mm !important; }
+  body.print-loting .printtitle h2 { font-size: 16pt !important; }
+  /* Bij een ander aantal poules blijft de loting binnen de afdrukpagina. */
+  body.print-loting #lotkaarten:has(> .card:nth-child(5)) {
+    height: auto !important;
+    grid-template-rows: auto !important;
+  }
+  body.print-loting #lotkaarten:has(> .card:nth-child(5)) .card { min-height: 55mm; }
   /* speeldag */
   .dagview { display: block !important; } .dagview > aside { display: none !important; }
   .dagview .stack-l > .note { display: none !important; }
