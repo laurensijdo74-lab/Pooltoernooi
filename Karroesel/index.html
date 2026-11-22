@@ -1495,6 +1495,7 @@ function resetRonde(T, key) {
 }
 
 /* ---------- Standen ---------- */
+/* POOL 2026-11-22: dezelfde wedstrijdstand- en kansenberekening in alle apps. */
 function standPoule(T, poule) {
   const ids = poule.spelers, tot = wedstrijdenPerSpeler(ids.length);
   const rij = {};
@@ -1506,11 +1507,117 @@ function standPoule(T, poule) {
   });
   const rows = ids.map(id => rij[id]);
   rows.forEach(r => { r.rest = tot - r.gespeeld; r.max = r.punten + r.rest; r.totaal = tot; });
-  rows.sort((x, y) => y.punten - x.punten || x.pos - y.pos);
+  // Bij gelijke punten staat wie minder wedstrijden speelde hoger.
+  // Pas daarna gebruiken we de oorspronkelijke poulevolgorde als stabiele tiebreak.
+  rows.sort((x, y) => y.punten - x.punten || x.gespeeld - y.gespeeld || x.pos - y.pos);
   rows.forEach((r, i) => { r.rang = i + 1; });
   rows.forEach((r, i) => { r.gelijk = rows.some((o, j) => j !== i && o.punten === r.punten); });
   return rows;
 }
+
+/*
+ * Exacte mogelijke eindstanden. Iedere nog niet gespeelde wedstrijd heeft twee
+ * uitkomsten. We bewaren per stap alleen de unieke verdelingen van winstpunten.
+ * Daardoor hoeven we niet 2^20 wedstrijdreeksen door te rekenen.
+ * Geen mutatie van uitslagen of Firestore en geen invloed op play-offregels.
+ */
+const kansenCache = new WeakMap();
+function eindscoreScenario(poule) {
+  const ids = poule.spelers || [], schema = poule.schema || [];
+  const vingerafdruk = ids.join(',') + '/' + schema.map(g => g.a + ':' + g.b + ':' + (g.w || '')).join('/');
+  const oud = kansenCache.get(poule);
+  if (oud && oud.vingerafdruk === vingerafdruk) return oud;
+  const n = ids.length, totaal = wedstrijdenPerSpeler(n), basis = totaal + 1;
+  const factor = ids.map((_, i) => Math.pow(basis, i));
+  const index = new Map(ids.map((id, i) => [id, i]));
+  let code = 0;
+  const open = [];
+  for (const g of schema) {
+    if (!index.has(g.a) || !index.has(g.b)) continue;
+    if (g.w === g.a || g.w === g.b) code += factor[index.get(g.w)];
+    else open.push([index.get(g.a), index.get(g.b)]);
+  }
+  // Alleen bij ongebruikelijk grote poules een veilige, conservatieve fallback.
+  let scores = Number.isSafeInteger(Math.pow(basis, n)) && n <= 6 ? new Set([code]) : null;
+  if (scores) for (const [a, b] of open) {
+    const volgende = new Set();
+    for (const getal of scores) {
+      volgende.add(getal + factor[a]);
+      volgende.add(getal + factor[b]);
+    }
+    if (volgende.size > 250000) { scores = null; break; }
+    scores = volgende;
+  }
+  const resultaat = { vingerafdruk, ids, basis, totaal, scores, statusKey: '', status: null, minDerde: null };
+  kansenCache.set(poule, resultaat);
+  return resultaat;
+}
+function decodeerEindscore(getal, n, basis) {
+  const punten = [];
+  for (let i = 0; i < n; i++) { punten.push(getal % basis); getal = Math.floor(getal / basis); }
+  return punten;
+}
+function laagstMogelijkeDerde(poule) {
+  const scenario = eindscoreScenario(poule);
+  if (scenario.minDerde !== null) return scenario.minDerde;
+  if (!scenario.scores || scenario.ids.length < 3) return -1;
+  let minimum = Infinity;
+  for (const code of scenario.scores) {
+    const punten = decodeerEindscore(code, scenario.ids.length, scenario.basis);
+    punten.sort((a, b) => b - a);
+    minimum = Math.min(minimum, punten[2]);
+    if (minimum === 0) break;
+  }
+  scenario.minDerde = minimum / Math.max(1, scenario.totaal);
+  return scenario.minDerde;
+}
+/*
+ * Per speler: kanDoor = direct of via toegestane beste-nr.-3-route is nog
+ * mogelijk; zekerDoor = in ELKE mogelijke eindstand zonder grens-play-off
+ * rechtstreeks in top 2. Gelijke punten blijven dus altijd beslisbaar.
+ */
+function pouleKansen(T, key, poule) {
+  const sc = eindscoreScenario(poule), ids = sc.ids, n = ids.length;
+  const pr = planRonde(T, key), rd = T.rondes[key];
+  const ix = rd && rd.poules ? rd.poules.indexOf(poule) : -1;
+  const besteDerde = !!(pr && pr.derden && ix >= 0 && Math.floor(ix / 2) < Math.floor(rd.poules.length / 2));
+  const partner = besteDerde ? rd.poules[ix % 2 === 0 ? ix + 1 : ix - 1] : null;
+  const partnerSc = partner ? eindscoreScenario(partner) : null;
+  const signatuur = key + ':' + !!besteDerde + ':' + (partnerSc ? partnerSc.vingerafdruk : '') + ':' + sc.vingerafdruk;
+  if (sc.statusKey === signatuur && sc.status) return sc.status;
+  const drempelDerde = partner ? laagstMogelijkeDerde(partner) : Infinity;
+  const stand = standPoule(T, poule);
+  const status = {};
+  ids.forEach(id => { status[id] = { kanDoor: false, zekerDoor: true }; });
+  if (!sc.scores) {
+    // Veilig bij zeer grote poules: nooit ten onrechte iemand uitschakelen.
+    ids.forEach(id => {
+      const rij = stand.find(r => r.id === id);
+      const zekerHoger = stand.filter(r => r.id !== id && r.punten > rij.max).length;
+      const mogelijkGelijkOfHoger = stand.filter(r => r.id !== id && r.max >= rij.punten).length;
+      status[id].kanDoor = zekerHoger < (besteDerde ? 3 : 2);
+      status[id].zekerDoor = mogelijkGelijkOfHoger < 2;
+    });
+  } else {
+    for (const code of sc.scores) {
+      const punten = decodeerEindscore(code, n, sc.basis);
+      for (let i = 0; i < n; i++) {
+        const huidig = punten[i];
+        let hoger = 0, gelijkOfHoger = 0;
+        for (let j = 0; j < n; j++) if (j !== i) {
+          if (punten[j] > huidig) hoger++;
+          if (punten[j] >= huidig) gelijkOfHoger++;
+        }
+        if (hoger < 2 || (besteDerde && hoger === 2 && huidig / Math.max(1, sc.totaal) >= drempelDerde - 1e-9)) status[ids[i]].kanDoor = true;
+        if (gelijkOfHoger >= 2) status[ids[i]].zekerDoor = false;
+      }
+    }
+  }
+  sc.statusKey = signatuur;
+  sc.status = status;
+  return status;
+}
+
 function reguliereKlaar(poule) { return poule.spelers.length > 0 && poule.schema.length > 0 && poule.schema.every(g => g.w); }
 function grensGroep(rows, k) {
   if (rows.length <= k) return null;
@@ -2241,7 +2348,7 @@ const API = {
   planRonde, planDagen, planDag, ronde, rondeGeloot, rondeIndex, vorigeKey, volgendeKey, heeftScores, eersteNietGeloot,
   herplan, herplanVanaf, maakSchema, schemaParen, pauzeIndex, wedstrijdenPerSpeler, dagLabel, deelnemersVoor, capaciteitCheck,
   berekenLoting, loot, lootHandmatig, controleerLoting, resetRonde, opmerkingenBijLoting,
-  standPoule, reguliereKlaar, grensGroep, ppFormaten, ppStandaardFormaat, ppWins, ppDoel, ppGameNodig, ppStapKlaar, ppTieNodig,
+  standPoule, pouleKansen, reguliereKlaar, grensGroep, ppFormaten, ppStandaardFormaat, ppWins, ppDoel, ppGameNodig, ppStapKlaar, ppTieNodig,
   synchroniseerPoule, eindvolgorde, pouleAfgerond, rondeAfgerond, rondeGespeeldAantal, zoekPoule,
   zetUitslag, zetPpUitslag, zetPpWalkover, resetPpWalkover, lootBreaksPp, lootBreaksDerde, telBreaks, zetPpFormaat, zetPpEersteBreak, resetPp, herstelVorige, eersteOpenGame, wisPouleUitslagen, laatsteGame,
   derdeZeker, isFinale, finaleTussenstand, herstelReferenties, vergrendeld, zetOntgrendeld, derdeVergrendeld, derdeStatus, zetDerdeUitslag, zetDerdeWalkover, resetDerdeWalkover, zetDerdeFormaat, verwerkDerden, kwalificatie, spelerRondeStatus,
@@ -3216,6 +3323,7 @@ function geenKansDrempel(key, p, rows, r) {
   }
   return Math.min(p2, t3);
 }
+/* POOL 2026-11-22: status volgt alle nog mogelijke uitslagen; HTML/CSS blijft gelijk. */
 function rijStatus(key, p, rows, r, idx) {
   const pr = P.planRonde(T, key), laatste = !P.volgendeKey(T, key);
   const klaarReg = P.reguliereKlaar(p);
@@ -3225,13 +3333,12 @@ function rijStatus(key, p, rows, r, idx) {
     return { cls: '', chip: '' };
   }
   if (!klaarReg) {
-    if (!r.gespeeld) return { cls: '', chip: '' };
-    if (r.max < geenKansDrempel(key, p, rows, r)) return { cls: 'uit', chip: '<span class="chip bad">Geen kans</span>' };
-    // Zeker top 2 zodra hooguit een andere partij nog gelijk kan komen of hoger kan eindigen.
-    // Gelijke punten tellen mee: een gedeelde tweede plek kan nog een play-off vereisen.
-    const mogelijkeConcurrenten = rows.filter(andere => andere.id !== r.id && andere.max >= r.punten).length;
-    if (mogelijkeConcurrenten < P.DOORGAAN) return { cls: 'door', chip: '<span class="chip ok">Zeker door</span>' };
-    if (idx < 2) return { cls: 'door', chip: '<span class="chip ok">Op koers</span>' };
+    if (!p.schema.some(g => !!g.w)) return { cls: '', chip: '' };
+    const kans = P.pouleKansen(T, key, p)[r.id];
+    if (kans && !kans.kanDoor) return { cls: 'uit', chip: '<span class="chip bad">Uitgeschakeld</span>' };
+    if (kans && kans.zekerDoor) return { cls: 'door', chip: '<span class="chip ok">Zeker door</span>' };
+    // Een voorlopige top-2-positie is een verwachting, geen plaatsingsbewijs.
+    if (idx < P.DOORGAAN) return { cls: 'door', chip: '<span class="chip ok">Op koers</span>' };
     return { cls: '', chip: '<span class="chip">In de race</span>' };
   }
   const pp = p.pp;
@@ -3247,6 +3354,7 @@ function rijStatus(key, p, rows, r, idx) {
   if (st.s === 'bezig' && st.rang === 3) return { cls: '', chip: '<span class="chip info">Nr. 3 – wacht op andere poule</span>' };
   return { cls: 'uit', chip: '<span class="chip bad">Uit</span>' };
 }
+
 function standHtml(key, p, compact) {
   const rows = P.standPoule(T, p), klaar = P.pouleAfgerond(T, p);
   const volgorde = klaar ? P.eindvolgorde(T, p).map(id => rows.find(r => r.id === id)) : rows;
