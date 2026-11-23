@@ -1473,6 +1473,14 @@ function phLabel(T, id) {
   const st = derdeStatus(T, h.key, h.i);
   // Een onbesliste of geresette play-off blijft beide kandidaatnamen tonen.
   // Ook bij status 'wacht' (bijv. na reset) kan de koppeling bekend zijn.
+  if (h.soort === 'derde' && st.status === 'wacht' && st.kandidaten && st.kandidaten.length) {
+    const rd = T.rondes[h.key], pa = rd && rd.poules[2*h.i], pb = rd && rd.poules[2*h.i+1];
+    const pending = [pa,pb].filter(p => p && p.pp && !p.pp.voltooid && p.pp.k === 3);
+    const settled = [pa,pb].filter(p => p && !pending.includes(p) && pouleAfgerond(T,p));
+    const names = pending.flatMap(p => p.pp.stappen[0].groep.map(x => naamVan(T,x)));
+    const other = settled.map(p => derdeVan(T,p)).filter(Boolean).map(x => naamVan(T,x));
+    return '(' + names.join(' / ') + ') / ' + other.join(' / ');
+  }
   if (st.a && st.b && st.status !== 'beslist') return naamVan(T, st.a) + ' / ' + naamVan(T, st.b);
    if (h.soort === 'derde') { const rd=T.rondes[h.key], q=rd&&rd.poules[2*h.i+1]; if(q&&q.pp&&!q.pp.voltooid) return q.pp.stappen[0].groep.map(x=>naamVan(T,x)).join(' / ')+' (plaats 3)'; }
   const po = T.derden && T.derden[h.key] && T.derden[h.key][h.i];
@@ -3674,7 +3682,7 @@ function deelnemersPrefTabel(key, ids) {
     return '<tr><td class="num muted">' + (i + 1) + '</td><td>' + esc(s.naam) + '</td><td><select data-chg="sp-pref" data-id="' + s.id + '" data-key="' + key + '"><option value="">Geen voorkeur</option><option value="A"' + (s.voorkeur[key] === 'A' ? ' selected' : '') + '>' + esc(dagLabelLang('A')) + '</option><option value="B"' + (s.voorkeur[key] === 'B' ? ' selected' : '') + '>' + esc(dagLabelLang('B')) + '</option></select></td>' +
       '<td><input type="date" data-chg="sp-nb" data-id="' + s.id + '" data-key="' + key + '" value="' + esc(s.nb[key] || '') + '"></td></tr>';
   };
-  return (heeftPh ? '<div class="note warn">Eén of meer deelnemers zijn nog niet bekend omdat er nog een play-off voor een plek in deze ronde moet worden gespeeld. Die spelers loten mee als “A / B”; de play-off speel je op de dag van deze ronde en de winnaar neemt automatisch de plek in.</div>' : '') +
+  return (heeftPh ? '<div class="note warn">Eén of meer deelnemers zijn nog niet bekend omdat er nog een play-off voor een plek in deze ronde moet worden gespeeld. De volledige beslissingsketen loot mee als één plaats. De winnaar van de laatste play-off neemt automatisch deze plek in.</div>' : '') +
     '<div class="scroll-x loting-pref-list" style="max-height:420px;overflow:auto"><table class="t"><thead><tr><th class="num">Nr</th><th>Speler</th><th>Voorkeur dag</th><th>Niet beschikbaar</th></tr></thead><tbody>' + ids.map(rij).join('') + '</tbody></table></div>';
 }
 function walkoverHerstelHtml() {
@@ -3684,10 +3692,10 @@ function walkoverHerstelHtml() {
     const rd = T.rondes[r.key]; if (!rd || !rd.geloot) return;
     rd.poules.forEach(p => {
       if (!p.pp) return;
-      p.pp.stappen.forEach((s, si) => { if (s.forfait) items.push({ soort: 'pp', key: r.key, nr: p.nr, stap: si, tekst: rondePoule(r.key, p.nr) + ': ' + spelerNaam(s.forfait.winnaar) + ' tegen ' + spelerNaam(s.forfait.afwezig), datum: P.planDag(T, r.key, p.nr) }); });
+      p.pp.stappen.forEach((s, si) => { if (s.forfait && !p.schema.some(g => g.w)) items.push({ soort: 'pp', key: r.key, nr: p.nr, stap: si, tekst: rondePoule(r.key, p.nr) + ': ' + spelerNaam(s.forfait.winnaar) + ' tegen ' + spelerNaam(s.forfait.afwezig), datum: P.planDag(T, r.key, p.nr) }); });
     });
     const ds = T.derden && T.derden[r.key] || {};
-    Object.keys(ds).forEach(i => { const po = ds[i]; if (po && po.forfait) items.push({ soort: 'derde', key: r.key, i: +i, tekst: rondeNaam(r.key) + ' · beste nummer 3: ' + spelerNaam(po.forfait.winnaar) + ' tegen ' + spelerNaam(po.forfait.afwezig), datum: P.planDag(T, r.key, 2 * (+i) + 2) }); });
+    Object.keys(ds).forEach(i => { const po = ds[i]; if (po && po.forfait && ![rd.poules[2*(+i)],rd.poules[2*(+i)+1]].some(p => p && p.schema.some(g => g.w))) items.push({ soort: 'derde', key: r.key, i: +i, tekst: rondeNaam(r.key) + ' · beste nummer 3: ' + spelerNaam(po.forfait.winnaar) + ' tegen ' + spelerNaam(po.forfait.afwezig), datum: P.planDag(T, r.key, 2 * (+i) + 2) }); });
   });
   if (!items.length) return '';
   return '<div class="sect"><header><h3>Geregistreerde walk-overs</h3><span class="chip warn">Herstelbaar</span></header><div class="body stack"><p class="small">Een verkeerde verhindering? Maak de walk-over hier ongedaan. De playoff wordt opnieuw geopend.</p><div class="rows">' + items.map(x => '<div class="row between" style="padding:7px 0;border-bottom:1px solid var(--line)"><span>' + esc(x.tekst) + (x.datum ? ' <span class="tiny muted">· ' + esc(P.datumKort(x.datum.datum)) + '</span>' : '') + '</span><button class="btn sec sm" data-act="' + (x.soort === 'pp' ? 'pp-walkover-reset' : 'd-walkover-reset') + '" data-key="' + x.key + '"' + (x.soort === 'pp' ? ' data-nr="' + x.nr + '" data-stap="' + x.stap + '"' : ' data-i="' + x.i + '"') + '>Ongedaan maken</button></div>').join('') + '</div></div></div>';
