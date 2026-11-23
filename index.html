@@ -1474,6 +1474,7 @@ function phLabel(T, id) {
   // Een onbesliste of geresette play-off blijft beide kandidaatnamen tonen.
   // Ook bij status 'wacht' (bijv. na reset) kan de koppeling bekend zijn.
   if (st.a && st.b && st.status !== 'beslist') return naamVan(T, st.a) + ' / ' + naamVan(T, st.b);
+   if (h.soort === 'derde') { const rd=T.rondes[h.key], q=rd&&rd.poules[2*h.i+1]; if(q&&q.pp&&!q.pp.voltooid) return q.pp.stappen[0].groep.map(x=>naamVan(T,x)).join(' / ')+' (plaats 3)'; }
   const po = T.derden && T.derden[h.key] && T.derden[h.key][h.i];
   if (po && po.a && po.b && !po.winnaar) return naamVan(T, po.a) + ' / ' + naamVan(T, po.b);
   return 'Beste nr. 3 weekend ' + (h.i + 1);
@@ -2353,7 +2354,10 @@ function derdeStatus(T, key, i) {
   const r = T.rondes[key];
   const pa = r.poules[2 * i], pb = r.poules[2 * i + 1];
   if (!pa || !pb) return { status: 'geen' };
-  if (!pouleAfgerond(T, pa) || !pouleAfgerond(T, pb)) return { status: 'wacht' };
+  if (!pouleAfgerond(T, pa) || !pouleAfgerond(T, pb)) {
+     const pending=[pa,pb].filter(p=>p.pp&&!p.pp.voltooid&&p.pp.k===3);
+     return {status:'wacht', kandidaten:pending.flatMap(p=>p.pp.stappen[0].groep), a:null,b:null};
+   }
   const a = derdeVan(T, pa), b = derdeVan(T, pb);
   if (!a && !b) return { status: 'geen' };
   if (!a) return { status: 'beslist', winnaar: b, a, b };
@@ -3215,7 +3219,7 @@ function dagStatus(key, nr) {
   if (p.spelers.some(P.isPh)) return { code: 'wacht', cls: 'warn', tekst: 'Wacht op play-off', kort: 'Wacht' };
   const gespeeld = p.schema.filter(g => g.w).length;
   if (P.pouleAfgerond(T, p)) return { code: 'klaar', cls: 'ok', tekst: 'Gespeeld', kort: 'Gespeeld' };
-  if (P.reguliereKlaar(p) && p.pp && !p.pp.voltooid) return { code: 'playoff', cls: 'warn', tekst: 'Play-off nodig', kort: 'Play-off' };
+  if (P.reguliereKlaar(p) && p.pp && !p.pp.voltooid) return p.ppLater ? {code:'playoff',cls:'warn',tekst:'Regulier gespeeld · play-off later',kort:'PO later'} : { code: 'playoff', cls: 'warn', tekst: 'Play-off nodig', kort: 'Play-off' };
   if (gespeeld === 0) return { code: 'open', cls: 'info', tekst: 'Klaar om te spelen', kort: 'Open' };
   return { code: 'bezig', cls: 'info', tekst: 'Bezig · ' + gespeeld + '/' + p.schema.length, kort: gespeeld + '/' + p.schema.length };
 }
@@ -3244,6 +3248,7 @@ function playoffsVoorDag(d) {
   Object.keys(src.derde).forEach(i => {
     const st = P.derdeStatus(T,src.vk,Number(i));
     if (st.status === 'playoff') result.push({key:src.vk,i:Number(i),label:'Play-off beste nummer 3',namen:[st.a,st.b].map(spelerNaam).join(' / ')});
+     else if(st.status==='wacht' && st.kandidaten?.length) result.push({key:src.vk,i:Number(i),label:'Eerst play-off om plaats 3',namen:st.kandidaten.map(spelerNaam).join(' / ')});
   });
   return result;
 }
@@ -3852,7 +3857,7 @@ function pouleSamenvatting(key, p) {
     const g = p.pp.stappen[p.pp.stappen.length - 1];
     if (P.isFinale(T, p)) return '<div class="note warn"><b>Gelijke stand.</b> ' + g.groep.map(spelerNaam).map(esc).join(', ') + ' zijn gelijk geëindigd en spelen een play-off om ' + plaatsTekst(p.pp.start, p.pp.eind) + '. Speel de play-off hieronder.</div>';
     const vk0 = P.volgendeKey(T, key), later = vk0 && P.rondeGeloot(T, vk0);
-    if (p.pp.k === 3 && p.pp.start === 3) return '<div class="note warn"><b>Play-off om plaats 3.</b> ' + g.groep.map(spelerNaam).map(esc).join(' en ') + ' hebben evenveel punten. De winnaar eindigt als nummer 3 en wacht op de nummer 3 van de andere poule van dit weekend. Speel de play-off hieronder.</div>';
+    if (p.pp.k === 3 && p.pp.start === 3) return '<div class="note warn"><b>Play-off om plaats 3'+(p.ppLater?' · later te spelen':'')+'.</b> ' + g.groep.map(spelerNaam).map(esc).join(' en ') + ' hebben evenveel punten. De winnaar eindigt als nummer 3 en wacht op de nummer 3 van de andere poule van dit weekend. Speel de play-off hieronder.</div>';
     return '<div class="note warn"><b>Gelijke stand.</b> ' + g.groep.map(spelerNaam).map(esc).join(', ') + (g.groep.length === 2 ? ' zijn' : ' zijn') + ' gelijk geëindigd en strijden om ' + (g.plekken === 1 ? 'de laatste plek' : plural(g.plekken, 'plek', 'plekken')) + '. ' + (later ? 'Deze play-off speel je op de dag van de volgende ronde, in de poule waar de winnaar is ingeloot.' : 'Speel de play-off hieronder.') + '</div>';
   }
   if (!P.volgendeKey(T, key)) { const e = P.eindvolgorde(T, p); return '<div class="note good"><b>Kampioen: ' + esc(spelerNaam(e[0])) + '</b><br>2e plaats: ' + esc(spelerNaam(e[1])) + (e[2] ? ' · 3e plaats: ' + esc(spelerNaam(e[2])) : '') + '</div>'; }
@@ -4047,7 +4052,7 @@ function ppKetenHtml(key, p, pp, o) {
     const stand = s.groep.slice().sort((a, b) => wins[b] - wins[a]).map(id => '<span class="row gap-s">' + esc(spelerNaam(id)) + ' <b>' + wins[id] + '</b></span>').join('<span class="muted">·</span>');
     const walkover = s.forfait ? '<div class="note good small"><b>Walk-over wegens verhindering:</b> ' + esc(spelerNaam(s.forfait.winnaar)) + ' gaat door; ' + esc(spelerNaam(s.forfait.afwezig)) + ' was verhinderd.</div>' : '';
     return '<div class="sect playoff-block public-match-card" id="' + ((si === pp.stappen.length - 1 && !o.afgesloten) ? 'ppblok' : 'ppblok' + (o.plek || '') + '_' + si) + '"><header><h3>' + (si === 0 ? (o.plek ? (o.extra ? 'Extra play-off om ' : 'Play-off om ') + plaatsTxt : (voorDerde ? derdeTitel : 'Play-off om de doorgaande plek' + (s.plekken > 1 ? 'en' : ''))) : 'Extra play-off' + (o.plek ? ' om ' + plaatsTxt : '')) + '</h3><span class="chip ' + (klaar ? 'ok' : 'warn') + '">' + (klaar ? 'Beslist' : (o.plek ? plaatsTxt + ' te bepalen' : plural(s.plekken, 'plek', 'plekken') + ' te winnen')) + '</span>' +
-      (UI.viewer ? '' : '<button class="btn sec sm noprint" data-act="' + (s.forfait ? 'pp-walkover-reset' : 'pp-reset') + '" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast && !s.forfait ? ' disabled' : '') + '>' + (s.forfait ? 'Walk-over ongedaan maken' : 'Opnieuw opzetten') + '</button><button class="btn danger sm noprint" data-act="pp-ongedaan" data-key="' + key + '" data-nr="' + p.nr + '">Play-off ongedaan maken</button>') + '</header><div class="body stack">' + walkover +
+      (UI.viewer ? '' : (!klaar && pp.k===3 && si===0 ? '<button class="btn sec sm noprint" data-act="pp-later" data-key="'+key+'" data-nr="'+p.nr+'">'+(p.ppLater?'↩ Play-off weer vandaag':'📅 Play-off later spelen')+'</button>' : '') + '<button class="btn sec sm noprint" data-act="' + (s.forfait ? 'pp-walkover-reset' : 'pp-reset') + '" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast && !s.forfait ? ' disabled' : '') + '>' + (s.forfait ? 'Walk-over ongedaan maken' : 'Opnieuw opzetten') + '</button><button class="btn danger sm noprint" data-act="pp-ongedaan" data-key="' + key + '" data-nr="' + p.nr + '">Play-off ongedaan maken</button>') + '</header><div class="body stack">' + walkover +
       '<div class="row" style="align-items:flex-end;gap:18px">' + fSel + bSel + '</div>' + (UI.viewer ? '' : '<div class="row small" style="gap:10px"><span class="muted">De speler links breekt.</span><button class="btn sec sm noprint" data-act="pp-loot-breaks" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast || gestart ? ' disabled' : '') + ' title="Verdeelt wie er breekt eerlijk over het hele blok">🎲 Loot wie breekt</button>' + (n === 2 ? '<button class="btn sec sm noprint" data-act="pp-walkover" data-key="' + key + '" data-nr="' + p.nr + '" data-stap="' + si + '"' + (vast || klaar ? ' disabled' : '') + '>Winst wegens verhindering</button>' : '') + '<span class="muted">Breaks: ' + Object.keys(P.telBreaks(s.games)).map(id => esc(spelerNaam(id)) + ' ' + P.telBreaks(s.games)[id]).join(' · ') + '</span></div>') + '<div class="games public-match-list">' + gameKopHtml() + rijen + '</div><div class="row small" style="gap:10px">' + stand + '</div></div></div>';
   }).join('');
 }
@@ -4101,7 +4106,7 @@ function vorigePlayoffsHtml(key, p) {
   const add = (id, html) => { if (html && !gezien.has(id)) { gevonden.push(html); gezien.add(id); } };
   for (const q of (vorige.poules || [])) {
     if (q.pp && !q.pp.voltooid && q.pp.stappen && q.pp.stappen.length &&
-        (bron.pool[q.nr] || bevat(q.pp.stappen[0].groep))) add('p'+q.nr, ppBlokHtml(vk,q));
+        (bron.pool[q.nr] || bevat(q.pp.stappen[0].groep) || (q.pp.k===3 && Object.keys(bron.derde).some(i=>Math.floor((q.nr-1)/2)===Number(i))))) add('p'+q.nr, ppBlokHtml(vk,q));
   }
   for (let i=0; i<Math.floor((vorige.poules || []).length/2); i++) {
     const opgeslagen = T.derden && T.derden[vk] && T.derden[vk][i];
@@ -4898,6 +4903,7 @@ const ACT = {
   modus(b) { UI.modus = b.dataset.m || null; UI.sel = null; render(); },
   'kies-speler'(b) { kiesSpeler(b.dataset.id); },
   win: actWin, ppwin: actPpWin, dwin: actDerdeWin,
+  'pp-later'(b) { const p=P.zoekPoule(T,b.dataset.key,+b.dataset.nr); if(!p||!p.pp||p.pp.voltooid||p.pp.k!==3)return; p.ppLater=!p.ppLater; P.log(T,'Play-off om plaats 3 '+(p.ppLater?'uitgesteld':'teruggezet')+' in poule '+p.nr); commit(); toast(p.ppLater?'Play-off later spelen; loting kan doorgaan.':'Play-off weer op oorspronkelijke speeldag.'); },
   async 'pp-loot-breaks'(b) { if (await volgordeGeblokkeerd()) return; const r = P.lootBreaksPp(T, b.dataset.key, +b.dataset.nr, +b.dataset.stap); if (!r.ok) { toast(r.tekst || 'Niet mogelijk', true); return; } commit(); toast('Breaks eerlijk verdeeld'); },
   'd-swap-start'(b) { const r=P.wisselDerdeStartteam(T,b.dataset.key,+b.dataset.i); if(!r.ok){toast(r.tekst||'Niet mogelijk',true);return;} commit(); },
   async 'd-loot-breaks'(b) { if (await volgordeGeblokkeerd()) return; const r = P.lootBreaksDerde(T, b.dataset.key, +b.dataset.i); if (!r.ok) { toast(r.tekst || 'Niet mogelijk', true); return; } commit(); toast('Breaks eerlijk verdeeld'); },
