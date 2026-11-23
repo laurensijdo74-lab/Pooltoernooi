@@ -3239,6 +3239,9 @@ function dagStatus(key, nr) {
   if (p.spelers.some(P.isPh)) return { code: 'wacht', cls: 'warn', tekst: 'Wacht op play-off', kort: 'Wacht' };
   const gespeeld = p.schema.filter(g => g.w).length;
   if (P.pouleAfgerond(T, p)) return { code: 'klaar', cls: 'ok', tekst: 'Gespeeld', kort: 'Gespeeld' };
+  // Een uitgestelde play-off houdt de kwalificatie open, maar de reguliere speeldag is voor publiek gespeeld.
+  if (UI.viewer && P.reguliereKlaar(p) && p.pp && !p.pp.voltooid && p.ppLater)
+    return {code:'klaar',cls:'ok',tekst:'Gespeeld · play-off volgt later',kort:'Gespeeld'};
   if (P.reguliereKlaar(p) && p.pp && !p.pp.voltooid) return p.ppLater ? {code:'playoff',cls:'warn',tekst:'Regulier gespeeld · play-off later',kort:'PO later'} : { code: 'playoff', cls: 'warn', tekst: 'Play-off nodig', kort: 'Play-off' };
   if (gespeeld === 0) return { code: 'open', cls: 'info', tekst: 'Klaar om te spelen', kort: 'Open' };
   return { code: 'bezig', cls: 'info', tekst: 'Bezig · ' + gespeeld + '/' + p.schema.length, kort: gespeeld + '/' + p.schema.length };
@@ -3350,6 +3353,7 @@ function openDag(key, nr) { UI.dag = { key, nr }; UI.tab = 'dag'; if (mobielWeer
 function countdownTarget(){
   if(!UI.viewer || !T || !T.plan || !T.plan.dagen)return null;
   const dagen=alleDagen().filter(d=>P.rondeGeloot(T,d.ronde));
+  // Geen LIVE-klok op een gespeelde dag met uitgestelde play-off.
   const d=dagen.find(d=>dagStatus(d.ronde,d.poule).code!=='klaar');
   if(!d)return null;
   const playoff=dagStatus(d.ronde,d.poule).code==='playoff';
