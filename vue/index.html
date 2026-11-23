@@ -2772,6 +2772,11 @@ function dagLocatie(key, nr) { const d = P.planDag(T, key, nr); return d && d.lo
 
 /* ---------- status per speeldag ---------- */
 function dagStatus(key, nr) {
+  // Publiek: reguliere wedstrijden zijn gespeeld, ook bij een uitgestelde play-off.
+  if (UI.viewer && P.rondeGeloot(T, key)) {
+    const poule = P.zoekPoule(T, key, nr);
+    if (poule && P.reguliereKlaar(poule)) return { code: 'klaar', cls: 'ok', tekst: 'Gespeeld', kort: 'Gespeeld' };
+  }
   if (!P.rondeGeloot(T, key)) return { code: 'gepland', cls: '', tekst: 'Nog niet geloot', kort: 'Gepland' };
   const p = P.zoekPoule(T, key, nr);
   if (!p) return { code: 'gepland', cls: '', tekst: 'Gepland', kort: 'Gepland' };
@@ -2892,7 +2897,7 @@ function updatePublicDayStatus(){
  if(!el||!UI.viewer||!UI.dag)return;
  const st=dagStatus(UI.dag.key,UI.dag.nr);
  const target=countdownTarget();
- const live=!!(target && target.ms<=Date.now() && target.d.ronde===UI.dag.key && target.d.poule===UI.dag.nr && st.code!=='klaar');
+ const live=!!(st.code!=='klaar' && target && target.ms<=Date.now() && target.d.ronde===UI.dag.key && target.d.poule===UI.dag.nr && st.code!=='klaar');
  el.textContent=st.code==='klaar'?'Gespeeld':live?'● Nu bezig':st.tekst;
  el.classList.toggle('is-active',live);
 }
@@ -4129,7 +4134,7 @@ function fitViewerStandNames(){
   // Alleen de geselecteerde, daadwerkelijk LIVE speeldag mag een vaste stand hebben.
   // LIVE begint op de ingestelde starttijd en eindigt zodra de poule klaar is.
   const target=UI.viewer && UI.tab==='dag' && UI.dag && mobielWeergave() ? countdownTarget() : null;
-  const live=!!(target && target.ms<=Date.now() &&
+  const live=!!(st.code!=='klaar' && target && target.ms<=Date.now() &&
     UI.dag.key===target.d.ronde && UI.dag.nr===target.d.poule &&
     dagStatus(UI.dag.key,UI.dag.nr).code!=='klaar');
   if(!live){if(old)old.remove();return;}
