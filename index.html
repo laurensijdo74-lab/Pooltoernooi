@@ -2537,19 +2537,31 @@ function kwalificatie(T, key) {
 function spelerRondeStatus(T, key, id) {
   const r = T.rondes[key], pr = planRonde(T, key);
   if (!r || !r.geloot) return { s: 'wacht' };
-  const p = r.poules.find(x => x.spelers.indexOf(id) >= 0);
+  const p = r.poules.find(x => x.spelers.includes(id));
   if (!p) return { s: 'niet' };
-  if (!pouleAfgerond(T, p)) return { s: 'bezig', poule: p.nr };
+  const regular = reguliereKlaar(p);
+  if (!regular) return { s: 'bezig', poule: p.nr };
+  synchroniseerPoule(T, p);
   const e = eindvolgorde(T, p), rang = e.indexOf(id) + 1;
-  if (key === 'FIN' || !volgendeKey(T, key)) return { s: rang === 1 ? 'winnaar' : 'uit', rang, poule: p.nr };
+  const pending = p.pp && !p.pp.voltooid;
+  if (key === 'FIN' || !volgendeKey(T, key)) {
+    if (pending) return { s: p.pp.stappen[0].groep.includes(id) ? 'playoff' : 'bezig', rang, poule: p.nr };
+    return { s: rang === 1 ? 'winnaar' : 'uit', rang, poule: p.nr };
+  }
+  if (pending) {
+    const groep = p.pp.stappen[0].groep;
+    if (groep.includes(id)) return { s: 'playoff', rang, poule: p.nr };
+    if (rang < p.pp.start && rang <= DOORGAAN) return { s: 'door', rang, poule: p.nr };
+    if (p.pp.k === 3 && rang <= DOORGAAN) return { s: 'door', rang, poule: p.nr };
+    return { s: 'uit', rang, poule: p.nr };
+  }
   if (rang <= DOORGAAN) return { s: 'door', rang, poule: p.nr };
-  if (rang === 3 && pr.derden > 0) {
+  if (rang === 3 && pr && pr.derden > 0) {
     const i = Math.floor((p.nr - 1) / 2);
     if (i < Math.floor(r.poules.length / 2)) {
       const st = derdeStatus(T, key, i);
       if (st.status === 'beslist') return { s: st.winnaar === id ? 'door' : 'uit', rang, poule: p.nr, derde: true };
-      if (st.status === 'playoff') return { s: 'playoff', rang, poule: p.nr, derde: true };
-      return { s: 'bezig', rang, poule: p.nr };
+      if (st.status === 'playoff' || st.status === 'wacht') return { s: 'playoff', rang, poule: p.nr, derde: true };
     }
   }
   return { s: 'uit', rang, poule: p.nr };
