@@ -2875,6 +2875,17 @@ function poolLiveKiesAutomatisch(items, vandaag){
   // Zonder volgend toernooi blijft het laatst bekende openbare toernooi beschikbaar.
   return metStart.sort((a,b)=>b.startdatum.localeCompare(a.startdatum))[0]||items[0];
 }
+// Publieke voorfase: toon overal dezelfde melding zolang de eerste ronde
+// nog niet is geloot. Ook een leeg concept zonder geplande rondes wacht.
+function poolLiveWachtOpLoting(){
+  if(!UI.viewer||!UI.combined||!T)return false;
+  const rondes=T.plan&&Array.isArray(T.plan.rondes)?T.plan.rondes:[];
+  if(!rondes.length)return true;
+  return !P.rondeGeloot(T,rondes[0].key);
+}
+function poolLiveWachtOpLotingHtml(){
+  return '<div class="sect"><div class="body"><div class="note warn" role="status">In afwachting van loting</div></div></div>';
+}
 function poolLiveVoorStart(){
   if(!UI.viewer||!UI.combined||!T||!T.plan||!Array.isArray(T.plan.dagen))return false;
   const dagen=T.plan.dagen.map(d=>d.datum).filter(Boolean).sort();
@@ -3130,7 +3141,7 @@ function heroHtml() {
 function tabsVoorWeergave() {
   if (!UI.viewer) return TABS;
   const openbaar = ['standen', 'dag', 'statistieken'];
-  return openbaar.map(k => { const t=TABS.find(t => t[0] === k); return (UI.combined && k === 'standen' && poolLiveVoorStart()) ? ['standen','Loting'] : t; }).filter(Boolean);
+  return openbaar.map(k => { const t=TABS.find(t => t[0] === k); return (UI.combined && k === 'standen' && (poolLiveWachtOpLoting() || poolLiveVoorStart())) ? ['standen','Loting'] : t; }).filter(Boolean);
 }
 function viewerFullscreenActive(){ return !!(document.fullscreenElement || document.webkitFullscreenElement); }
 function updateViewerFullscreenButton(){
@@ -4314,6 +4325,8 @@ function viewRegels() {
    APP deel 4: render, acties, sneltoetsen, opstarten
    ================================================================ */
 function view() {
+  // Geen lege standen, wedstrijdschema's of statistieken voor de eerste loting.
+  if (poolLiveWachtOpLoting()) return poolLiveWachtOpLotingHtml();
   switch (UI.tab) {
     case 'spelers': return viewSpelers();
     case 'loting': return viewLoting();
