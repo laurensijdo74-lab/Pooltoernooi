@@ -4866,7 +4866,7 @@ function adminFaq(){
  }input.addEventListener('input',draw);overlay.querySelector('#faq-close').onclick=()=>overlay.remove();overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});const onKey=e=>{if(e.key==='Escape'){overlay.remove();document.removeEventListener('keydown',onKey)}};document.addEventListener('keydown',onKey);overlay.querySelector('#faq-close').addEventListener('click',()=>document.removeEventListener('keydown',onKey));draw();input.focus();
 }
 const ADMIN_CATALOG_KEY='pooltoernooi.admin.catalog.v1';
-const ADMIN_CHANGELOG=[['2026-11-24','POOL LIVE-kijklinks per editie: unieke directe URL, optionele eigen korte link bij Toernooi-instellingen en correcte links bij Alle toernooien en Online versie.'],['2026-11-24','Vrij instelbare flyerhoofdtekst per toernooi via Instellingen → Toernooi; bij spelers standaard single, bij koppels double.'],['2026-11-08','Karroesel-thema opnieuw toegevoegd aan de themakeuze, inclusief beheer en toeschouwersweergave.'],['2026-11-08','Uitgebreide doorzoekbare Hulp & FAQ voor beheerders toegevoegd.'],['2026-11-07','Beheermenu, toernooiwizard, themawissel en toernooioverzicht toegevoegd.'],['2026-11-07','Mobiele wedstrijdnamen en desktopindeling verbeterd.'],['2026-11-07','LIVE-indicator en mobiele standen verbeterd.'],['2026-11-03','Break & Run registratie en toernooiranglijst toegevoegd.']];
+const ADMIN_CHANGELOG=[['2026-11-24','Toernooien veilig verwijderen: hoofdbeheerder kan ook online toernooien wissen na intypen van de exacte naam; Firestore en lokaal worden opgeschoond.'],['2026-11-24','POOL LIVE-kijklinks per editie: unieke directe URL, optionele eigen korte link bij Toernooi-instellingen en correcte links bij Alle toernooien en Online versie.'],['2026-11-24','Vrij instelbare flyerhoofdtekst per toernooi via Instellingen → Toernooi; bij spelers standaard single, bij koppels double.'],['2026-11-08','Karroesel-thema opnieuw toegevoegd aan de themakeuze, inclusief beheer en toeschouwersweergave.'],['2026-11-08','Uitgebreide doorzoekbare Hulp & FAQ voor beheerders toegevoegd.'],['2026-11-07','Beheermenu, toernooiwizard, themawissel en toernooioverzicht toegevoegd.'],['2026-11-07','Mobiele wedstrijdnamen en desktopindeling verbeterd.'],['2026-11-07','LIVE-indicator en mobiele standen verbeterd.'],['2026-11-03','Break & Run registratie en toernooiranglijst toegevoegd.']];
 function adminCatalog(){try{return JSON.parse(localStorage.getItem(ADMIN_CATALOG_KEY)||'{}')}catch(e){return {}}}
 function adminRemember(){if(!T||!T.id||UI.viewer)return;const all=adminCatalog();all[T.id]={id:T.id,naam:T.naam,datum:T.instellingen.startdatum,gewijzigd:T.gewijzigd,locatie:locatieVoorWeergave().naam};try{localStorage.setItem(ADMIN_CATALOG_KEY,JSON.stringify(all));localStorage.setItem('pooltoernooi.admin.data.'+T.id,JSON.stringify(T))}catch(e){}}
 function adminCloseMenu(){UI.adminMenu=false}
@@ -4920,25 +4920,76 @@ function adminAll(){
  const groepen=new Map();
  rows.forEach(x=>{const naam=x.locatie||x.locatieNaam||adminTournamentData(x.id)?.locaties?.[0]?.naam||'Locatie onbekend';if(!groepen.has(naam))groepen.set(naam,[]);groepen.get(naam).push(x)});
  const html=[...groepen.entries()].sort((a,b)=>a[0].localeCompare(b[0],'nl')).map(([loc,items])=>'<section class="admin-tourney-group"><h4>📍 '+esc(loc)+' <span class="muted small">('+items.length+')</span></h4>'+items.map(x=>{
- const data=adminTournamentData(x.id),status=data?adminTournamentStatus(data):'onbekend';
- const magWeg=!!data&&status==='concept'&&!x.online;
+ const data=adminTournamentData(x.id),status=data?adminTournamentStatus(data):x.concept===true?'concept':x.concept===false?'actief':'onbekend';
+ const isHoofdbeheerder=window.POOL_ONLINE?.state?.profile?.globalRole==='superadmin';
+ // De online delete controleert de rol en het live Firebase-document opnieuw.
+ const magWeg=!!x.id&&x.id!==T.id&&(x.online?isHoofdbeheerder:!!data&&status==='concept');
  const links=adminTournamentLinks(x);
- const uitleg=x.online?'Online toernooi: verwijderen is niet beschikbaar zonder veilige verwijdering in Firebase.':!data?'Gegevens niet lokaal beschikbaar.':status!=='concept'?'Een geloot of gestart toernooi kan niet worden verwijderd.':'';
+ const uitleg=x.id===T.id?'Open eerst een ander toernooi om synchronisatie na verwijderen te voorkomen.':x.online&&!isHoofdbeheerder?'Alleen de hoofdbeheerder mag online toernooien verwijderen.':!data?'Gegevens niet lokaal beschikbaar.':status!=='concept'&&!x.online?'Een lokaal geloot of gestart toernooi kan niet worden verwijderd.':'';
  return '<article><div class="row between"><b>'+esc(x.naam||'Pooltoernooi')+'</b><span class="chip '+(status==='concept'?'info':'')+'">'+(status==='concept'?'Concept':status==='actief'?'Geloot / actief':'Status onbekend')+'</span></div><div class="small muted">Start: '+esc(x.datum||x.startdatum||'onbekend')+'</div><div class="row"><button class="btn sec sm" data-act="admin-open" data-id="'+esc(x.id)+'"'+(x.id===T.id?' disabled':'')+'>Openen</button><button class="btn sec sm" data-act="admin-duplicate" data-id="'+esc(x.id)+'">Dupliceren</button><button class="btn danger sm" data-act="admin-delete" data-id="'+esc(x.id)+'"'+(magWeg?'':' disabled title="'+esc(uitleg)+'"')+'>Verwijderen</button></div><div class="row admin-app-links"><a class="btn sec sm" href="'+esc(links.viewer)+'" target="_blank" rel="noopener noreferrer">👁 Toeschouwersapp ↗</a><button class="btn sec sm" data-act="admin-open-direct" data-id="'+esc(x.id)+'">⚙ Beheerdersapp</button></div></article>';
  }).join('')+'</section>').join('');
- dialoog({titel:'Alle toernooien',breed:true,annuleer:false,html:'<div class="admin-tourneys">'+(html||'<p>Geen toernooien gevonden.</p>')+'</div><p class="small muted">Gesorteerd op startdatum (oud naar nieuw), gegroepeerd per locatie. Alleen lokale concepttoernooien zonder loting kunnen worden verwijderd. Online toernooien blijven beschermd.</p>',knoppen:[{label:'Sluiten',val:'sluit',cls:'sec'}]});
+ dialoog({titel:'Alle toernooien',breed:true,annuleer:false,html:'<div class="admin-tourneys">'+(html||'<p>Geen toernooien gevonden.</p>')+'</div><p class="small muted">Gesorteerd op startdatum (oud naar nieuw), gegroepeerd per locatie. Online toernooien verwijderen kan alleen als hoofdbeheerder, na controle en bevestiging van de exacte naam. Open eerst een ander toernooi als je het huidige wilt verwijderen.</p>',knoppen:[{label:'Sluiten',val:'sluit',cls:'sec'}]});
 }
 async function adminDelete(id){
- const data=adminTournamentData(id),catalog=adminCatalog(),item=catalog[id];
- if(!data||!item||adminTournamentStatus(data)!=='concept'){toast('Verwijderen is alleen toegestaan bij concepttoernooien zonder loting.',true);return}
- const online=(window.POOL_ONLINE?.state?.tournaments||[]).some(x=>x.id===id);
- if(online){toast('Online toernooien kunnen hier niet veilig worden verwijderd.',true);return}
- const ok=await bevestig('Concepttoernooi <b>'+esc(data.naam)+'</b> definitief van dit apparaat verwijderen? Dit kan niet ongedaan worden gemaakt.',{titel:'Concepttoernooi verwijderen',ja:'Definitief verwijderen',gevaar:true});
- if(!ok)return;
- // Het huidige toernooi blijft beschikbaar totdat een ander toernooi is geopend.
- if(T&&T.id===id){toast('Open eerst een ander toernooi voordat je dit concept verwijdert.',true);return}
- delete catalog[id];localStorage.setItem(ADMIN_CATALOG_KEY,JSON.stringify(catalog));localStorage.removeItem('pooltoernooi.admin.data.'+id);
- document.querySelector('.overlay')?.remove();toast('Concepttoernooi verwijderd');adminAll();
+ id=String(id||'').trim();
+ if(!id)return;
+ if(T&&T.id===id){toast('Open eerst een ander toernooi. Zo kan synchronisatie het verwijderde toernooi niet opnieuw opslaan.',true);return}
+ const onlineAdapter=window.POOL_ONLINE;
+ const lokaal=adminTournamentData(id);
+ let remote=null;
+ // Als Firebase is ingesteld, nooit zomaar alleen lokaal wissen: het toernooi kan
+ // daar online bestaan en na een volgende synchronisatie terugkomen.
+ if(onlineAdapter?.state?.configured){
+   if(!onlineAdapter.state.user){toast('Meld je eerst aan om te controleren of dit toernooi online bestaat.',true);return}
+   try{remote=await onlineAdapter.prepareDeleteTournament(id)}catch(e){toast(e.message||'Online toernooi kon niet gecontroleerd worden.',true);return}
+ }
+ const online=!!remote?.exists;
+ if(online&&onlineAdapter.state.profile?.globalRole!=='superadmin'){
+   toast('Alleen de hoofdbeheerder mag online toernooien definitief verwijderen.',true);return;
+ }
+ if(!online&&(!lokaal||adminTournamentStatus(lokaal)!=='concept')){
+   toast('Alleen lokale concepttoernooien zonder loting kunnen lokaal worden verwijderd.',true);return;
+ }
+ const naam=String(online?remote.naam:lokaal.naam);
+ const waarschuwing=online
+   ? '<p class="small">Dit verwijdert het toernooi uit <b>Firebase</b> en uit de lokale toernooilijst op dit apparaat. De publieke kijklink werkt daarna niet meer.</p>'+
+     (remote.concept?'<p class="small muted">Dit is een concepttoernooi.</p>':'<div class="note warn small">Dit toernooi is al geloot of gestart. Ook alle online uitslagen en standen van deze editie verdwijnen definitief.</div>')
+   : '<p class="small">Dit verwijdert het lokale concepttoernooi van dit apparaat.</p>';
+ const akkoord=await dialoog({
+   titel:'Toernooi definitief verwijderen',
+   html:'<p>Je staat op het punt <b>'+esc(naam)+'</b> te verwijderen.</p>'+waarschuwing+
+     '<label class="f"><span>Typ ter bevestiging exact de toernooinaam:</span><input id="admin-delete-name" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="'+esc(naam)+'"></label>'+
+     '<p class="small muted">Dit kan niet ongedaan worden gemaakt. Eerder gedownloade back-ups blijven bestaan.</p>',
+   knoppen:[{label:'Annuleren',val:null,cls:'sec'},{label:'Definitief verwijderen',val:'delete',cls:'danger'}],
+   lees:ov=>{const ingevuld=ov.querySelector('#admin-delete-name')?.value||'';
+     if(ingevuld!==naam){toast('Typ de volledige toernooinaam precies zoals hierboven.',true);return false}
+     return true;
+   }
+ });
+ if(!akkoord)return;
+ if(T&&T.id===id){toast('Dit toernooi is inmiddels actief. Open eerst een ander.',true);return}
+ if(online){
+   try{await onlineAdapter.deleteTournament(id,naam,remote.version)}
+   catch(e){toast(e.message||'Verwijderen in Firebase is mislukt. Er is lokaal niets gewist.',true);return}
+ }
+ // Pas lokale opslag aan na geslaagde Firestore-delete (of bij alleen lokaal).
+ let lokaalOpgeruimd=true;
+ try{
+   const catalog=adminCatalog();delete catalog[id];
+   localStorage.setItem(ADMIN_CATALOG_KEY,JSON.stringify(catalog));
+   localStorage.removeItem('pooltoernooi.admin.data.'+id);
+   // Voorkom dat herstelpunten van ditzelfde toernooi het onbedoeld terugzetten.
+   const hp=herstelpunten();
+   const opgeschoond=hp.filter(h=>{try{return JSON.parse(h.data||'{}').id!==id}catch(e){return true}});
+   if(opgeschoond.length!==hp.length)localStorage.setItem(LS_HP,JSON.stringify(opgeschoond));
+ }catch(e){lokaalOpgeruimd=false}
+ if(online){
+   onlineAdapter.state.tournaments=onlineAdapter.state.tournaments.filter(x=>x.id!==id);
+   try{await onlineAdapter.listTournaments()}catch(e){/* Cloud-delete is al gelukt. */}
+ }
+ document.querySelector('.admin-tourneys')?.closest('.overlay')?.remove();
+ toast(lokaalOpgeruimd?'Toernooi definitief verwijderd.':'Toernooi online verwijderd, maar lokale gegevens konden niet helemaal worden opgeschoond. Controleer de browseropslag.',!lokaalOpgeruimd);
+ adminAll();
 }
 async function adminLoad(id,duplicate){let item=null;try{item=JSON.parse(localStorage.getItem('pooltoernooi.admin.data.'+id)||'null')}catch(e){}if(!item&&window.POOL_ONLINE?.loadTournament){try{item=await window.POOL_ONLINE.loadTournament(id)}catch(e){}}if(!item){toast('Toernooi niet beschikbaar. Meld je aan voor online toernooien.',true);return}if(!duplicate&&!(await bevestig('Open '+esc(item.naam)+'? De huidige stand wordt apart bewaard.',{titel:'Toernooi wisselen',ja:'Openen'})))return;adminRemember();stopOnlineSynchronisatie();if(duplicate){item=JSON.parse(JSON.stringify(item));item.id=P.uid('t');item.naam+=' (kopie)';item.instellingen=item.instellingen||{};item.instellingen.kijklinkEigen='';item.online={toegang:'besloten',synchroniseren:true,gepubliceerd:false};item.gewijzigd=new Date().toISOString()}T=item;migreerNaLaden();UI.tab='overzicht';UI.dag=null;UI.lotingKey=null;commit();adminRemember();startOnlineSynchronisatie();toast(duplicate?'Kopie gemaakt':'Toernooi geopend');}
 function adminTheme(){adminCloseMenu();const loc=locatieVoorWeergave();dialoog({titel:'Thema huidig toernooi',html:'<p>Wijzig het uiterlijk zonder loting of uitslagen te veranderen.</p><label class="f">Thema<select id="admin-theme">'+Object.keys(THEMAS).map(k=>'<option value="'+k+'"'+(loc.thema===k?' selected':'')+'>'+esc(THEMAS[k].naam)+'</option>').join('')+'</select></label>',knoppen:[{label:'Annuleren',val:null,cls:'sec'},{label:'Thema toepassen',val:'apply'}],lees:ov=>$('#admin-theme',ov).value}).then(v=>{if(!v)return;loc.thema=v;commit();toast('Thema aangepast');});}
@@ -5462,7 +5513,7 @@ import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
 } from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js';
 import {
-  getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp, collection, getDocs, query, where
+  getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp, collection, getDocs, query, where, runTransaction
 } from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js';
 
 const cfg = window.POOL_ONLINE_CONFIG || {};
@@ -5601,6 +5652,56 @@ async function saveTournament(T, extra) {
   } catch (e) { return fail('Online bewaren mislukt', e); }
 }
 
+// Alleen de hoofdbeheerder mag een cloudtoernooi verwijderen. Elk verzoek
+// controleert het document opnieuw; de definitieve delete is transactioneel.
+function assertDeleteAccess(){
+  assertOnline();
+  if(currentProfile?.globalRole!=='superadmin')throw new Error('Alleen de hoofdbeheerder mag online toernooien verwijderen.');
+}
+function deleteVersion(data){
+  const t=data?.updatedAt;
+  return t&&typeof t.toMillis==='function'?'ts:'+t.toMillis():'iso:'+String(data?.gewijzigd||'');
+}
+async function prepareDeleteTournament(id){
+  await ready;
+  assertOnline();
+  if(!currentProfile)throw new Error('Beheerprofiel ontbreekt of is niet geladen.');
+  id=String(id||'').trim();
+  if(!id)throw new Error('Ongeldige toernooi-ID');
+  const snap=await getDoc(doc(db,'tournaments',id));
+  if(!snap.exists())return {exists:false,id};
+  const data=snap.data()||{},t=data.state||{};
+  if(String(data.id||snap.id)!==id || (t.id&&String(t.id)!==id))throw new Error('Online toernooi-ID komt niet overeen');
+  assertTournamentAccess(String(data.locatieId||t.locatieId||''));
+  return {exists:true,id,naam:String(data.naam||t.naam||'Pooltoernooi'),
+    concept:!Object.values(t.rondes||{}).some(r=>r&&r.geloot),version:deleteVersion(data)};
+}
+async function deleteTournament(id,expectedName,expectedVersion){
+  await ready;
+  assertDeleteAccess();
+  id=String(id||'').trim();
+  if(!id||!expectedName||!expectedVersion)throw new Error('Verwijderbevestiging ontbreekt');
+  try{
+    await runTransaction(db,async transaction=>{
+      const ref=doc(db,'tournaments',id);
+      const snap=await transaction.get(ref);
+      if(!snap.exists())throw new Error('Toernooi bestaat niet meer in Firebase. Vernieuw de lijst.');
+      const data=snap.data()||{};
+      if(String(data.id||snap.id)!==id||(data.state?.id&&String(data.state.id)!==id))throw new Error('Toernooi-ID is gewijzigd. Verwijderen afgebroken.');
+      if(String(data.naam||data.state?.naam||'Pooltoernooi')!==expectedName||deleteVersion(data)!==expectedVersion)
+        throw new Error('Toernooi is intussen gewijzigd. Vernieuw de lijst en probeer opnieuw.');
+      transaction.delete(ref);
+    });
+    if(state.remoteId===id)state.remoteId=null;
+    state.tournaments=state.tournaments.filter(x=>x.id!==id);
+    notify();
+    return true;
+  }catch(e){
+    if(e?.code==='permission-denied')throw new Error('Firebase weigert verwijderen. Controleer of de Firestore-regels verwijderen toestaan voor superadmin.');
+    throw e;
+  }
+}
+
 async function saveLocation(location, extra) {
   await ready;
   try {
@@ -5668,7 +5769,8 @@ async function listTournaments() {
         id: String(d.id || item.id),
         naam: String(d.naam || t.naam || 'Pooltoernooi'),
         locatieNaam: String(loc.naam || ''),
-        gewijzigd: d.gewijzigd || t.gewijzigd || ''
+        gewijzigd: d.gewijzigd || t.gewijzigd || '',
+        concept: !Object.values(t.rondes || {}).some(r => r && r.geloot)
       });
     });
     lijst.sort((a, b) => String(b.gewijzigd).localeCompare(String(a.gewijzigd)) || a.naam.localeCompare(b.naam, 'nl'));
@@ -5723,6 +5825,8 @@ const api = {
   login,
   logout,
   saveTournament,
+  prepareDeleteTournament,
+  deleteTournament,
   saveLocation,
   loadLocation,
   loadTournament,
