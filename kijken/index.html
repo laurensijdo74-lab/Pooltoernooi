@@ -1071,14 +1071,20 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 :root[data-theme="karroesel"] .big-winner .naam {color:#ffcb64}
 @media print { :root[data-theme="karroesel"] body {background:#fff!important} :root[data-theme="karroesel"] .sect,:root[data-theme="karroesel"] .card {box-shadow:none!important} }
 
-/* POOL LIVE: gedeelde toeschouwersapp, behoudt de thema-opmaak van het gekozen toernooi. */
-.pool-live-switch{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:7px max(12px,calc((100vw - 1240px)/2 + 12px));background:var(--surface2);color:var(--ink);border-bottom:1px solid var(--line);font-family:var(--font-body)}
-.pool-live-switch strong{white-space:nowrap;font-size:.79rem;color:var(--muted)}
-.pool-live-switch select{flex:1;min-width:145px;max-width:470px;min-height:34px;font-size:.87rem;font-weight:650;padding:5px 9px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:8px}
-.pool-live-switch .pool-auto-label{font-size:.74rem;color:var(--muted)}
-@media(max-width:980px){.pool-live-switch{padding:5px 12px;gap:6px}.pool-live-switch strong{font-size:.72rem}.pool-live-switch select{max-width:none;min-width:0;font-size:.8rem}.pool-live-switch .pool-auto-label{display:none}}
-@media screen and (min-width:981px){html.viewer-tv .pool-live-switch{display:none!important}}
-@media print{.pool-live-switch{display:none!important}}
+/* POOL LIVE: toernooikiezer in het navigatiemenu, direct links van Standen/Loting. */
+.nav .pool-live-menu-toggle{display:inline-flex;align-items:center;gap:6px;color:var(--ink);border-right:1px solid var(--line);font-weight:750}
+.nav .pool-live-menu-toggle[aria-expanded="true"]{color:var(--brand);background:var(--surface2)}
+.nav .pool-live-menu-toggle .pool-menu-icon{font-size:1.2em;line-height:1}
+.nav .pool-live-switch{position:absolute;z-index:125;top:100%;left:max(12px,calc((100vw - 1240px)/2 + 12px));width:min(410px,calc(100vw - 24px));max-height:min(65dvh,520px);overflow-y:auto;padding:8px;background:var(--surface);color:var(--ink);border:1px solid var(--line);border-radius:0 0 12px 12px;box-shadow:0 12px 32px #0004;display:grid;gap:3px;font-family:var(--font-body)}
+.nav .pool-live-switch .pool-live-menu-title{padding:8px 10px 6px;font-size:.83rem;color:var(--muted);font-weight:800}
+.nav .pool-live-switch button{display:block;width:100%;padding:11px 12px;text-align:left;border:0!important;border-radius:8px;background:transparent;color:var(--ink);font-size:.94rem;font-weight:650;white-space:normal;line-height:1.3;cursor:pointer}
+.nav .pool-live-switch button:hover,.nav .pool-live-switch button:focus-visible{background:var(--surface2)}
+.nav .pool-live-switch button[aria-current="true"]{background:var(--brand-soft);color:var(--brand)}
+.nav .pool-live-switch button small{display:block;font-size:.75rem;font-weight:400;color:var(--muted);margin-top:3px}
+.nav .pool-live-switch button:disabled{opacity:.5;cursor:wait}
+@media(max-width:700px){.nav .pool-live-menu-toggle .pool-menu-text{display:none}.nav .pool-live-menu-toggle{padding-left:12px;padding-right:12px}.nav .pool-live-switch{left:10px;width:min(410px,calc(100vw - 20px))}}
+@media screen and (min-width:981px){html.viewer-tv .nav:has(.pool-live-switch){height:48px!important}html.viewer-tv .nav:has(.pool-live-switch) .nav-in{opacity:1;visibility:visible;transform:none}}
+@media print{.pool-live-switch,.pool-live-menu-toggle{display:none!important}}
 </style>
 </head>
 <body>
@@ -2840,6 +2846,7 @@ function dagLocatie(key, nr) { const d = P.planDag(T, key, nr); return d && d.lo
 
 /* ---------- POOL LIVE: openbare toernooien en standaardkeuze ---------- */
 let poolLiveToernooien = [];
+let poolLiveMenuOpen = false;
 let poolLiveWisselTeller = 0;
 let poolLiveBezig = false;
 function poolLiveVandaag(){
@@ -2875,13 +2882,15 @@ function poolLiveVoorStart(){
   return vandaag<dagen[0]||(vandaag===dagen[0]&&poolLiveUur()<14);
 }
 function poolLiveSwitcherHtml(){
-  if(!UI.combined)return '';
+  if(!UI.combined||!poolLiveMenuOpen)return '';
   const direct=new URLSearchParams(location.search).get('tournament');
   const chosen=direct&&poolLiveToernooien.some(t=>t.id===direct)?direct:'__auto__';
   const auto=poolLiveKiesAutomatisch(poolLiveToernooien,poolLiveVandaag());
-  const opts='<option value="__auto__"'+(chosen==='__auto__'?' selected':'')+'>Automatisch'+(auto?' · '+esc(auto.naam):'')+'</option>'+
-    poolLiveToernooien.map(t=>'<option value="'+esc(t.id)+'"'+(chosen===t.id?' selected':'')+'>'+esc(t.naam)+(t.locatieNaam&&t.locatieNaam!==t.naam?' · '+esc(t.locatieNaam):'')+'</option>').join('');
-  return '<div class="pool-live-switch noprint"><strong>🎱 POOL LIVE</strong><select id="poolLiveTournamentSelect" aria-label="Wissel van openbaar toernooi"'+(poolLiveBezig?' disabled':'')+'>'+opts+'</select><span class="pool-auto-label">Alleen openbare toernooien</span></div>';
+  const item=(id,label,subtitle)=>'<button type="button" data-act="pool-live-pick" data-tournament="'+esc(id)+'" aria-current="'+String(chosen===id)+'"'+(poolLiveBezig?' disabled':'')+'>'+esc(label)+(subtitle?'<small>'+esc(subtitle)+'</small>':'')+'</button>';
+  return '<div class="pool-live-switch noprint" id="poolLiveMenu" role="group" aria-label="Kies een openbaar toernooi">'+
+    '<div class="pool-live-menu-title">Kies een openbaar toernooi</div>'+
+    item('__auto__','Automatisch',auto?'Actueel: '+auto.naam:'Kies het actuele toernooi')+
+    poolLiveToernooien.map(t=>item(t.id,t.naam,(t.locatieNaam&&t.locatieNaam!==t.naam)?t.locatieNaam:'')).join('')+'</div>';
 }
 function poolLiveFout(bericht){
   document.title='POOL LIVE – openbare toernooien';
@@ -2901,7 +2910,7 @@ async function poolLiveOpen(id, wijzigUrl){
     if(!remote||!remote.plan||!Array.isArray(remote.locaties))throw new Error('Dit toernooi is niet openbaar beschikbaar.');
     if(publiekeFirestoreUnsub){publiekeFirestoreUnsub();publiekeFirestoreUnsub=null;}
     T=herstelOpenPlayoffsPubliek(remote);
-    UI.viewer=true;UI.combined=true;UI.tab='dag';UI.dag=null;UI.stand=null;UI.scorebord=false;
+    UI.viewer=true;UI.combined=true;poolLiveMenuOpen=false;UI.tab='dag';UI.dag=null;UI.stand=null;UI.scorebord=false;
     UI.dagLijst=!mobielWeergave();
     migreerNaLaden();UI.locEdit=T.locatieId;
     const d=publiekeActueleSpeeldag()||actueleSpeeldag();
@@ -2914,9 +2923,10 @@ async function poolLiveOpen(id, wijzigUrl){
     T=oldT;
     if(oldT){render();startPubliekeVerversing();toast('Toernooi wisselen mislukt: '+String(e.message||e),true);}else poolLiveFout('Openbare toernooigegevens konden niet worden geladen. Controleer de internetverbinding en de openbare instellingen.');
     return false;
-  }finally{poolLiveBezig=false;const selector=document.getElementById('poolLiveTournamentSelect');if(selector)selector.disabled=false;}
+  }finally{poolLiveBezig=false;}
 }
 async function poolLiveWissel(value){
+  poolLiveMenuOpen=false;
   const auto=value==='__auto__';
   const entry=auto?poolLiveKiesAutomatisch(poolLiveToernooien,poolLiveVandaag()):poolLiveToernooien.find(x=>x.id===value);
   if(!entry)return;
@@ -3203,8 +3213,9 @@ setInterval(()=>{
 },1000);
 function navHtml() {
   const open = alleDagen().filter(d => P.rondeGeloot(T, d.ronde) && dagStatus(d.ronde, d.poule).code === 'playoff').length;
-  return '<nav class="nav noprint" aria-label="Hoofdmenu"><div class="nav-in">' + tabsVoorWeergave().map(t =>
-    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + (UI.viewer ? '<span id="tvHalfIndicator" class="tv-half-indicator" aria-live="off"></span><button type="button" id="viewerCompactBtn" class="viewer-tv-btn" data-act="viewer-compact" aria-pressed="false">Compacte weergave</button><button type="button" id="viewerTvBtn" class="viewer-tv-btn" data-act="viewer-tv" aria-pressed="false">TV-weergave aan</button><button type="button" id="viewerFullscreenBtn" class="viewer-fullscreen-btn" data-act="viewer-fullscreen" aria-label="Volledig scherm openen">⛶</button>' : '') + '</div></nav>';
+  const poolMenu=UI.combined?'<button type="button" class="pool-live-menu-toggle" data-act="pool-live-menu" aria-label="Toernooien kiezen" aria-haspopup="true" aria-expanded="'+String(poolLiveMenuOpen)+'" aria-controls="poolLiveMenu"><span class="pool-menu-icon" aria-hidden="true">☰</span><span class="pool-menu-text">Toernooien</span></button>':'';
+  return '<nav class="nav noprint" aria-label="Hoofdmenu"><div class="nav-in">' + poolMenu + tabsVoorWeergave().map(t =>
+    '<button data-act="tab" data-tab="' + t[0] + '"' + (UI.tab === t[0] ? ' aria-current="page"' : '') + '>' + t[1] + (t[0] === 'dag' && open ? '<span class="badge" title="Play-off nodig">' + open + '</span>' : '') + '</button>').join('') + (UI.viewer ? '<span id="tvHalfIndicator" class="tv-half-indicator" aria-live="off"></span><button type="button" id="viewerCompactBtn" class="viewer-tv-btn" data-act="viewer-compact" aria-pressed="false">Compacte weergave</button><button type="button" id="viewerTvBtn" class="viewer-tv-btn" data-act="viewer-tv" aria-pressed="false">TV-weergave aan</button><button type="button" id="viewerFullscreenBtn" class="viewer-fullscreen-btn" data-act="viewer-fullscreen" aria-label="Volledig scherm openen">⛶</button>' : '') + '</div>' + poolLiveSwitcherHtml() + '</nav>';
 }
 
 /* ---------- Overzicht ---------- */
@@ -4361,7 +4372,7 @@ function render() {
   const app = $('#app'); if (!app) return;
   const y = window.scrollY, focusId = UI.focusId; UI.focusId = null;
   pasThemaToe(locatieVoorWeergave());
-  app.innerHTML = heroHtml() + navHtml() + poolLiveSwitcherHtml() + '<main class="wrap" id="main">' + view() + '</main>' + (UI.scorebord ? scorebordHtml() : '');
+  app.innerHTML = heroHtml() + navHtml() + '<main class="wrap" id="main">' + view() + '</main>' + (UI.scorebord ? scorebordHtml() : '');
   window.scrollTo(0, UI.resetScroll ? 0 : y); UI.resetScroll = false;
   updateViewerCountdown();
   updateViewerFullscreenButton();
@@ -4557,8 +4568,10 @@ const ACT = {
   'viewer-fullscreen'() { toggleViewerFullscreen(); },
   'viewer-tv'() { toggleViewerTv(); },
   'viewer-compact'() { if(UI.viewer&&!mobielWeergave()){document.documentElement.classList.toggle('viewer-compact');updateViewerCompactButton();applyTvHalf();} },
+  'pool-live-menu'(){ if(!UI.combined)return;poolLiveMenuOpen=!poolLiveMenuOpen;render(); },
+  'pool-live-pick'(b){ if(!UI.combined)return;poolLiveWissel(b.dataset.tournament); },
   'dag-lijst'() { UI.dagLijst = UI.dagLijst === false; render(); },
-  tab(b) { UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = mobielWeergave() ? false : true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
+  tab(b) { poolLiveMenuOpen=false; UI.tab = b.dataset.tab; if (b.dataset.tab === 'dag') { UI.dagLijst = mobielWeergave() ? false : true; const d = actueleSpeeldag(); if (d) UI.dag = { key: d.ronde, nr: d.poule }; } if (b.dataset.tab === 'standen') UI.stand = standKeyVoorWeergave(); if (b.dataset.inst) UI.inst = b.dataset.inst; UI.modus = null; UI.sel = null; UI.resetScroll = true; render(); },
   'ga-gegevens'() { UI.tab = 'instellingen'; UI.inst = 'gegevens'; render(); },
   'naar-loting'(b) { UI.lotingKey = b.dataset.key; UI.tab = 'loting'; UI.resetScroll = true; render(); },
   'naar-ronde'(b) { const k = b.dataset.key; if (P.rondeGeloot(T, k)) { UI.stand = k; UI.tab = 'standen'; } else { UI.lotingKey = k; UI.tab = 'loting'; } UI.resetScroll = true; render(); },
@@ -4835,12 +4848,15 @@ function koppelEvents() {
     if (!UI.viewer) render();
   });
   document.addEventListener('click', e => { if(e.target.closest('[data-br-summary]')) UI.brOpen=!e.target.closest('details').open;
+    if(UI.combined&&poolLiveMenuOpen&&!e.target.closest('.pool-live-switch')&&!e.target.closest('.pool-live-menu-toggle')){
+      poolLiveMenuOpen=false;const menu=document.getElementById('poolLiveMenu');if(menu)menu.remove();
+      const toggle=document.querySelector('.pool-live-menu-toggle');if(toggle)toggle.setAttribute('aria-expanded','false');
+    }
     const b = e.target.closest('[data-act]'); if (!b || b.disabled || b.classList.contains('off')) return;
-    if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'dag-lijst', 'viewer-refresh', 'stand-ronde', 'viewer-fullscreen', 'viewer-tv'].indexOf(b.dataset.act) < 0) return;
+    if (UI.viewer && ['tab', 'open-dag', 'dag-nav', 'dag-lijst', 'viewer-refresh', 'stand-ronde', 'viewer-fullscreen', 'viewer-tv', 'pool-live-menu', 'pool-live-pick'].indexOf(b.dataset.act) < 0) return;
     const f = ACT[b.dataset.act]; if (f) { e.preventDefault(); f(b, e); }
   });
   document.addEventListener('change', e => {
-    if(UI.combined && e.target.id==='poolLiveTournamentSelect'){poolLiveWissel(e.target.value);return;}
     const el = e.target.closest('[data-chg]'); if (!el) return;
     if (UI.viewer) return;
     if (el.id === 'bestandInput') return;
@@ -4850,6 +4866,7 @@ function koppelEvents() {
     const t = e.target;
     if (e.key === 'Enter' && t.id === 'nieuweNaam') { e.preventDefault(); ACT['sp-toevoegen'](); return; }
     if ((e.key === 'Enter' || e.key === ' ') && t.matches && t.matches('[data-act="kies-speler"]')) { e.preventDefault(); kiesSpeler(t.dataset.id); return; }
+    if (e.key === 'Escape' && poolLiveMenuOpen) { poolLiveMenuOpen=false;render();return; }
     if (e.key === 'Escape' && UI.scorebord) { UI.scorebord = false; render(); return; }
     if (UI.viewer) return;
     if (UI.tab !== 'dag' || !UI.dag || document.querySelector('.overlay')) return;
