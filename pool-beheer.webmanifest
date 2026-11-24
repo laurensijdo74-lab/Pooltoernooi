@@ -1,0 +1,39 @@
+{
+  "id": "/Pooltoernooi/pwa-beheer",
+  "name": "Pooltoernooi Beheer",
+  "short_name": "Pooltoernooi Beheer",
+  "description": "Beheer van POOL-toernooien en locaties",
+  "lang": "nl",
+  "start_url": "/Pooltoernooi/",
+  "scope": "/Pooltoernooi/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b2130",
+  "theme_color": "#17613f",
+  "icons": [
+    {
+      "src": "./pool-beheer-icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./pool-beheer-icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./pool-beheer-maskable-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "./pool-beheer-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

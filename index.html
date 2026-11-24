@@ -5,11 +5,14 @@
 <!-- De publieke Vue-weergave opent bewust iets uitgezoomd, zodat lange
      dubbelnamen en beide wedstrijdkolommen direct binnen het telefoonscherm vallen. -->
 <meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, maximum-scale=3, user-scalable=yes">
-<title>Pooltoernooi Vue</title>
+<title>Pooltoernooi Beheer</title>
 <meta name="theme-color" content="#17613f">
-<link rel="manifest" href="./beheer.webmanifest" id="pool-manifest">
-<link rel="icon" type="image/png" sizes="192x192" href="./beheer-icon-192.png" id="pool-icon">
-<link rel="apple-touch-icon" href="./beheer-icon-192.png" id="pool-apple-icon">
+<meta name="application-name" content="Pooltoernooi Beheer">
+<meta name="apple-mobile-web-app-title" content="Pooltoernooi Beheer">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="./pool-beheer.webmanifest" id="pool-manifest">
+<link rel="icon" type="image/png" sizes="192x192" href="./pool-beheer-icon-192.png" id="pool-icon">
+<link rel="apple-touch-icon" sizes="180x180" href="./pool-beheer-apple-180.png" id="pool-apple-icon">
 
 <style>
 :root {
@@ -2968,7 +2971,7 @@ function pasThemaToe(loc) {
   });
   root.setAttribute('data-mode', t.mode);
    root.setAttribute('data-theme', loc.thema || 'biljartgroen');
-  document.title = (T.naam || 'Pooltoernooi') + ' – ' + (loc.naam || '');
+  document.title = UI.viewer ? ((T.naam || 'Pooltoernooi') + ' – ' + (loc.naam || '')) : 'Pooltoernooi Beheer';
 }
 
 /* ---------- opslag ---------- */
@@ -5403,7 +5406,7 @@ async function start() {
     document.getElementById('pool-manifest')?.setAttribute('href','./manifest.webmanifest');
     document.getElementById('pool-icon')?.setAttribute('href','./vue-icon-192.png');
     document.getElementById('pool-apple-icon')?.setAttribute('href','./vue-icon-192.png');
-  } else { document.title='Vue Beheer | Pooltoernooi'; }
+  } else { document.title='Pooltoernooi Beheer'; }
   const pathPart = location.pathname.replace(/\/+$/, '').split('/').pop().toLowerCase();
   const pathPublicIds = { vue: 'tmvdkmjd0h8pa1' };
   const publicId = queryPublicId || pathPublicIds[pathPart] || '';
