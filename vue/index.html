@@ -3326,13 +3326,12 @@ function rijStatus(key, p, rows, r, idx) {
     const kans = P.pouleKansen(T, key, p)[r.id];
     if (kans && !kans.kanDoor) return { cls: 'uit', chip: '<span class="chip bad">Geen kans</span>' };
     if (kans && kans.zekerDoor) return { cls: 'door', chip: '<span class="chip ok">Zeker door</span>' };
-    // Gelijke puntentotalen geven dezelfde voorlopige beoordeling, ook als
-    // de gedeelde kopgroep groter is dan het aantal directe plaatsen.
-    // Standvolgorde bij gelijke punten (minst gespeeld eerst) is alleen weergave.
-    // Minstens een wedstrijd moet gespeeld zijn en er moet een lagere puntengroep zijn.
-    const hoger = rows.filter(x => x.punten > r.punten).length;
-    const lager = rows.some(x => x.punten < r.punten);
-    if (r.gespeeld > 0 && hoger < P.DOORGAAN && lager) {
+    // 'Op koers' uitsluitend voor de hoogste puntengroep (gedeelde koplopers).
+    // Alle teams met dezelfde hoogste score krijgen dezelfde status, ook als
+    // er meer koplopers zijn dan rechtstreekse kwalificatieplaatsen.
+    // Gespeelde wedstrijden bepalen alleen de sorteervolgorde bij gelijke punten.
+    const hoogstePunten = Math.max(...rows.map(x => x.punten));
+    if (r.gespeeld > 0 && r.punten === hoogstePunten) {
       return { cls: 'door', chip: '<span class="chip ok">Op koers</span>' };
     }
     return { cls: '', chip: '<span class="chip">In de race</span>' };
@@ -4156,13 +4155,15 @@ function fitViewerStandNames(){
    pagina, wedstrijdindeling en realtime updates ongemoeid te laten. */
  function updateViewerFrozenStand(){
   const old=document.getElementById('viewerFrozenStand');
-  // Alleen de geselecteerde, daadwerkelijk LIVE speeldag mag een vaste stand hebben.
-  // LIVE begint op de ingestelde starttijd en eindigt zodra de poule klaar is.
-  const target=UI.viewer && UI.tab==='dag' && UI.dag && mobielWeergave() ? countdownTarget() : null;
-  const live=!!(st.code!=='klaar' && target && target.ms<=Date.now() &&
-    UI.dag.key===target.d.ronde && UI.dag.nr===target.d.poule &&
-    dagStatus(UI.dag.key,UI.dag.nr).code!=='klaar');
-  if(!live){if(old)old.remove();return;}
+  // Alleen op de geselecteerde, actuele speeldag en pas na de eerste reguliere uitslag.
+  // De wedstrijdstarttijd is geen voorwaarde: de eerste score is leidend.
+  const current=UI.viewer && UI.tab==='dag' && UI.dag && mobielWeergave()
+    ? publiekeActueleSpeeldag() : null;
+  const sameDay=!!(current && UI.dag.key===current.ronde && UI.dag.nr===current.poule);
+  const p=sameDay ? P.zoekPoule(T,UI.dag.key,UI.dag.nr) : null;
+  const active=!!(p && p.schema && p.schema.some(g=>!!g.w) &&
+    !P.reguliereKlaar(p) && dagStatus(UI.dag.key,UI.dag.nr).code!=='klaar');
+  if(!active){if(old)old.remove();return;}
   const cols=document.querySelector('.viewer-day-cols');
   const stand=cols&&cols.lastElementChild&&cols.lastElementChild.querySelector('.sect');
   const games=cols&&cols.firstElementChild;
@@ -4170,9 +4171,17 @@ function fitViewerStandNames(){
   const sr=stand.getBoundingClientRect(),gr=games.getBoundingClientRect();
   const visible=sr.bottom<=0 && gr.bottom>Math.min(window.innerHeight*.35,250);
   if(!visible){if(old)old.remove();return;}
-  if(old)return;
+  if(old){
+    // Bij een nieuwe Firebase-uitslag moet ook de vastgezette stand verversen.
+    if(old.firstElementChild && old.firstElementChild.outerHTML!==stand.outerHTML){
+      const scroll=old.firstElementChild.scrollTop;
+      old.replaceChildren(stand.cloneNode(true));
+      old.firstElementChild.scrollTop=scroll;
+    }
+    return;
+  }
   const frozen=document.createElement('div');frozen.id='viewerFrozenStand';
-  frozen.setAttribute('aria-label','Vastgezette live-stand');
+  frozen.setAttribute('aria-label','Vastgezette actuele stand');
   frozen.appendChild(stand.cloneNode(true));
   document.body.appendChild(frozen);
  }
