@@ -58,7 +58,9 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .hero-public .hero-in > :not(.viewer-break){position:relative;z-index:2}
 .hero-public .viewer-break{position:absolute;z-index:1;left:415px;top:1px;width:160px;height:70px;pointer-events:none;overflow:visible;transform-origin:top left}
 .viewer-break .rack-ball{position:absolute;width:12px;height:12px;border-radius:50%;left:91px;top:32px;background:radial-gradient(circle at 30% 25%,#fff9 0%,#fff5 12%,transparent 38%),var(--bc);box-shadow:inset -2px -2px 3px #0008,0 1px 3px #0008;transform:translate(var(--sx),var(--sy));animation:rack-fill-scatter 30s linear infinite, var(--appear) 30s linear infinite}
-.viewer-break .rack-ball::after{content:'';position:absolute;inset:4px;border-radius:50%;background:#fff8}
+.viewer-break .rack-ball.rack-striped{background:radial-gradient(circle at 30% 25%,#fff9 0%,#fff4 12%,transparent 38%),linear-gradient(180deg,#f9f8f2 0 24%,var(--bc) 25% 75%,#f9f8f2 76% 100%)}
+.viewer-break .rack-ball::after{content:attr(data-ball);position:absolute;inset:3px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 30% 22%,#fff,#e7e5dc 95%);box-shadow:0 0 0 .2px #0002;color:#151515;font:900 4px/1 Arial,sans-serif;text-align:center}
+.viewer-break .rack-ball.rack-striped::after{font-size:3px}
 .viewer-break .rack-triangle{position:absolute;left:85px;top:-5px;width:65px;height:74px;overflow:visible;animation:rack-frame 30s linear infinite}
 .viewer-break .rack-triangle path{fill:none;stroke:#d8b47b;stroke-width:3;stroke-linejoin:round;filter:drop-shadow(0 1px 2px #0009)}
 .viewer-break .cue-ball{position:absolute;width:13px;height:13px;border-radius:50%;top:32px;left:-26px;background:radial-gradient(circle at 28% 25%,#fff,#cdd3db 80%);box-shadow:0 1px 4px #0008;opacity:0;animation:cue-strike 30s linear infinite}
@@ -3100,12 +3102,17 @@ function updateViewerCountdown(){
 /* ---------- hero en navigatie ---------- */
 function viewerBreakHtml() {
   if (!UI.viewer) return '';
-  const colors=['#f4c522','#214cb7','#d42e35','#7335a3','#f47b20','#23834b','#8b2929','#151515','#f4c522','#214cb7','#d42e35','#7335a3','#f47b20','#23834b','#8b2929'];
+  // Officiele 8-ball driehoek: 7 hele, 7 halve, de 8 in het midden;
+  // achterste hoekballen: links een hele (6), rechts een halve (15).
+  const rackNumbers=[1,9,2,3,8,10,11,4,12,5,6,13,14,7,15];
+  const ballColors=['','#f4c522','#214cb7','#d42e35','#7335a3','#f47b20','#23834b','#8b2929','#151515'];
   const moves=[[620,-180],[350,210],[720,90],[180,-160],[-210,160],[530,-95],[260,240],[-170,-150],[800,200],[400,-260],[130,190],[650,-240],[-240,-220],[900,-40],[310,310]];
   let balls='';let n=0;
   for(let row=0;row<5;row++)for(let j=0;j<=row;j++){
     const x=row*10.5,y=(j-row/2)*12;
-    const m=moves[n];balls+='<i class="rack-ball" style="--bc:'+colors[n]+';--sx:'+x+'px;--sy:'+y+'px;--dx:'+m[0]+'px;--dy:'+m[1]+'px;--appear:rack-appear-'+n+'"></i>';n++;
+    const number=rackNumbers[n],shade=ballColors[number===8?8:number>8?number-8:number];
+    const stripe=number>8?' rack-striped':'';
+    const m=moves[n];balls+='<i class="rack-ball'+stripe+'" data-ball="'+number+'" style="--bc:'+shade+';--sx:'+x+'px;--sy:'+y+'px;--dx:'+m[0]+'px;--dy:'+m[1]+'px;--appear:rack-appear-'+n+'"></i>';n++;
   }
   return '<div class="viewer-break" role="img" aria-label="Poolballen worden een voor een in de driehoek gelegd, waarna de witte bal ze uitbreekt"><i class="cue-ball"></i>'+balls+'</div>';
 }
