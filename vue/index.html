@@ -1533,25 +1533,32 @@ function decodeerEindscore(getal, n, basis) {
   for (let i = 0; i < n; i++) { punten.push(getal % basis); getal = Math.floor(getal / basis); }
   return punten;
 }
-function laagstMogelijkeDerde(poule) {
+/* Het bereik van de derde plaats in de andere poule, over ALLE resterende uitslagen.
+   Bij een gelijke derde score is de weekend-play-off nog nodig, dus niet 'zeker door'. */
+function derdeBereik(poule) {
   const scenario = eindscoreScenario(poule);
-  if (scenario.minDerde !== null) return scenario.minDerde;
-  if (!scenario.scores || scenario.ids.length < 3) return -1;
-  let minimum = Infinity;
+  if (scenario.derdeBereik) return scenario.derdeBereik;
+  if (!scenario.scores || scenario.ids.length < 3) {
+    return (scenario.derdeBereik = { min: -1, max: Infinity });
+  }
+  let minimum = Infinity, maximum = -Infinity;
   for (const code of scenario.scores) {
     const punten = decodeerEindscore(code, scenario.ids.length, scenario.basis);
     punten.sort((a, b) => b - a);
     minimum = Math.min(minimum, punten[2]);
-    if (minimum === 0) break;
+    maximum = Math.max(maximum, punten[2]);
   }
-  scenario.minDerde = minimum / Math.max(1, scenario.totaal);
-  return scenario.minDerde;
+  return (scenario.derdeBereik = {
+    min: minimum / Math.max(1, scenario.totaal),
+    max: maximum / Math.max(1, scenario.totaal)
+  });
 }
-/*
- * Per speler: kanDoor = direct of via toegestane beste-nr.-3-route is nog
- * mogelijk; zekerDoor = in ELKE mogelijke eindstand zonder grens-play-off
- * rechtstreeks in top 2. Gelijke punten blijven dus altijd beslisbaar.
- */
+function laagstMogelijkeDerde(poule) { return derdeBereik(poule).min; }
+function hoogstMogelijkeDerde(poule) { return derdeBereik(poule).max; }
+
+/* Kansen op rechtstreekse plaatsing OF via de beste nummer 3 van het weekend.
+   Bij gedeelde eindpunten kan een play-off nodig zijn. Die uitslag is onbekend:
+   'kan door' telt zo'n mogelijke route mee, 'zeker door' niet als garantie. */
 function pouleKansen(T, key, poule) {
   const sc = eindscoreScenario(poule), ids = sc.ids, n = ids.length;
   const pr = planRonde(T, key), rd = T.rondes[key];
@@ -1562,19 +1569,22 @@ function pouleKansen(T, key, poule) {
   const signatuur = key + ':' + !!besteDerde + ':' + (partnerSc ? partnerSc.vingerafdruk : '') + ':' + sc.vingerafdruk;
   if (sc.statusKey === signatuur && sc.status) return sc.status;
   const drempelDerde = partner ? laagstMogelijkeDerde(partner) : Infinity;
+  const maxDerde = partner ? hoogstMogelijkeDerde(partner) : Infinity;
   const stand = standPoule(T, poule);
   const status = {};
   ids.forEach(id => { status[id] = { kanDoor: false, zekerDoor: true }; });
   if (!sc.scores) {
-    // Veilig bij zeer grote poules: nooit ten onrechte iemand uitschakelen.
+    // Conservatief voor grote poules: zeker = bewezen, mogelijk = niet uitgesloten.
     ids.forEach(id => {
       const rij = stand.find(r => r.id === id);
       const zekerHoger = stand.filter(r => r.id !== id && r.punten > rij.max).length;
       const mogelijkGelijkOfHoger = stand.filter(r => r.id !== id && r.max >= rij.punten).length;
       status[id].kanDoor = zekerHoger < (besteDerde ? 3 : 2);
-      status[id].zekerDoor = mogelijkGelijkOfHoger < 2;
+      status[id].zekerDoor = mogelijkGelijkOfHoger < 2 ||
+        (besteDerde && mogelijkGelijkOfHoger < 3 && rij.punten / Math.max(1, rij.totaal) > maxDerde + 1e-9);
     });
   } else {
+    // Exacte puntenscenario's van de eigen poule, inclusief alle resterende duels.
     for (const code of sc.scores) {
       const punten = decodeerEindscore(code, n, sc.basis);
       for (let i = 0; i < n; i++) {
@@ -1584,8 +1594,16 @@ function pouleKansen(T, key, poule) {
           if (punten[j] > huidig) hoger++;
           if (punten[j] >= huidig) gelijkOfHoger++;
         }
-        if (hoger < 2 || (besteDerde && hoger === 2 && huidig / Math.max(1, sc.totaal) >= drempelDerde - 1e-9)) status[ids[i]].kanDoor = true;
-        if (gelijkOfHoger >= 2) status[ids[i]].zekerDoor = false;
+        const pct = huidig / Math.max(1, sc.totaal);
+        // Directe top-2-kans of kans op derde plaats en minstens een beslissingsplay-off.
+        if (hoger < 2 || (besteDerde && hoger === 2 && pct >= drempelDerde - 1e-9)) {
+          status[ids[i]].kanDoor = true;
+        }
+        // Gegarandeerd in de top 2, of in het slechtste geval derde én
+        // met meer punten dan zelfs de hoogst mogelijke derde van de partnerpoule.
+        const directZeker = gelijkOfHoger < 2;
+        const derdeZekerDoor = besteDerde && gelijkOfHoger < 3 && pct > maxDerde + 1e-9;
+        if (!directZeker && !derdeZekerDoor) status[ids[i]].zekerDoor = false;
       }
     }
   }
@@ -3306,10 +3324,17 @@ function rijStatus(key, p, rows, r, idx) {
   if (!klaarReg) {
     if (!p.schema.some(g => !!g.w)) return { cls: '', chip: '' };
     const kans = P.pouleKansen(T, key, p)[r.id];
-    if (kans && !kans.kanDoor) return { cls: 'uit', chip: '<span class="chip bad">Uitgeschakeld</span>' };
+    if (kans && !kans.kanDoor) return { cls: 'uit', chip: '<span class="chip bad">Geen kans</span>' };
     if (kans && kans.zekerDoor) return { cls: 'door', chip: '<span class="chip ok">Zeker door</span>' };
-    // Een voorlopige top-2-positie is een verwachting, geen plaatsingsbewijs.
-    if (idx < P.DOORGAAN) return { cls: 'door', chip: '<span class="chip ok">Op koers</span>' };
+    // Gelijke puntentotalen geven dezelfde voorlopige beoordeling, ook als
+    // de gedeelde kopgroep groter is dan het aantal directe plaatsen.
+    // Standvolgorde bij gelijke punten (minst gespeeld eerst) is alleen weergave.
+    // Minstens een wedstrijd moet gespeeld zijn en er moet een lagere puntengroep zijn.
+    const hoger = rows.filter(x => x.punten > r.punten).length;
+    const lager = rows.some(x => x.punten < r.punten);
+    if (r.gespeeld > 0 && hoger < P.DOORGAAN && lager) {
+      return { cls: 'door', chip: '<span class="chip ok">Op koers</span>' };
+    }
     return { cls: '', chip: '<span class="chip">In de race</span>' };
   }
   const pp = p.pp;
