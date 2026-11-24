@@ -2405,7 +2405,7 @@ function slug(s) { return String(s || 'toernooi').normalize('NFD').replace(/[\u0
 function nu() { return new Date(); }
 function mobielWeergave() { return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(max-width: 980px)').matches; }
 const PUBLIEKE_APP_URL = 'https://laurensijdo74-lab.github.io/Pooltoernooi/';
-const PUBLIEKE_ALIASES = { tmvdkmjd0h8pa1: 'vue', tmvocon68k4ij1: 'Karroesel' };
+const PUBLIEKE_ALIASES = { tmvdkmjd0h8pa1: 'vue', tmvocon68k4ij1: 'karroesel' };
 function publiekeToernooiUrl(id) {
   const alias = PUBLIEKE_ALIASES[String(id || '')];
   if (alias) return PUBLIEKE_APP_URL + alias + '/';
@@ -2526,7 +2526,7 @@ const MODE_VARS = {
 const THEMA_VAR_NAMEN = ['--bg', '--surface', '--surface2', '--ink', '--muted', '--line', '--brand', '--brand-ink', '--brand-soft', '--accent', '--accent-soft', '--hero', '--hero-ink', '--hero-chip', '--hero-chip-line', '--rail', '--radius', '--font-display', '--display-weight', '--display-tracking', '--display-case', '--good', '--good-soft', '--bad', '--bad-soft', '--warn', '--warn-soft', '--shadow'];
 
 function themaVars(loc) {
-  const base = karroeselPubliekThema() || /karroesel/i.test(loc.naam || '') ? THEMAS.karroesel : (THEMAS[loc.thema] || THEMAS.biljartgroen);
+  const base = THEMAS[loc.thema] || THEMAS.biljartgroen;
   const v = Object.assign({}, base.v);
   const k = loc.kleuren || {};
   let mode = base.mode;
@@ -2569,7 +2569,9 @@ function pasThemaToe(loc) {
     root.style.setProperty(n, val);
   });
   root.setAttribute('data-mode', t.mode);
-  root.setAttribute('data-theme', karroeselPubliekThema() || /karroesel/i.test(loc.naam || '') ? 'karroesel' : (loc.thema || 'biljartgroen'));
+  root.setAttribute('data-theme', THEMAS[loc.thema] ? loc.thema : 'biljartgroen');
+  const chromeColor = document.querySelector('meta[name="theme-color"]');
+  if (chromeColor) chromeColor.setAttribute('content', t.v['--bg'] || '#130c09');
   document.title = (T.naam || 'Pooltoernooi') + ' – ' + (loc.naam || '');
 }
 
@@ -2824,6 +2826,11 @@ function dagLocatie(key, nr) { const d = P.planDag(T, key, nr); return d && d.lo
 
 /* ---------- status per speeldag ---------- */
 function dagStatus(key, nr) {
+  // Publiek: reguliere wedstrijden zijn gespeeld, ook bij een uitgestelde play-off.
+  if (UI.viewer && P.rondeGeloot(T, key)) {
+    const poule = P.zoekPoule(T, key, nr);
+    if (poule && P.reguliereKlaar(poule)) return { code: 'klaar', cls: 'ok', tekst: 'Gespeeld', kort: 'Gespeeld' };
+  }
   if (!P.rondeGeloot(T, key)) return { code: 'gepland', cls: '', tekst: 'Nog niet geloot', kort: 'Gepland' };
   const p = P.zoekPoule(T, key, nr);
   if (!p) return { code: 'gepland', cls: '', tekst: 'Gepland', kort: 'Gepland' };
@@ -2944,7 +2951,7 @@ function updatePublicDayStatus(){
  if(!el||!UI.viewer||!UI.dag)return;
  const st=dagStatus(UI.dag.key,UI.dag.nr);
  const target=countdownTarget();
- const live=!!(target && target.ms<=Date.now() && target.d.ronde===UI.dag.key && target.d.poule===UI.dag.nr && st.code!=='klaar');
+ const live=!!(st.code!=='klaar' && target && target.ms<=Date.now() && target.d.ronde===UI.dag.key && target.d.poule===UI.dag.nr && st.code!=='klaar');
  el.textContent=st.code==='klaar'?'Gespeeld':live?'● Nu bezig':st.tekst;
  el.classList.toggle('is-active',live);
 }
@@ -3355,13 +3362,12 @@ function rijStatus(key, p, rows, r, idx) {
     const kans = P.pouleKansen(T, key, p)[r.id];
     if (kans && !kans.kanDoor) return { cls: 'uit', chip: '<span class="chip bad">Geen kans</span>' };
     if (kans && kans.zekerDoor) return { cls: 'door', chip: '<span class="chip ok">Zeker door</span>' };
-    // Gelijke puntentotalen geven dezelfde voorlopige beoordeling, ook als
-    // de gedeelde kopgroep groter is dan het aantal directe plaatsen.
-    // Standvolgorde bij gelijke punten (minst gespeeld eerst) is alleen weergave.
-    // Minstens een wedstrijd moet gespeeld zijn en er moet een lagere puntengroep zijn.
-    const hoger = rows.filter(x => x.punten > r.punten).length;
-    const lager = rows.some(x => x.punten < r.punten);
-    if (r.gespeeld > 0 && hoger < P.DOORGAAN && lager) {
+    // 'Op koers' uitsluitend voor de hoogste puntengroep (gedeelde koplopers).
+    // Alle teams met dezelfde hoogste score krijgen dezelfde status, ook als
+    // er meer koplopers zijn dan rechtstreekse kwalificatieplaatsen.
+    // Gespeelde wedstrijden bepalen alleen de sorteervolgorde bij gelijke punten.
+    const hoogstePunten = Math.max(...rows.map(x => x.punten));
+    if (r.gespeeld > 0 && r.punten === hoogstePunten) {
       return { cls: 'door', chip: '<span class="chip ok">Op koers</span>' };
     }
     return { cls: '', chip: '<span class="chip">In de race</span>' };
@@ -4188,7 +4194,7 @@ function fitViewerStandNames(){
   // Alleen de geselecteerde, daadwerkelijk LIVE speeldag mag een vaste stand hebben.
   // LIVE begint op de ingestelde starttijd en eindigt zodra de poule klaar is.
   const target=UI.viewer && UI.tab==='dag' && UI.dag && mobielWeergave() ? countdownTarget() : null;
-  const live=!!(target && target.ms<=Date.now() &&
+  const live=!!(st.code!=='klaar' && target && target.ms<=Date.now() &&
     UI.dag.key===target.d.ronde && UI.dag.nr===target.d.poule &&
     dagStatus(UI.dag.key,UI.dag.nr).code!=='klaar');
   if(!live){if(old)old.remove();return;}
@@ -4730,7 +4736,9 @@ function koppelEvents() {
 }
 
 /* ---------- opstarten ---------- */
-/* Karroesel Pool gebruikt dezelfde actuele toeschouwers- en TV-code als Vue. */
+/* Beide publieke routes draaien dezelfde Vue-functionaliteit, maar laden elk
+   hun eigen online toernooi. Een verkeerde toernooi-ID of oude beheercache
+   mag niet in de Karroesel-toeschouwersapp verschijnen. */
 function isKarroeselRoute() {
   return /\/karroesel(?:\/|\/index\.html)?$/i.test(location.pathname);
 }
@@ -4740,9 +4748,6 @@ function isKarroeselTournamentData(t) {
   const loc = locaties.find(x => x && x.id === t.locatieId) || locaties[0] || {};
   return /karroesel/i.test(String(loc.naam || '')) || /karroesel/i.test(String(t.naam || ''));
 }
-function karroeselPubliekThema() {
-  return UI.viewer && isKarroeselRoute() && isKarroeselTournamentData(T);
-}
 function karroeselPublicUnavailable() {
   document.title = 'Karroesel Pool – tijdelijk niet beschikbaar';
   const app = document.getElementById('app');
@@ -4750,7 +4755,7 @@ function karroeselPublicUnavailable() {
   app.innerHTML = '<main style="box-sizing:border-box;max-width:580px;margin:12vh auto;padding:28px 22px;font:16px/1.5 system-ui,Arial,sans-serif">' +
     '<h1 style="font-size:28px;margin:0 0 12px">Karroesel Pool</h1>' +
     '<p>De actuele gegevens van Karroesel konden niet worden opgehaald. Controleer de internetverbinding en of het toernooi openbaar is gepubliceerd.</p>' +
-    '<p><a href="/Pooltoernooi/Karroesel/" style="display:inline-block;padding:12px 18px;border-radius:9px;background:#6c3914;color:#fff;text-decoration:none;font-weight:700">Opnieuw proberen</a></p>' +
+    '<p><a href="/Pooltoernooi/karroesel/" style="display:inline-block;padding:12px 18px;border-radius:9px;background:#6c3914;color:#fff;text-decoration:none;font-weight:700">Opnieuw proberen</a></p>' +
     '</main>';
 }
 async function start() {
@@ -4762,14 +4767,13 @@ async function start() {
   const pathPublicIds = { karroesel: defaultKarId };
   const publicId = queryPublicId || (isKarRoute ? defaultKarId : pathPublicIds[pathPart] || '');
   let opgeslagen = null, publiekGeladen = false;
-  if (isKarRoute) UI.viewer = true; // Ook bij een netwerkfout nooit terug naar beheer.
+  if (isKarRoute) UI.viewer = true; // Nooit bij een publieke netwerkfout op een beheerderspagina uitkomen.
   if (publicId && window.POOL_ONLINE) {
     try {
       await window.POOL_ONLINE.ready;
       let remote = await window.POOL_ONLINE.loadTournament(publicId, { public: true });
       if (isKarRoute && queryPublicId && queryPublicId !== defaultKarId &&
           (!remote || !isKarroeselTournamentData(remote))) {
-        // Een Vue-link mag de Karroesel-app niet overnemen.
         const canonical = new URL(location.href);
         canonical.searchParams.delete('tournament');
         canonical.searchParams.delete('mode');
@@ -4790,7 +4794,6 @@ async function start() {
     } catch (e) { console.warn('Karroesel Pool: online toernooi niet geladen', e); }
   }
   if (!publiekGeladen && isKarRoute) {
-    // Geen oude lokaal opgeslagen beheerapp als terugval op de publieke URL.
     karroeselPublicUnavailable();
     return;
   }
