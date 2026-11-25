@@ -2422,7 +2422,7 @@ const API = {
   standPoule, pouleKansen, reguliereKlaar, grensGroep, ppFormaten, ppStandaardFormaat, ppWins, ppDoel, ppGameNodig, ppStapKlaar, ppTieNodig,
   synchroniseerPoule, eindvolgorde, pouleAfgerond, rondeAfgerond, rondeGespeeldAantal, zoekPoule,
   zetUitslag, zetPpUitslag, zetPpWalkover, resetPpWalkover, lootBreaksPp, lootBreaksDerde, telBreaks, zetPpFormaat, zetPpEersteBreak, resetPp, herstelVorige, eersteOpenGame, wisPouleUitslagen, laatsteGame,
-  derdeZeker, isFinale, finaleTussenstand, herstelReferenties, vergrendeld, zetOntgrendeld, derdeVergrendeld, derdeStatus, zetDerdeUitslag, zetDerdeWalkover, resetDerdeWalkover, zetDerdeFormaat, verwerkDerden, kwalificatie, spelerRondeStatus,
+  derdeZeker, isFinale, finaleTussenstand, herstelReferenties, vergrendeld, zetOntgrendeld, derdeVergrendeld, derdeVan, derdeBronPoules, derdePaarIndexVoorPoule, derdeStatus, zetDerdeUitslag, zetDerdeWalkover, resetDerdeWalkover, zetDerdeFormaat, verwerkDerden, kwalificatie, spelerRondeStatus,
   wissel, vervangKandidaten, markeerVervangen, positieVan, bouwOpnieuw, log,
   bouwUitslagenVoorPatroon, vulPouleMetPatroon, speelPouleWillekeurig, speelPlayoffsWillekeurig, speelDerdenWillekeurig,
   valideer, samenvatting, DOORGAAN, phLabel, reguliereKlaarRonde, herbouwSchemaBehoudUitslag, migreerSchemas, schemaMigratieNodig
@@ -3901,7 +3901,7 @@ function tvPlayoffScreenHtml(key,p) {
   return '<div class="viewer-playoff-top"><div class="tv-po-grid"><section class="sect tv-po-matches"><header><h3>Play-off wedstrijden</h3></header><div class="body">'+games+'</div></section><div class="tv-po-standings">'+standings+'</div></div></div>';
 }
 function komendeDerdeViewerHtml(key,i) {
-  const bronnen=derdeBronPoules(T,key,i);
+  const bronnen=P.derdeBronPoules(T,key,i);
   if(bronnen.length!==2)return '';
   const open=bronnen.filter(q=>q.pp&&!q.pp.voltooid&&q.pp.k===3&&q.pp.stappen&&q.pp.stappen[0]);
   if(open.length!==1)return '';
@@ -3922,12 +3922,12 @@ function vorigePlayoffsHtml(key, p) {
     // Een na de wissel verplaatste beste-derde-placeholder behoudt zijn bronpoule.
     for(const q of vr.poules||[])if(q.pp&&!q.pp.voltooid&&q.pp.stappen&&q.pp.stappen[0]&&match(q.pp.stappen[0].groep))pool[q.nr]=true;
     for(let i=0;i<Math.floor((vr.poules||[]).length/2);i++){
-      const source=derdeBronPoules(T,vk,i);
+      const source=P.derdeBronPoules(T,vk,i);
       if(source.some(q=>pool[q.nr]) || source.some(q=>q.pp&&!q.pp.voltooid&&q.pp.stappen&&match(q.pp.stappen[0].groep)))derde[i]=true;
     }
     let h='';
     Object.keys(pool).forEach(n=>{const q=P.zoekPoule(T,vk,+n);if(q&&q.pp&&!q.pp.voltooid)h+=ppBlokHtml(vk,q);});
-    Object.keys(derde).forEach(i=>{const b=derdeBlokHtml(vk,+i);if(b)h+=b;else h+=komendeDerdeViewerHtml(vk,+i);});
+    Object.keys(derde).forEach(i=>{const b=derdeBlokHtml(vk,+i);if(b)h+=b;const preview=komendeDerdeViewerHtml(vk,+i);if(preview)h+=preview;});
     return h?'<div class="sect viewer-playoff-block" style="border-color:var(--warn)"><header><h3>Play-off wedstrijden</h3></header><div class="body stack">'+h+'</div></div>':'';
   }catch(err){console.error('POOL viewer playoff',err);return '';}
 }
