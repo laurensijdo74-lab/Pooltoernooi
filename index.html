@@ -2657,6 +2657,9 @@ function wisselDerdeKandidaten(T, volgende, bronNrA, bronNrB) {
   groepen[ia][a]=bronNrB; groepen[ib][b]=bronNrA;
   T.derdePaarIndeling=T.derdePaarIndeling||{};
   T.derdePaarIndeling[key]=groepen;
+  // Publieke projectie: de beheerapp is de enige bron voor deze koppeling.
+  T.publiekeDerdePaarIndeling=T.publiekeDerdePaarIndeling||{};
+  T.publiekeDerdePaarIndeling[key]=groepen.map(g=>g.slice());
   // Onbespeelde, eerder aangemaakte duels horen nog bij de oude tegenstanders.
   if (T.derden && T.derden[key]) { delete T.derden[key][0]; delete T.derden[key][1]; }
   verwerkDerden(T,key);
@@ -3170,6 +3173,13 @@ function planOnlineSynchronisatie() {
 
 function commit(opties) {
   opties = opties || {};
+  if(T.derdePaarIndeling){
+    T.publiekeDerdePaarIndeling=T.publiekeDerdePaarIndeling||{};
+    Object.keys(T.derdePaarIndeling).forEach(k=>{
+      const pairs=T.derdePaarIndeling[k];
+      if(Array.isArray(pairs))T.publiekeDerdePaarIndeling[k]=pairs.map(g=>Array.isArray(g)?g.slice():g);
+    });
+  }
   T.gewijzigd = new Date().toISOString();
   if (Date.now() - laatsteHerstelpunt > 6 * 3600 * 1000 && P.spelerById) maakHerstelpunt('Automatisch');
   planBewaren();
