@@ -2430,8 +2430,14 @@ function derdeStatus(T, key, i) {
   let po = T.derden[key][i];
   if (!po || po.a !== a || po.b !== b) {
     const eb = rng() < 0.5 ? a : b;
-    po = { a, b, formaat: 'Best of 5', eersteBreak: eb, games: bouwPpGames([a, b], 'Best of 5', eb), winnaar: null };
+    po = { a, b, formaat: 'Best of 3', eersteBreak: eb, games: bouwPpGames([a, b], 'Best of 3', eb), winnaar: null };
     T.derden[key][i] = po;
+  }
+  // Bestaande nog ongespeelde standaard Best of 5 veilig omzetten naar Best of 3.
+  // Nooit een begonnen, afgeronde of handmatig anders ingestelde play-off wijzigen.
+  if (po.formaat === 'Best of 5' && po.games && po.games.length === 5 && !po.games.some(g => g.w) && !po.forfait && !po.winnaar) {
+    po.formaat = 'Best of 3';
+    po.games = bouwPpGames([a, b], 'Best of 3', po.eersteBreak);
   }
   if (po.forfait && po.winnaar) return { status: 'beslist', winnaar: po.winnaar, a, b, playoff: po };
   const w = ppWins({ groep: [a, b], games: po.games }), doel = Math.floor(po.games.length / 2) + 1;
@@ -4317,7 +4323,8 @@ function komendeDerdeBlokHtml(key, i) {
   if(opgeslagen && opgeslagen.winnaar)return '';
   return '<div class="sect playoff-block public-match-card"><header><h3>Play-off 2 · Beste nummer 3</h3><span class="chip warn">Na play-off 1</span></header><div class="body stack">'+
     '<div class="small muted">Wacht op winnaar play-off 1 · Tegen '+esc(spelerNaam(tegen))+'</div>'+
-    '<div class="games public-match-list">'+gameKopHtml()+'<div class="game viewer-game admin-second-playoff-game"><div class="pl"><span class="nm">'+esc(naam)+'</span></div><div class="vs">vs</div><div class="pl"><span class="nm">'+esc(spelerNaam(tegen))+'</span></div></div></div>'+
+    '<div class="small muted">Standaard: Best of 3 · maximaal 3 wedstrijden</div>'+
+    '<div class="games public-match-list">'+gameKopHtml()+Array.from({length:3},(_,idx)=>'<div class="game viewer-game admin-second-playoff-game"><div class="pl"><span class="nm">'+esc(idx%2===0?naam:spelerNaam(tegen))+'</span></div><div class="vs">vs</div><div class="pl"><span class="nm">'+esc(idx%2===0?spelerNaam(tegen):naam)+'</span></div></div>').join('')+'</div>'+
     '<div class="small muted">Mogelijke deelnemers: '+esc(label)+'</div></div></div>';
 }
 function vorigePlayoffsHtml(key, p) {
