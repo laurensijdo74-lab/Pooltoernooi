@@ -1245,7 +1245,9 @@ function derdeBronPoules(T,key,i) {
   // Beheer is leidend: uitsluitend expliciet opgeslagen koppelingen gebruiken.
   const published=T.publiekeDerdePaarIndeling && T.publiekeDerdePaarIndeling[key];
   const saved=T.derdePaarIndeling && T.derdePaarIndeling[key];
-  const custom=Array.isArray(published)?published:saved;
+  // De actuele door beheer opgeslagen wissel is leidend. De publieke kopie
+  // is slechts een fallback en mag een recentere beheerwissel niet overschrijven.
+  const custom=Array.isArray(saved)?saved:published;
   if(!custom && T.rondes[key] && T.rondes[key].geloot) console.warn("POOL: geen expliciete beste-derde-indeling ontvangen; standaardindeling gebruikt",key);
   const nums=custom && Array.isArray(custom[i]) ? custom[i] : [2*i+1,2*i+2];
   return nums.map(n=>r.poules.find(p=>p.nr===Number(n))).filter(Boolean);
