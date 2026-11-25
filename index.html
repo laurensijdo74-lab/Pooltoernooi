@@ -1332,6 +1332,32 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
   body:not(.public-mode) .admin-second-playoff-game .pl {min-width:0!important;width:auto!important;max-width:100%!important;padding:10px 8px!important;display:block!important;}
   body:not(.public-mode) .admin-second-playoff-game .pl .nm {display:block!important;min-width:0!important;width:100%!important;white-space:normal!important;overflow-wrap:normal!important;word-break:normal!important;hyphens:none!important;line-height:1.3!important;font-size:clamp(12px,3.3vw,16px)!important;}
 }
+
+/* Play-off 2 vooruitblik: eigen wedstrijdgrid, onafhankelijk van de reguliere game-CSS. */
+.admin-second-playoff-list{width:100%;min-width:0;overflow:hidden;border:1px solid var(--line);border-radius:10px}
+.admin-second-playoff-head,.admin-second-playoff-row{display:grid;grid-template-columns:minmax(0,1fr) 26px minmax(0,1fr);width:100%;min-width:0;align-items:center}
+.admin-second-playoff-head{background:var(--surface2);color:var(--muted);font-size:.8rem;font-weight:700}
+.admin-second-playoff-head span{padding:7px 10px;min-width:0}
+.admin-second-playoff-row{border-top:1px solid var(--line);min-height:56px}
+.admin-second-playoff-name{display:block;min-width:0;width:100%;padding:10px 9px;font-weight:750;line-height:1.25;white-space:normal;overflow-wrap:break-word;word-break:normal;hyphens:none}
+.admin-second-playoff-vs{text-align:center;color:var(--muted);font-size:.8rem}
+@media(max-width:980px){.admin-second-playoff-head,.admin-second-playoff-row{grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr)}.admin-second-playoff-name{font-size:clamp(12px,3.5vw,16px);padding:9px 6px}.admin-second-playoff-head span{padding:6px}}
+
+/* Mobiel beheer: echte beste-nr-3-play-off met drie wedstrijden.
+   De eerdere correctie betrof alleen de vooruitblik; dit is de gespeelde/ opgeslagen kaart. */
+@media screen and (max-width:980px) {
+ body:not(.public-mode) .admin-mobile-day .playoff-block .games,
+ body:not(.public-mode) .admin-mobile-day .playoff-block .game,
+ body:not(.public-mode) .admin-mobile-day .playoff-block .ghead {box-sizing:border-box;width:100%!important;min-width:0!important;max-width:100%!important;}
+ body:not(.public-mode) .admin-mobile-day .playoff-block .game,
+ body:not(.public-mode) .admin-mobile-day .playoff-block .ghead {display:grid!important;grid-template-columns:minmax(0,1fr) 26px minmax(0,1fr)!important;}
+ body:not(.public-mode) .admin-mobile-day .playoff-block .game > .gnr,
+ body:not(.public-mode) .admin-mobile-day .playoff-block .ghead > span:first-child {display:none!important;}
+ body:not(.public-mode) .admin-mobile-day .playoff-block .game .pl {display:flex!important;min-width:0!important;width:100%!important;padding:9px 6px!important;gap:4px!important;align-items:center!important;}
+ body:not(.public-mode) .admin-mobile-day .playoff-block .game .pl .nm {display:block!important;flex:1 1 auto!important;min-width:0!important;white-space:normal!important;overflow-wrap:normal!important;word-break:normal!important;hyphens:none!important;line-height:1.25!important;font-size:clamp(12px,3.4vw,16px)!important;}
+ body:not(.public-mode) .admin-mobile-day .playoff-block .game .vs {min-width:0!important;text-align:center!important;}
+ body:not(.public-mode) .admin-mobile-day .playoff-block .ghead span {min-width:0!important;padding:6px!important;}
+}
 </style>
 </head>
 <body>
@@ -4324,7 +4350,7 @@ function komendeDerdeBlokHtml(key, i) {
   return '<div class="sect playoff-block public-match-card"><header><h3>Play-off 2 · Beste nummer 3</h3><span class="chip warn">Na play-off 1</span></header><div class="body stack">'+
     '<div class="small muted">Wacht op winnaar play-off 1 · Tegen '+esc(spelerNaam(tegen))+'</div>'+
     '<div class="small muted">Standaard: Best of 3 · maximaal 3 wedstrijden</div>'+
-    '<div class="games public-match-list">'+gameKopHtml()+Array.from({length:3},(_,idx)=>'<div class="game viewer-game admin-second-playoff-game"><div class="pl"><span class="nm">'+esc(idx%2===0?naam:spelerNaam(tegen))+'</span></div><div class="vs">vs</div><div class="pl"><span class="nm">'+esc(idx%2===0?spelerNaam(tegen):naam)+'</span></div></div>').join('')+'</div>'+
+    '<div class="admin-second-playoff-list"><div class="admin-second-playoff-head"><span>Breekt</span><span></span><span>Tegenstander</span></div>'+Array.from({length:3},(_,idx)=>'<div class="admin-second-playoff-row"><div class="admin-second-playoff-name">'+esc(idx%2===0?naam:spelerNaam(tegen))+'</div><span class="admin-second-playoff-vs">vs</span><div class="admin-second-playoff-name">'+esc(idx%2===0?spelerNaam(tegen):naam)+'</div></div>').join('')+'</div>'+
     '<div class="small muted">Mogelijke deelnemers: '+esc(label)+'</div></div></div>';
 }
 function vorigePlayoffsHtml(key, p) {
