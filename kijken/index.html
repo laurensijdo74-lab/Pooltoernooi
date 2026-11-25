@@ -2848,7 +2848,44 @@ const TABS = [
 const rondeNaam = k => { const r = P.planRonde(T, k); return r ? r.naam : k; };
 const rondeKort = k => { const r = P.planRonde(T, k); return r ? r.kort : k; };
 const dagLabelLang = (dag) => P.dagLabel(T, dag);
-const spelerNaam = id => P.naamVan(T, id);
+/* Publieke kandidaten voor open play-offplaatsen, ook als de derde plaats
+   in een bronpoule nog via een uitgestelde play-off moet worden bepaald. */
+function publiekeKandidatenNaam(id, gezien = new Set()) {
+  if (!T || !id || gezien.has(id)) return P.naamVan(T, id);
+  if (!UI.viewer || !P.isPh(id)) return P.naamVan(T, id);
+  gezien.add(id);
+  if (id.startsWith('ph:')) return id.slice(3).split('|').map(x => publiekeKandidatenNaam(x, new Set(gezien))).filter(Boolean).join(' / ');
+  const h = T.ph && T.ph[id];
+  if (!h) return P.naamVan(T, id);
+  if (h.soort === 'pool') {
+    const p = P.zoekPoule(T, h.key, h.poule);
+    if (p && p.pp && p.pp.stappen && p.pp.stappen.length) {
+      const stap = p.pp.stappen[p.pp.stappen.length - 1];
+      return (stap.groep || []).map(x => publiekeKandidatenNaam(x, new Set(gezien))).join(' / ');
+    }
+    return P.naamVan(T, id);
+  }
+  if (h.soort === 'derde') {
+    const rd = T.rondes[h.key], pa = rd && rd.poules[2*h.i], pb = rd && rd.poules[2*h.i+1];
+    if (!pa || !pb) return P.naamVan(T, id);
+    const mogelijke = p => {
+      if (P.pouleAfgerond(T,p)) return [P.eindvolgorde(T,p)[2]].filter(Boolean);
+      if (P.reguliereKlaar(p) && p.pp && !p.pp.voltooid) {
+        const pp = p.pp, rang = P.standPoule(T,p);
+        if (pp.start <= 3 && pp.start + pp.plekken > 3)
+          return (pp.stappen[pp.stappen.length-1].groep || []).slice();
+        return [rang[2] && rang[2].id].filter(Boolean);
+      }
+      /* Nog niet gespeeld: de nummer 3 is niet met zekerheid bekend. */
+      return [];
+    };
+    const a = mogelijke(pa), b = mogelijke(pb);
+    const ids = [...new Set([...a,...b])];
+    return ids.length ? ids.map(x => publiekeKandidatenNaam(x,new Set(gezien))).join(' / ') : P.naamVan(T,id);
+  }
+  return P.naamVan(T,id);
+}
+const spelerNaam = id => publiekeKandidatenNaam(id);
 const wijzigbaar = () => !UI.viewer && !P.rondeGeloot(T, T.plan.rondes.length ? T.plan.rondes[0].key : 'R1');
 
 const enkelPoule = key => { const r = P.planRonde(T, key); return !!r && r.sizes.length === 1; };
@@ -4029,7 +4066,7 @@ function pasPubliekeStandToe(remote, melding) {
   const huidigeDag = UI.dag && { key: UI.dag.key, nr: UI.dag.nr };
   const huidigeStand = UI.stand;
   notePlayoffResolution(T,remote);
-  T = remote; migreerNaLaden(); UI.viewer = true; UI.tab = huidigeTab;
+  T = herstelOpenPlayoffsPubliek(remote); migreerNaLaden(); UI.viewer = true; UI.tab = huidigeTab;
   UI.dag = huidigeDag && P.planDag(T, huidigeDag.key, huidigeDag.nr) ? huidigeDag : null;
   UI.stand = huidigeStand && P.planRonde(T, huidigeStand) ? huidigeStand : null;
   render();
