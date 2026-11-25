@@ -3393,7 +3393,7 @@ function playoffsVoorDag(d) {
   Object.keys(src.derde).forEach(i => {
     const st = P.derdeStatus(T,src.vk,Number(i));
     if (st.status === 'playoff') result.push({key:src.vk,i:Number(i),label:'Play-off beste nummer 3',namen:[st.a,st.b].map(spelerNaam).join(' / ')});
-     else if(st.status==='wacht' && st.kandidaten?.length) result.push({key:src.vk,i:Number(i),label:'Eerst play-off om plaats 3',namen:st.kandidaten.map(spelerNaam).join(' / ')});
+     else if(st.status==='wacht' && st.kandidaten?.length) result.push({key:src.vk,i:Number(i),label:'Eerst play-off om plaats 3, daarna eventueel beste nr. 3',namen:st.kandidaten.map(spelerNaam).join(' / ')});
   });
   return result;
 }
@@ -4279,6 +4279,28 @@ function bronnenPh(key, p) {
   });
   return { vk, pool, derde };
 }
+/* Vooruitblik op een gekoppelde beste-derde-play-off: de eerste
+   (uitgestelde) poule-play-off wordt eerst gespeeld. Deze kaart is
+   bewust alleen-lezen totdat de echte winnaar bekend is. */
+function komendeDerdeBlokHtml(key, i) {
+  const bronnen=P.derdeBronPoules(T,key,i);
+  if(bronnen.length!==2)return '';
+  const open=bronnen.filter(q=>q.pp && !q.pp.voltooid && q.pp.k===3 && q.pp.start===3);
+  if(open.length!==1)return '';
+  const bron=open[0], ander=bronnen.find(q=>q!==bron);
+  if(!ander || !P.pouleAfgerond(T,ander))return '';
+  const kandidaten=bron.pp.stappen[0].groep;
+  const tegen=P.derdeVan(T,ander);
+  if(!tegen || kandidaten.length<2)return '';
+  const naam=kandidaten.map(spelerNaam).join(' / ');
+  const label='('+naam+') / '+spelerNaam(tegen);
+  const opgeslagen=T.derden && T.derden[key] && T.derden[key][i];
+  if(opgeslagen && opgeslagen.winnaar)return '';
+  return '<div class="sect playoff-block public-match-card"><header><h3>Play-off 2 · Beste nummer 3</h3><span class="chip warn">Na play-off 1</span></header><div class="body stack">'+
+    '<div class="note warn small">Deze play-off staat alvast klaar. Eerst wordt de uitgestelde play-off om plaats 3 beslist. Daarna verschijnt de winnaar hier automatisch en kun je de wedstrijden invoeren. Alleen als beide nummers 3 evenveel punten hebben, is deze tweede play-off nodig.</div>'+
+    '<div class="games public-match-list">'+gameKopHtml()+'<div class="game viewer-game"><div class="pl"><span class="nm">'+esc(naam)+'</span></div><div class="vs">vs</div><div class="pl"><span class="nm">'+esc(spelerNaam(tegen))+'</span></div></div></div>'+
+    '<div class="small muted">Mogelijke deelnemers: '+esc(label)+'</div></div></div>';
+}
 function vorigePlayoffsHtml(key, p) {
   // Mobiel beheer: zoek eerst via de oorspronkelijke placeholder, daarna via
   // de feitelijke deelnemers van nog openstaande play-offs in de vorige ronde.
@@ -4299,10 +4321,12 @@ function vorigePlayoffsHtml(key, p) {
     const opgeslagen = T.derden && T.derden[vk] && T.derden[vk][i];
     const st = P.derdeStatus(T,vk,i);
     const ids = st.a && st.b ? [st.a,st.b] : opgeslagen && [opgeslagen.a,opgeslagen.b];
-    if ((bron.derde[i] || bevat(ids)) && (st.status==='playoff' || (opgeslagen && !opgeslagen.winnaar))) {
-      // Gebruik dezelfde bestaande beheerkaart en uitslagacties.
+    if (bron.derde[i] || bevat(ids)) {
+      // Eerst de openstaande interne plaats-3-play-off, daar direct onder
+      // de volgende beste-derde-play-off. Geen voortijdige score-invoer.
       if (st.status==='playoff') add('d'+i, derdeBlokHtml(vk,i));
-      else if (opgeslagen && opgeslagen.games) add('d'+i, derdeBlokOpgeslagenHtml(vk,i,opgeslagen));
+      else if (opgeslagen && !opgeslagen.winnaar && opgeslagen.games) add('d'+i, derdeBlokOpgeslagenHtml(vk,i,opgeslagen));
+      else if(st.status==='wacht') add('d'+i, komendeDerdeBlokHtml(vk,i));
     }
   }
   return gevonden.length ? '<div class="admin-pre-playoff-content">'+gevonden.join('')+'</div>' : '';
