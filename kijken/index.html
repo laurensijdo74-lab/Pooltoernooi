@@ -1242,24 +1242,13 @@ function phIds(id) { return id.slice(3).split('|'); }
 function derdeBronPoules(T,key,i) {
   const r=T.rondes && T.rondes[key];
   if(!r || !Array.isArray(r.poules)) return [];
-  const custom=T.derdePaarIndeling && T.derdePaarIndeling[key];
-  let nums=custom && Array.isArray(custom[i]) ? custom[i] : null;
-  if(!nums && Array.isArray(T.log)) {
-    // Compatibility with public snapshots that lack the saved pairing array.
-    // Replay only explicitly logged swaps, never infer a swap from names.
-    const pairs=Array.from({length:Math.floor(r.poules.length/2)},(_,j)=>[2*j+1,2*j+2]);
-    for(const item of T.log){
-      const m=String(item && item.tekst || '').match(/Beste nummer 3: kandidaat uit poule (\d+) en kandidaat uit poule (\d+) van halvefinale-speeldag gewisseld/);
-      if(!m)continue;
-      const x=+m[1],y=+m[2],ix=pairs.findIndex(a=>a.includes(x)),iy=pairs.findIndex(a=>a.includes(y));
-      if(ix<0||iy<0||ix===iy)continue;
-      pairs[ix][pairs[ix].indexOf(x)]=y;
-      pairs[iy][pairs[iy].indexOf(y)]=x;
-    }
-    nums=pairs[i];
-  }
-  if(!nums)nums=[2*i+1,2*i+2];
-  return nums.map(n=>r.poules.find(p=>p.nr===n)).filter(Boolean);
+  // Beheer is leidend: uitsluitend expliciet opgeslagen koppelingen gebruiken.
+  const published=T.publiekeDerdePaarIndeling && T.publiekeDerdePaarIndeling[key];
+  const saved=T.derdePaarIndeling && T.derdePaarIndeling[key];
+  const custom=Array.isArray(published)?published:saved;
+  if(!custom && T.rondes[key] && T.rondes[key].geloot) console.warn("POOL: geen expliciete beste-derde-indeling ontvangen; standaardindeling gebruikt",key);
+  const nums=custom && Array.isArray(custom[i]) ? custom[i] : [2*i+1,2*i+2];
+  return nums.map(n=>r.poules.find(p=>p.nr===Number(n))).filter(Boolean);
 }
 function derdePaarIndexVoorPoule(T,key,nr) {
   const r=T.rondes && T.rondes[key]; if(!r || !r.poules)return -1;
