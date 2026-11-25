@@ -4328,6 +4328,13 @@ function vorigePlayoffsHtml(key, p) {
       else if (opgeslagen && opgeslagen.games) add('d'+i, derdeBlokOpgeslagenHtml(vk,i,opgeslagen));
     }
   }
+  // Koppel de vooruitblik aan de actuele beste-derde-plaats in deze halvefinalepoule.
+  // Niet aan de oorspronkelijke zaterdag/zondag-volgorde: die kan gewisseld zijn.
+  for (let i=0; i<Math.floor((vorige.poules || []).length/2); i++) {
+    if (!bron.derde[i]) continue;
+    const preview=komendeDerdeBlokHtml(vk,i);
+    add('preview'+i,preview);
+  }
   return gevonden.length ? '<div class="admin-pre-playoff-content">'+gevonden.join('')+'</div>' : '';
   } catch (err) {
     console.error('POOL: preview uitgestelde play-offs niet beschikbaar', err);
