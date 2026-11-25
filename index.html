@@ -1479,7 +1479,7 @@ function phLabel(T, id) {
   // Een onbesliste of geresette play-off blijft beide kandidaatnamen tonen.
   // Ook bij status 'wacht' (bijv. na reset) kan de koppeling bekend zijn.
   if (h.soort === 'derde' && st.status === 'wacht' && st.kandidaten && st.kandidaten.length) {
-    const rd = T.rondes[h.key], pa = rd && rd.poules[2*h.i], pb = rd && rd.poules[2*h.i+1];
+    const [pa,pb] = derdeBronPoules(T, h.key, h.i);
     const pending = [pa,pb].filter(p => p && p.pp && !p.pp.voltooid && p.pp.k === 3);
     const settled = [pa,pb].filter(p => p && !pending.includes(p) && pouleAfgerond(T,p));
     const names = pending.flatMap(p => p.pp.stappen[0].groep.map(x => naamVan(T,x)));
@@ -1487,7 +1487,7 @@ function phLabel(T, id) {
     return '(' + names.join(' / ') + ') / ' + other.join(' / ');
   }
   if (st.a && st.b && st.status !== 'beslist') return naamVan(T, st.a) + ' / ' + naamVan(T, st.b);
-   if (h.soort === 'derde') { const rd=T.rondes[h.key], q=rd&&rd.poules[2*h.i+1]; if(q&&q.pp&&!q.pp.voltooid) return q.pp.stappen[0].groep.map(x=>naamVan(T,x)).join(' / ')+' (plaats 3)'; }
+   if (h.soort === 'derde') { const q=derdeBronPoules(T,h.key,h.i).find(p=>p.pp&&!p.pp.voltooid); if(q&&q.pp&&!q.pp.voltooid) return q.pp.stappen[0].groep.map(x=>naamVan(T,x)).join(' / ')+' (plaats 3)'; }
   const po = T.derden && T.derden[h.key] && T.derden[h.key][h.i];
   if (po && po.a && po.b && !po.winnaar) return naamVan(T, po.a) + ' / ' + naamVan(T, po.b);
   return 'Beste nr. 3 weekend ' + (h.i + 1);
@@ -1759,6 +1759,7 @@ function resetRonde(T, key) {
     const k = T.plan.rondes[j].key;
     T.rondes[k] = { geloot: false, poules: [] };
     delete T.derden[k]; delete T.uitgestapt[k];
+    if (T.derdePaarIndeling) { delete T.derdePaarIndeling[k]; const pk=vorigeKey(T,k); if(pk) delete T.derdePaarIndeling[pk]; }
   }
   Object.keys(T.ph || {}).forEach(t => { if (rondeIndex(T, T.ph[t].key) >= i) delete T.ph[t]; });
   log(T, 'Loting teruggezet vanaf ' + planRonde(T, key).naam);
@@ -2053,9 +2054,9 @@ function rondeKeyVan(T, poule) { for (const k of Object.keys(T.rondes)) { const 
 function derdeZeker(T, poule) {
   const key = rondeKeyVan(T, poule); if (!key) return false;
   const pr = planRonde(T, key); if (!pr || !pr.derden) return false;
-  const r = T.rondes[key], ix = r.poules.indexOf(poule), pi = Math.floor(ix / 2);
-  if (pi >= Math.floor(r.poules.length / 2)) return false;
-  const partner = r.poules[ix % 2 === 0 ? ix + 1 : ix - 1];
+  const pi = derdePaarIndexVoorPoule(T, key, poule.nr);
+  if (pi < 0) return false;
+  const partner = derdeBronPoules(T, key, pi).find(p => p.nr !== poule.nr);
   if (!partner || !reguliereKlaar(partner) || !reguliereKlaar(poule)) return false;
   const rate = p => { const rw = standPoule(T, p); return rw.length >= 3 ? rw[2].punten / Math.max(1, rw[2].totaal) : null; };
   const a = rate(poule), b = rate(partner); if (a === null || b === null) return false;
@@ -2370,12 +2371,30 @@ function derdePunten(T, poule, id) {
   const rows = standPoule(T, poule); const r = rows.find(x => x.id === id);
   return r ? r.punten / Math.max(1, r.totaal) : 0;
 }
+/* De poules waaruit de kandidaten voor EEN beste-derde-play-off komen.
+   Standaard 1+2 en 3+4; na een handmatige wissel blijven de bronpoules
+   en een eventueel nog te spelen interne derde-plaats-play-off intact. */
+function derdeBronPoules(T, key, i) {
+  const r = T.rondes[key];
+  if (!r || !Array.isArray(r.poules)) return [];
+  const aangepast = T.derdePaarIndeling && T.derdePaarIndeling[key];
+  const nummers = aangepast && Array.isArray(aangepast[i]) ? aangepast[i] : [2 * i + 1, 2 * i + 2];
+  return nummers.map(n => r.poules.find(p => p.nr === n)).filter(Boolean);
+}
+function derdePaarIndexVoorPoule(T, key, nr) {
+  const r = T.rondes[key];
+  if (!r || !Array.isArray(r.poules)) return -1;
+  for (let i = 0; i < Math.floor(r.poules.length / 2); i++)
+    if (derdeBronPoules(T, key, i).some(p => p.nr === nr)) return i;
+  return -1;
+}
+
 function paarBeschrijving(T, key) {
   const pr = planRonde(T, key), r = T.rondes[key];
   const lijst = [];
   if (!pr || !r || !r.geloot || !pr.derden) return lijst;
   for (let i = 0; i < Math.floor(r.poules.length / 2); i++) {
-    const pa = r.poules[2 * i], pb = r.poules[2 * i + 1];
+    const [pa, pb] = derdeBronPoules(T, key, i);
     lijst.push({ idx: i, pa, pb });
   }
   return lijst;
@@ -2383,7 +2402,7 @@ function paarBeschrijving(T, key) {
 /* status: 'wacht' | 'beslist' | 'playoff' */
 function derdeStatus(T, key, i) {
   const r = T.rondes[key];
-  const pa = r.poules[2 * i], pb = r.poules[2 * i + 1];
+  const [pa, pb] = derdeBronPoules(T, key, i);
   if (!pa || !pb) return { status: 'geen' };
   if (!pouleAfgerond(T, pa) || !pouleAfgerond(T, pb)) {
      const pending=[pa,pb].filter(p=>p.pp&&!p.pp.voltooid&&p.pp.k===3);
@@ -2432,7 +2451,7 @@ function zetDerdeUitslag(T, key, i, gameNr, w) {
   T.gewijzigd = new Date().toISOString();
   // Alleen de afgeleide kwalificatie doorrekenen wanneer de bronpoules
   // afgerond zijn; bij oudere snapshots blijft de opgeslagen uitslag leidend.
-  const rd = T.rondes[key], pa = rd && rd.poules[2 * i], pb = rd && rd.poules[2 * i + 1];
+  const [pa,pb] = derdeBronPoules(T, key, i);
   if (pa && pb && reguliereKlaar(pa) && reguliereKlaar(pb)) verwerkDerden(T, key);
   // Ook bij historische snapshots met status 'wacht' de daadwerkelijk
   // ingelote placeholder rechtstreeks vervangen na de beslissing.
@@ -2558,7 +2577,7 @@ function kwalificatie(T, key) {
   if (pr.derden > 0) {
     for (let i = 0; i < Math.floor(r.poules.length / 2); i++) {
       const st = derdeStatus(T, key, i);
-      if (st.status === 'beslist') { res.ids.push(st.winnaar); res.bron[st.winnaar] = { poule: (st.winnaar === st.a ? r.poules[2 * i] : r.poules[2 * i + 1]).nr, rang: 3 }; }
+      if (st.status === 'beslist') { res.ids.push(st.winnaar); res.bron[st.winnaar] = { poule: (st.winnaar === st.a ? derdeBronPoules(T, key, i)[0] : derdeBronPoules(T, key, i)[1]).nr, rang: 3 }; }
       else if (st.status === 'playoff' || st.status === 'wacht') { res.ids.push(registreerPh(T, 'phx:' + key + ':d' + i, { key, soort: 'derde', i })); res.plaatshouders++; res.wacht.push(i); }
     }
   }
@@ -2588,8 +2607,8 @@ function spelerRondeStatus(T, key, id) {
   }
   if (rang <= DOORGAAN) return { s: 'door', rang, poule: p.nr };
   if (rang === 3 && pr && pr.derden > 0) {
-    const i = Math.floor((p.nr - 1) / 2);
-    if (i < Math.floor(r.poules.length / 2)) {
+    const i = derdePaarIndexVoorPoule(T, key, p.nr);
+    if (i >= 0 && i < Math.floor(r.poules.length / 2)) {
       const st = derdeStatus(T, key, i);
       if (st.status === 'beslist') return { s: st.winnaar === id ? 'door' : 'uit', rang, poule: p.nr, derde: true };
       if (st.status === 'playoff' || st.status === 'wacht') return { s: 'playoff', rang, poule: p.nr, derde: true };
@@ -2609,6 +2628,42 @@ function bouwOpnieuw(T, poule) { poule.schema = maakSchema(poule.spelers); poule
    in de halve finale van zaterdag naar zondag (of omgekeerd) verhuizen.
    Een nog onbesliste, eventueel uitgestelde play-off om plek 3 BINNEN
    een oorspronkelijke poule is geen wisselbare beste-derde-plek. */
+/* Wissel de kandidaten uit TWEE beste-derde-play-offs, niet de complete
+   halvefinale-plaatshouder. Zo kan een uitgestelde interne plaats-3-play-off
+   de eigen bronpoule behouden en krijgt zijn winnaar de juiste latere tegenstander. */
+function wisselDerdeKandidaten(T, volgende, bronNrA, bronNrB) {
+  const key = vorigeKey(T, volgende), fase = planRonde(T, volgende);
+  const pr = key && planRonde(T, key), vr = key && T.rondes[key], nr = T.rondes[volgende];
+  if (!key || !pr || !pr.derden || !vr || !vr.geloot || !nr || !nr.geloot ||
+      !fase || fase.sizes.length !== 2 || vr.poules.length !== 4)
+    return {ok:false,tekst:'Alleen beschikbaar voor de twee beste-nr.-3-play-offs vóór de halve finale.'};
+  if (nr.poules.some(heeftScores))
+    return {ok:false,tekst:'De halve finale heeft al uitslagen; wijzigen is geblokkeerd.'};
+  const livePlaatsen = nr.poules.flatMap(p=>p.spelers).filter(id=>isPh(id));
+  if (![0,1].every(i=>livePlaatsen.includes('phx:'+key+':d'+i)))
+    return {ok:false,tekst:'Beide beste-derde-plaatshouders moeten nog open zijn.'};
+  for (let i=0;i<2;i++) {
+    const po=T.derden && T.derden[key] && T.derden[key][i];
+    if (po && (po.winnaar || po.forfait || (po.games||[]).some(g=>g.w)))
+      return {ok:false,tekst:'Er is al een beste-derde-play-off gespeeld of beslist.'};
+    if (T.derdenOvergeslagen && T.derdenOvergeslagen[key] && T.derdenOvergeslagen[key][i])
+      return {ok:false,tekst:'Herstel eerst de eerder geannuleerde beste-derde-play-off.'};
+  }
+  const groepen=[derdeBronPoules(T,key,0).map(p=>p.nr), derdeBronPoules(T,key,1).map(p=>p.nr)];
+  const ia=groepen.findIndex(g=>g.includes(bronNrA)), ib=groepen.findIndex(g=>g.includes(bronNrB));
+  if (ia<0 || ib<0 || ia===ib)
+    return {ok:false,tekst:'Kies één kandidaat uit iedere beste-derde-play-off.'};
+  const a=groepen[ia].indexOf(bronNrA), b=groepen[ib].indexOf(bronNrB);
+  groepen[ia][a]=bronNrB; groepen[ib][b]=bronNrA;
+  T.derdePaarIndeling=T.derdePaarIndeling||{};
+  T.derdePaarIndeling[key]=groepen;
+  // Onbespeelde, eerder aangemaakte duels horen nog bij de oude tegenstanders.
+  if (T.derden && T.derden[key]) { delete T.derden[key][0]; delete T.derden[key][1]; }
+  verwerkDerden(T,key);
+  log(T,'Beste nummer 3: kandidaat uit poule '+bronNrA+' en kandidaat uit poule '+bronNrB+' van halvefinale-speeldag gewisseld');
+  return {ok:true};
+}
+
 function wisselbareDerdePlaatshouder(T, key, id) {
   if (!isPh(id)) return false;
   const fase = planRonde(T, key);
@@ -2817,7 +2872,7 @@ const API = {
   standPoule, pouleKansen, reguliereKlaar, grensGroep, ppFormaten, ppStandaardFormaat, ppWins, ppDoel, ppGameNodig, ppStapKlaar, ppTieNodig,
   synchroniseerPoule, eindvolgorde, pouleAfgerond, rondeAfgerond, rondeGespeeldAantal, zoekPoule,
   zetUitslag, herstelDerdeVorige, maakPlayoffOngedaan, zetPpUitslag, zetPpWalkover, resetPpWalkover, lootBreaksPp, lootBreaksDerde, telBreaks, zetPpFormaat, zetPpEersteBreak, resetPp, herstelVorige, eersteOpenGame, wisPouleUitslagen, laatsteGame,
-  derdeZeker, isFinale, finaleTussenstand, herstelReferenties, vergrendeld, zetOntgrendeld, derdeVergrendeld, derdeStatus, zetDerdeUitslag, zetDerdeWalkover, resetDerdeWalkover, zetDerdeFormaat, wisselDerdeStartteam, verwerkDerden, kwalificatie, spelerRondeStatus,
+  derdeZeker, isFinale, finaleTussenstand, herstelReferenties, vergrendeld, zetOntgrendeld, derdeVergrendeld, derdeBronPoules, derdePaarIndexVoorPoule, wisselDerdeKandidaten, derdeStatus, zetDerdeUitslag, zetDerdeWalkover, resetDerdeWalkover, zetDerdeFormaat, wisselDerdeStartteam, verwerkDerden, kwalificatie, spelerRondeStatus,
   wissel, wisselbareDerdePlaatshouder, vervangKandidaten, markeerVervangen, positieVan, bouwOpnieuw, log,
   bouwUitslagenVoorPatroon, vulPouleMetPatroon, speelPouleWillekeurig, speelPlayoffsWillekeurig, speelDerdenWillekeurig,
   valideer, samenvatting, DOORGAAN, phLabel, reguliereKlaarRonde, herbouwSchemaBehoudUitslag, migreerSchemas, schemaMigratieNodig
@@ -3832,6 +3887,7 @@ function viewLoting() {
   const toonReserves = P.rondeIndex(T, key) === 0;
   return '<div class="stack-l">' + lotingTabs(key) + walkoverHerstelHtml() + '<div class="row between noprint"><div class="row"><span class="chip ' + (P.rondeAfgerond(T, key) ? 'ok' : 'info') + '">' + (rd.volgorde ? 'Ingedeeld in lijstvolgorde' : (rd.handmatig ? 'Handmatig geloot' : 'Geloot')) + (rd.geloot_op ? ' · ' + esc(tijdTekst(rd.geloot_op)) : '') + '</span></div><div class="row">' +
     (anim ? '<button class="btn sec" data-act="anim-skip">Loting overslaan</button>' : '') +
+    (P.vorigeKey(T,key) && rd.poules.length===2 && P.planRonde(T,P.vorigeKey(T,key))?.derden && T.rondes[P.vorigeKey(T,key)]?.poules?.length===4 ? '<button class="btn sec" data-act="derde-kandidaten" data-key="'+key+'">Beste nr. 3-play-offs indelen</button>' : '') +
     '<button class="btn sec' + (UI.modus === 'wissel' ? ' act' : '') + '" data-act="modus" data-m="wissel">Wissel spelers</button><button class="btn sec' + (UI.modus === 'vervang' ? ' act' : '') + '" data-act="modus" data-m="vervang">Speler vervangen</button><button class="btn sec" data-act="print">Afdrukken</button><button class="btn" data-act="flyer-open" data-key="' + key + '">🎱 Flyer maken</button>' +
     '<button class="btn danger" data-act="loot-reset" data-key="' + key + '"' + (gescoord ? ' disabled title="Er zijn al uitslagen ingevoerd"' : '') + '>Opnieuw loten</button></div></div>' +
     (modusTekst ? '<div class="note"><b>' + (UI.modus === 'wissel' ? 'Wisselen' : 'Vervangen') + ':</b> ' + modusTekst + ' <button class="btn sec sm" data-act="modus" data-m="">Stoppen</button></div>' : '') +
@@ -3998,7 +4054,7 @@ function pouleSamenvatting(key, p) {
     if (gg) return '<div class="note good"><b>Gelijke stand, geen play-off nodig.</b> ' + gg.ids.map(spelerNaam).map(esc).join(', ') + ' gaan allemaal door: ze hebben meer punten dan de nummer 3 van de andere poule van dit weekend, dus ook de nummer 3 van deze poule is beste nummer 3.</div>';
   }
   const top2 = e.slice(0, P.DOORGAAN).map(spelerNaam).map(esc).join(' en ');
-  const pi = Math.floor((p.nr - 1) / 2), heeftPaar = pr.derden && pi < Math.floor(T.rondes[key].poules.length / 2);
+  const pi = P.derdePaarIndexVoorPoule(T, key, p.nr), heeftPaar = pr.derden && pi >= 0;
   if (!heeftPaar) return '<div class="note good"><b>Doorgegaan:</b> ' + top2 + '.</div>';
   const st = P.derdeStatus(T, key, pi), derde = e[2], naamD = derde ? esc(spelerNaam(derde)) : '';
   if (st.status === 'beslist') {
@@ -4237,7 +4293,7 @@ function vorigePlayoffsHtml(key, p) {
   const add = (id, html) => { if (html && !gezien.has(id)) { gevonden.push(html); gezien.add(id); } };
   for (const q of (vorige.poules || [])) {
     if (q.pp && !q.pp.voltooid && q.pp.stappen && q.pp.stappen.length &&
-        (bron.pool[q.nr] || bevat(q.pp.stappen[0].groep) || (q.pp.k===3 && Object.keys(bron.derde).some(i=>Math.floor((q.nr-1)/2)===Number(i))))) add('p'+q.nr, ppBlokHtml(vk,q));
+        (bron.pool[q.nr] || bevat(q.pp.stappen[0].groep) || (q.pp.k===3 && Object.keys(bron.derde).some(i=>P.derdePaarIndexVoorPoule(T, vk, q.nr)===Number(i))))) add('p'+q.nr, ppBlokHtml(vk,q));
   }
   for (let i=0; i<Math.floor((vorige.poules || []).length/2); i++) {
     const opgeslagen = T.derden && T.derden[vk] && T.derden[vk][i];
@@ -4266,11 +4322,12 @@ function derdeBlokOpgeslagenHtml(key,i,po) {
 
 function derdeBlokkenVoorPoule(key, p) {
   const pr = P.planRonde(T, key); if (!pr || !pr.derden) return '';
-  // De play-off voor de beste nummer 3 hoort één keer onder de laatste
-  // speeldag van het weekend: poule 2, 4, 6, enzovoort.
-  if (p.nr % 2 !== 0) return '';
-  const i = Math.floor((p.nr - 1) / 2); if (i >= Math.floor(T.rondes[key].poules.length / 2)) return '';
-  return derdeBlokHtml(key, i);
+  const i=P.derdePaarIndexVoorPoule(T,key,p.nr);
+  if(i<0)return '';
+  // Elk paar precies één keer tonen, ook bij handmatig gekruiste bronpoules.
+  const bron=P.derdeBronPoules(T,key,i);
+  if(bron.length!==2 || p.nr!==Math.max(...bron.map(x=>x.nr)))return '';
+  return derdeBlokHtml(key,i);
 }
 
 /* ---------- testhulp ---------- */
@@ -4920,7 +4977,7 @@ function adminFaq(){
  }input.addEventListener('input',draw);overlay.querySelector('#faq-close').onclick=()=>overlay.remove();overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});const onKey=e=>{if(e.key==='Escape'){overlay.remove();document.removeEventListener('keydown',onKey)}};document.addEventListener('keydown',onKey);overlay.querySelector('#faq-close').addEventListener('click',()=>document.removeEventListener('keydown',onKey));draw();input.focus();
 }
 const ADMIN_CATALOG_KEY='pooltoernooi.admin.catalog.v1';
-const ADMIN_CHANGELOG=[['2026-11-25','Alleen plaatshouders voor de play-off beste nr. 3 zijn in de halve finale wisselbaar (ook zaterdag/zondag); uitgestelde poule-play-offs om oorspronkelijke plaats 3 blijven geblokkeerd. Maximaal een open play-offplek per speeldag.'],['2026-11-25','Wisselen bij loting: ook posities binnen een poule verwisselen; in de halve finale mogen open play-offplaatshouders meewisselen zonder de bronkoppeling te verliezen. Alleen zolang nog geen uitslagen zijn ingevoerd.'],['2026-11-24','Toernooien veilig verwijderen: hoofdbeheerder kan ook online toernooien wissen na intypen van de exacte naam; Firestore en lokaal worden opgeschoond.'],['2026-11-24','POOL LIVE-kijklinks per editie: unieke directe URL, optionele eigen korte link bij Toernooi-instellingen en correcte links bij Alle toernooien en Online versie.'],['2026-11-24','Vrij instelbare flyerhoofdtekst per toernooi via Instellingen → Toernooi; bij spelers standaard single, bij koppels double.'],['2026-11-08','Karroesel-thema opnieuw toegevoegd aan de themakeuze, inclusief beheer en toeschouwersweergave.'],['2026-11-08','Uitgebreide doorzoekbare Hulp & FAQ voor beheerders toegevoegd.'],['2026-11-07','Beheermenu, toernooiwizard, themawissel en toernooioverzicht toegevoegd.'],['2026-11-07','Mobiele wedstrijdnamen en desktopindeling verbeterd.'],['2026-11-07','LIVE-indicator en mobiele standen verbeterd.'],['2026-11-03','Break & Run registratie en toernooiranglijst toegevoegd.']];
+const ADMIN_CHANGELOG=[['2026-11-25','Beste-nr.-3-play-offs afzonderlijk herindelen: kandidaten van zaterdag en zondag mogen van tegenstander wisselen, zonder de uitgestelde interne poule-play-off te verplaatsen.'],['2026-11-25','Alleen plaatshouders voor de play-off beste nr. 3 zijn in de halve finale wisselbaar (ook zaterdag/zondag); uitgestelde poule-play-offs om oorspronkelijke plaats 3 blijven geblokkeerd. Maximaal een open play-offplek per speeldag.'],['2026-11-25','Wisselen bij loting: ook posities binnen een poule verwisselen; in de halve finale mogen open play-offplaatshouders meewisselen zonder de bronkoppeling te verliezen. Alleen zolang nog geen uitslagen zijn ingevoerd.'],['2026-11-24','Toernooien veilig verwijderen: hoofdbeheerder kan ook online toernooien wissen na intypen van de exacte naam; Firestore en lokaal worden opgeschoond.'],['2026-11-24','POOL LIVE-kijklinks per editie: unieke directe URL, optionele eigen korte link bij Toernooi-instellingen en correcte links bij Alle toernooien en Online versie.'],['2026-11-24','Vrij instelbare flyerhoofdtekst per toernooi via Instellingen → Toernooi; bij spelers standaard single, bij koppels double.'],['2026-11-08','Karroesel-thema opnieuw toegevoegd aan de themakeuze, inclusief beheer en toeschouwersweergave.'],['2026-11-08','Uitgebreide doorzoekbare Hulp & FAQ voor beheerders toegevoegd.'],['2026-11-07','Beheermenu, toernooiwizard, themawissel en toernooioverzicht toegevoegd.'],['2026-11-07','Mobiele wedstrijdnamen en desktopindeling verbeterd.'],['2026-11-07','LIVE-indicator en mobiele standen verbeterd.'],['2026-11-03','Break & Run registratie en toernooiranglijst toegevoegd.']];
 function adminCatalog(){try{return JSON.parse(localStorage.getItem(ADMIN_CATALOG_KEY)||'{}')}catch(e){return {}}}
 function adminRemember(){if(!T||!T.id||UI.viewer)return;const all=adminCatalog();all[T.id]={id:T.id,naam:T.naam,datum:T.instellingen.startdatum,gewijzigd:T.gewijzigd,locatie:locatieVoorWeergave().naam};try{localStorage.setItem(ADMIN_CATALOG_KEY,JSON.stringify(all));localStorage.setItem('pooltoernooi.admin.data.'+T.id,JSON.stringify(T))}catch(e){}}
 function adminCloseMenu(){UI.adminMenu=false}
@@ -5049,6 +5106,30 @@ async function adminLoad(id,duplicate){let item=null;try{item=JSON.parse(localSt
 function adminTheme(){adminCloseMenu();const loc=locatieVoorWeergave();dialoog({titel:'Thema huidig toernooi',html:'<p>Wijzig het uiterlijk zonder loting of uitslagen te veranderen.</p><label class="f">Thema<select id="admin-theme">'+Object.keys(THEMAS).map(k=>'<option value="'+k+'"'+(loc.thema===k?' selected':'')+'>'+esc(THEMAS[k].naam)+'</option>').join('')+'</select></label>',knoppen:[{label:'Annuleren',val:null,cls:'sec'},{label:'Thema toepassen',val:'apply'}],lees:ov=>$('#admin-theme',ov).value}).then(v=>{if(!v)return;loc.thema=v;commit();toast('Thema aangepast');});}
 function adminChangelog(){adminCloseMenu();melding('Changelog',ADMIN_CHANGELOG.map(([d,t])=>'<p><b>'+esc(d)+'</b> · '+esc(t)+'</p>').join('')+'<p class="small muted">Alleen wijzigingen die betrouwbaar zijn vastgelegd worden getoond.</p>');}
 const ACT = {
+  async 'derde-kandidaten'(b) {
+    const next=b.dataset.key, key=P.vorigeKey(T,next);
+    if(!key)return;
+    const groepen=[P.derdeBronPoules(T,key,0),P.derdeBronPoules(T,key,1)];
+    if(groepen.some(g=>g.length!==2))return toast('Er zijn niet twee volledige beste-derde-play-offs.',true);
+    const fmt=p=>{
+      if(p.pp && !p.pp.voltooid && p.pp.stappen?.length) return 'Winnaar '+p.pp.stappen[0].groep.map(spelerNaam).join(' / ');
+      if(P.pouleAfgerond(T,p)) return spelerNaam(P.eindvolgorde(T,p)[2]);
+      return 'Nr. 3 uit poule '+p.nr;
+    };
+    const label=(i)=>{
+      const token='phx:'+key+':d'+i, pos=P.positieVan(T,next,token);
+      const dag=pos&&P.planDag(T,next,pos.poule.nr);
+      return dag ? dagLabelLang(dag.dag)+' '+P.datumKort(dag.datum) : 'Play-off '+(i+1);
+    };
+    const sel=(i)=>'<label class="f"><span>'+esc(label(i))+'</span><select id="d3-bron-'+i+'">'+groepen[i].map(p=>'<option value="'+p.nr+'">'+esc(fmt(p))+' · bronpoule '+p.nr+'</option>').join('')+'</select></label>';
+    const html='<p>Wissel één kandidaat uit de zaterdagse en één uit de zondagse beste-nr.-3-play-off. De nog uitgestelde play-off <b>binnen de oorspronkelijke poule</b> blijft op zijn oorspronkelijke plek.</p>'+sel(0)+sel(1)+'<p class="small muted">De spelers worden opnieuw aan een tegenstander gekoppeld. De open halvefinale-plaatshouders blijven staan, maar hun kandidaatnamen worden bijgewerkt.</p>';
+    const keuze=await dialoog({titel:'Beste nr. 3 – tegenstanders wisselen',html,ok:'Kandidaten wisselen',lees:ov=>({a:Number($('#d3-bron-0',ov).value),b:Number($('#d3-bron-1',ov).value)})});
+    if(!keuze)return;
+    maakHerstelpunt('Voor herindelen beste nr. 3');
+    const res=P.wisselDerdeKandidaten(T,next,keuze.a,keuze.b);
+    if(!res.ok)return toast(res.tekst||'Wisselen niet mogelijk',true);
+    commit();toast('De twee beste-nr.-3-play-offs zijn opnieuw ingedeeld.');
+  },
   'flyer-open'(b) { flyerOpen(b.dataset.key || lotingKey()); },
   'flyer-poule'(b) { flyerOpen(b.dataset.key || lotingKey(),Number(b.dataset.nr)); },
   'admin-menu'(){UI.adminMenu=!UI.adminMenu;render()},
