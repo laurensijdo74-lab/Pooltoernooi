@@ -4302,41 +4302,38 @@ function komendeDerdeBlokHtml(key, i) {
     '<div class="small muted">Mogelijke deelnemers: '+esc(label)+'</div></div></div>';
 }
 function vorigePlayoffsHtml(key, p) {
-  // Koppel aan de daadwerkelijk ingelote beste-derde-placeholder. De
-  // bronpoule-indeling (ook na kandidaatwissel) bepaalt de twee stappen.
-  const vk=P.vorigeKey(T,key);
-  if(!vk || !P.rondeGeloot(T,vk) || !p)return '';
-  const bron=bronnenPh(key,p), vorige=T.rondes[vk];
-  const phs=p.spelers.filter(P.isPh);
-  if(!phs.length)return '';
-  const namen=phs.map(id=>spelerNaam(id).toLocaleLowerCase('nl'));
-  const bevat=ids=>ids && ids.length && namen.some(label=>ids.every(id=>label.includes(spelerNaam(id).toLocaleLowerCase('nl'))));
-  const gevonden=[], gezien=new Set();
-  const add=(id,html)=>{if(html&&!gezien.has(id)){gevonden.push(html);gezien.add(id);}};
-  // Eerst alle interne, uitgestelde play-offs om de derde plaats.
-  for(const q of vorige.poules||[]){
-    if(!q.pp || q.pp.voltooid || !q.pp.stappen?.length)continue;
-    const i=P.derdePaarIndexVoorPoule(T,vk,q.nr);
-    if(bron.pool[q.nr] || bevat(q.pp.stappen[0].groep) ||
-       (q.pp.k===3 && i>=0 && bron.derde[i]))
-      add('p'+q.nr,ppBlokHtml(vk,q));
+  try {
+  // Mobiel beheer: zoek eerst via de oorspronkelijke placeholder, daarna via
+  // de feitelijke deelnemers van nog openstaande play-offs in de vorige ronde.
+  const vk = P.vorigeKey(T, key);
+  if (!vk || !P.rondeGeloot(T, vk) || !p) return '';
+  const phs = p.spelers.filter(P.isPh);
+  if (!phs.length) return '';
+  const bron = bronnenPh(key, p), vorige = T.rondes[vk];
+  const namen = phs.map(id => spelerNaam(id).toLocaleLowerCase('nl'));
+  const bevat = ids => ids && ids.length && namen.some(label => ids.every(id => label.includes(spelerNaam(id).toLocaleLowerCase('nl'))));
+  const gevonden = [], gezien = new Set();
+  const add = (id, html) => { if (html && !gezien.has(id)) { gevonden.push(html); gezien.add(id); } };
+  for (const q of (vorige.poules || [])) {
+    if (q.pp && !q.pp.voltooid && q.pp.stappen && q.pp.stappen.length &&
+        (bron.pool[q.nr] || bevat(q.pp.stappen[0].groep) || (q.pp.k===3 && Object.keys(bron.derde).some(i=>Math.floor((q.nr-1)/2)===Number(i))))) add('p'+q.nr, ppBlokHtml(vk,q));
   }
-  // Daarna de beste-derde-play-off, of de niet-speelbare vooruitblik.
-  for(let i=0;i<Math.floor((vorige.poules||[]).length/2);i++){
-    const opgeslagen=T.derden?.[vk]?.[i];
-    const st=P.derdeStatus(T,vk,i);
-    const paar=P.derdeBronPoules(T,vk,i);
-    const kandidaten=paar.flatMap(q=>q.pp && !q.pp.voltooid && q.pp.k===3 ? q.pp.stappen[0].groep :
-      P.pouleAfgerond(T,q)?[P.derdeVan(T,q)]:[]).filter(Boolean);
-    const gekoppeld=bron.derde[i] || bevat(kandidaten) || bevat(st.a&&st.b?[st.a,st.b]:opgeslagen?[opgeslagen.a,opgeslagen.b]:[]);
-    if(!gekoppeld)continue;
-    if(st.status==='playoff')add('d'+i,derdeBlokHtml(vk,i));
-    else if(opgeslagen && !opgeslagen.winnaar && opgeslagen.games)add('d'+i,derdeBlokOpgeslagenHtml(vk,i,opgeslagen));
-    else if(st.status==='wacht')add('d'+i,komendeDerdeBlokHtml(vk,i));
+  for (let i=0; i<Math.floor((vorige.poules || []).length/2); i++) {
+    const opgeslagen = T.derden && T.derden[vk] && T.derden[vk][i];
+    const st = P.derdeStatus(T,vk,i);
+    const ids = st.a && st.b ? [st.a,st.b] : opgeslagen && [opgeslagen.a,opgeslagen.b];
+    if ((bron.derde[i] || bevat(ids)) && (st.status==='playoff' || (opgeslagen && !opgeslagen.winnaar))) {
+      // Gebruik dezelfde bestaande beheerkaart en uitslagacties.
+      if (st.status==='playoff') add('d'+i, derdeBlokHtml(vk,i));
+      else if (opgeslagen && opgeslagen.games) add('d'+i, derdeBlokOpgeslagenHtml(vk,i,opgeslagen));
+    }
   }
-  return gevonden.length?'<div class="admin-pre-playoff-content">'+gevonden.join('')+'</div>':'';
+  return gevonden.length ? '<div class="admin-pre-playoff-content">'+gevonden.join('')+'</div>' : '';
+  } catch (err) {
+    console.error('POOL: preview uitgestelde play-offs niet beschikbaar', err);
+    return '<div class="note warn small">De uitgestelde play-offs konden niet worden getoond. De reguliere wedstrijden blijven beschikbaar.</div>';
+  }
 }
-
 function derdeBlokOpgeslagenHtml(key,i,po) {
   // Dezelfde instellingen en dezelfde bron-play-off als op het oorspronkelijke weekend.
   // Deze fallback wordt gebruikt wanneer de afgeleide status tijdelijk 'wacht' is.
@@ -4427,7 +4424,9 @@ function dagDetailHtml(key, nr) {
   const volgendeOpenbaar = volgende && (!UI.viewer || P.rondeGeloot(T, volgende.ronde));
   const vorigeOpen = vorige && P.rondeGeloot(T, vorige.ronde) && dagStatus(vorige.ronde, vorige.poule).code !== 'klaar';
   const wachtPh = p.spelers.some(P.isPh);
-  const actief = actieveActie(key, p);
+  let actief = null;
+  try { actief = actieveActie(key, p); }
+  catch(err) { console.error('POOL: actieve play-off kon niet worden bepaald', err); }
   const vorigeRondeKey = P.vorigeKey(T, key);
   const eerdereDerden = vorigeRondeKey ? (T.derden?.[vorigeRondeKey] || []) : [];
   const herstelbareDerde = Object.keys(eerdereDerden).map(Number).find(i => { const po = eerdereDerden[i]; return po && Array.isArray(po.games) && po.games.some(g => g.w); }) ?? -1;
@@ -4445,7 +4444,9 @@ function dagDetailHtml(key, nr) {
     (wachtPh && !mobielWeergave() ? '<div class="note warn">Eén van de spelers is nog niet bekend: de play-off voor deze plek moet eerst worden gespeeld.</div>' : '');
   const uitleg = UI.viewer || mobielWeergave() ? '' : '<div class="row between noprint" style="margin-bottom:8px"><span class="muted small">Tik op de winnaar van elke wedstrijd. De speler links heeft de break. Sneltoetsen: <kbd>1</kbd> of ← links wint, <kbd>2</kbd> of → rechts wint, <kbd>Backspace</kbd> herstelt de vorige.</span><button class="btn sec sm" data-act="herstel" data-key="' + key + '" data-nr="' + nr + '"' + (kanHerstel ? '' : ' disabled') + '>Herstel vorige wedstrijd</button></div>';
   const links = '<div>' + uitleg + gamesHtml(key, p) + '</div>';
-  const derdePp = derdeBlokkenVoorPoule(key, p);
+  let derdePp = '';
+  try { derdePp = derdeBlokkenVoorPoule(key, p); }
+  catch(err) { console.error('POOL: beste-derde-kaart kon niet worden opgebouwd', err); }
   const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p, UI.viewer ? false : (mobielWeergave() ? true : false)) + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + brPaneel(key,nr) + testHulpHtml(key, p) + '</div>';
   const playoffs = ppBlokHtml(key, p) + derdePp;
   const verslagen = verslagBlokHtml('poule', key, nr) + verslagBlokHtml('weekend', key, nr);
