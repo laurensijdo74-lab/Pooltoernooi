@@ -1323,6 +1323,25 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
  body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .ghead span:first-child{text-align:center}
  body:not(.public-mode) .admin-standings-page .admin-inline-playoffs .playoff-block{overflow:visible!important}
 }
+
+/* Tweede play-off vooruitblik: namen op normale regels, nooit letter voor letter. */
+@media screen and (max-width:980px) {
+  body:not(.public-mode) .admin-second-playoff-game {
+    display:grid!important;grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr)!important;min-width:0!important;width:100%!important;
+  }
+  body:not(.public-mode) .admin-second-playoff-game .pl {min-width:0!important;width:auto!important;max-width:100%!important;padding:10px 8px!important;display:block!important;}
+  body:not(.public-mode) .admin-second-playoff-game .pl .nm {display:block!important;min-width:0!important;width:100%!important;white-space:normal!important;overflow-wrap:normal!important;word-break:normal!important;hyphens:none!important;line-height:1.3!important;font-size:clamp(12px,3.3vw,16px)!important;}
+}
+
+/* Play-off 2 vooruitblik: eigen wedstrijdgrid, onafhankelijk van de reguliere game-CSS. */
+.admin-second-playoff-list{width:100%;min-width:0;overflow:hidden;border:1px solid var(--line);border-radius:10px}
+.admin-second-playoff-head,.admin-second-playoff-row{display:grid;grid-template-columns:minmax(0,1fr) 26px minmax(0,1fr);width:100%;min-width:0;align-items:center}
+.admin-second-playoff-head{background:var(--surface2);color:var(--muted);font-size:.8rem;font-weight:700}
+.admin-second-playoff-head span{padding:7px 10px;min-width:0}
+.admin-second-playoff-row{border-top:1px solid var(--line);min-height:56px}
+.admin-second-playoff-name{display:block;min-width:0;width:100%;padding:10px 9px;font-weight:750;line-height:1.25;white-space:normal;overflow-wrap:break-word;word-break:normal;hyphens:none}
+.admin-second-playoff-vs{text-align:center;color:var(--muted);font-size:.8rem}
+@media(max-width:980px){.admin-second-playoff-head,.admin-second-playoff-row{grid-template-columns:minmax(0,1fr) 22px minmax(0,1fr)}.admin-second-playoff-name{font-size:clamp(12px,3.5vw,16px);padding:9px 6px}.admin-second-playoff-head span{padding:6px}}
 </style>
 </head>
 <body>
@@ -1479,7 +1498,7 @@ function phLabel(T, id) {
   // Een onbesliste of geresette play-off blijft beide kandidaatnamen tonen.
   // Ook bij status 'wacht' (bijv. na reset) kan de koppeling bekend zijn.
   if (h.soort === 'derde' && st.status === 'wacht' && st.kandidaten && st.kandidaten.length) {
-    const rd = T.rondes[h.key], pa = rd && rd.poules[2*h.i], pb = rd && rd.poules[2*h.i+1];
+    const [pa,pb] = derdeBronPoules(T, h.key, h.i);
     const pending = [pa,pb].filter(p => p && p.pp && !p.pp.voltooid && p.pp.k === 3);
     const settled = [pa,pb].filter(p => p && !pending.includes(p) && pouleAfgerond(T,p));
     const names = pending.flatMap(p => p.pp.stappen[0].groep.map(x => naamVan(T,x)));
@@ -1487,7 +1506,7 @@ function phLabel(T, id) {
     return '(' + names.join(' / ') + ') / ' + other.join(' / ');
   }
   if (st.a && st.b && st.status !== 'beslist') return naamVan(T, st.a) + ' / ' + naamVan(T, st.b);
-   if (h.soort === 'derde') { const rd=T.rondes[h.key], q=rd&&rd.poules[2*h.i+1]; if(q&&q.pp&&!q.pp.voltooid) return q.pp.stappen[0].groep.map(x=>naamVan(T,x)).join(' / ')+' (plaats 3)'; }
+   if (h.soort === 'derde') { const q=derdeBronPoules(T,h.key,h.i).find(p=>p.pp&&!p.pp.voltooid); if(q&&q.pp&&!q.pp.voltooid) return q.pp.stappen[0].groep.map(x=>naamVan(T,x)).join(' / ')+' (plaats 3)'; }
   const po = T.derden && T.derden[h.key] && T.derden[h.key][h.i];
   if (po && po.a && po.b && !po.winnaar) return naamVan(T, po.a) + ' / ' + naamVan(T, po.b);
   return 'Beste nr. 3 weekend ' + (h.i + 1);
@@ -1759,6 +1778,7 @@ function resetRonde(T, key) {
     const k = T.plan.rondes[j].key;
     T.rondes[k] = { geloot: false, poules: [] };
     delete T.derden[k]; delete T.uitgestapt[k];
+    if (T.derdePaarIndeling) { delete T.derdePaarIndeling[k]; const pk=vorigeKey(T,k); if(pk) delete T.derdePaarIndeling[pk]; }
   }
   Object.keys(T.ph || {}).forEach(t => { if (rondeIndex(T, T.ph[t].key) >= i) delete T.ph[t]; });
   log(T, 'Loting teruggezet vanaf ' + planRonde(T, key).naam);
@@ -2053,9 +2073,9 @@ function rondeKeyVan(T, poule) { for (const k of Object.keys(T.rondes)) { const 
 function derdeZeker(T, poule) {
   const key = rondeKeyVan(T, poule); if (!key) return false;
   const pr = planRonde(T, key); if (!pr || !pr.derden) return false;
-  const r = T.rondes[key], ix = r.poules.indexOf(poule), pi = Math.floor(ix / 2);
-  if (pi >= Math.floor(r.poules.length / 2)) return false;
-  const partner = r.poules[ix % 2 === 0 ? ix + 1 : ix - 1];
+  const pi = derdePaarIndexVoorPoule(T, key, poule.nr);
+  if (pi < 0) return false;
+  const partner = derdeBronPoules(T, key, pi).find(p => p.nr !== poule.nr);
   if (!partner || !reguliereKlaar(partner) || !reguliereKlaar(poule)) return false;
   const rate = p => { const rw = standPoule(T, p); return rw.length >= 3 ? rw[2].punten / Math.max(1, rw[2].totaal) : null; };
   const a = rate(poule), b = rate(partner); if (a === null || b === null) return false;
@@ -2370,12 +2390,30 @@ function derdePunten(T, poule, id) {
   const rows = standPoule(T, poule); const r = rows.find(x => x.id === id);
   return r ? r.punten / Math.max(1, r.totaal) : 0;
 }
+/* De poules waaruit de kandidaten voor EEN beste-derde-play-off komen.
+   Standaard 1+2 en 3+4; na een handmatige wissel blijven de bronpoules
+   en een eventueel nog te spelen interne derde-plaats-play-off intact. */
+function derdeBronPoules(T, key, i) {
+  const r = T.rondes[key];
+  if (!r || !Array.isArray(r.poules)) return [];
+  const aangepast = T.derdePaarIndeling && T.derdePaarIndeling[key];
+  const nummers = aangepast && Array.isArray(aangepast[i]) ? aangepast[i] : [2 * i + 1, 2 * i + 2];
+  return nummers.map(n => r.poules.find(p => p.nr === n)).filter(Boolean);
+}
+function derdePaarIndexVoorPoule(T, key, nr) {
+  const r = T.rondes[key];
+  if (!r || !Array.isArray(r.poules)) return -1;
+  for (let i = 0; i < Math.floor(r.poules.length / 2); i++)
+    if (derdeBronPoules(T, key, i).some(p => p.nr === nr)) return i;
+  return -1;
+}
+
 function paarBeschrijving(T, key) {
   const pr = planRonde(T, key), r = T.rondes[key];
   const lijst = [];
   if (!pr || !r || !r.geloot || !pr.derden) return lijst;
   for (let i = 0; i < Math.floor(r.poules.length / 2); i++) {
-    const pa = r.poules[2 * i], pb = r.poules[2 * i + 1];
+    const [pa, pb] = derdeBronPoules(T, key, i);
     lijst.push({ idx: i, pa, pb });
   }
   return lijst;
@@ -2383,7 +2421,7 @@ function paarBeschrijving(T, key) {
 /* status: 'wacht' | 'beslist' | 'playoff' */
 function derdeStatus(T, key, i) {
   const r = T.rondes[key];
-  const pa = r.poules[2 * i], pb = r.poules[2 * i + 1];
+  const [pa, pb] = derdeBronPoules(T, key, i);
   if (!pa || !pb) return { status: 'geen' };
   if (!pouleAfgerond(T, pa) || !pouleAfgerond(T, pb)) {
      const pending=[pa,pb].filter(p=>p.pp&&!p.pp.voltooid&&p.pp.k===3);
@@ -2402,8 +2440,14 @@ function derdeStatus(T, key, i) {
   let po = T.derden[key][i];
   if (!po || po.a !== a || po.b !== b) {
     const eb = rng() < 0.5 ? a : b;
-    po = { a, b, formaat: 'Best of 5', eersteBreak: eb, games: bouwPpGames([a, b], 'Best of 5', eb), winnaar: null };
+    po = { a, b, formaat: 'Best of 3', eersteBreak: eb, games: bouwPpGames([a, b], 'Best of 3', eb), winnaar: null };
     T.derden[key][i] = po;
+  }
+  // Bestaande nog ongespeelde standaard Best of 5 veilig omzetten naar Best of 3.
+  // Nooit een begonnen, afgeronde of handmatig anders ingestelde play-off wijzigen.
+  if (po.formaat === 'Best of 5' && po.games && po.games.length === 5 && !po.games.some(g => g.w) && !po.forfait && !po.winnaar) {
+    po.formaat = 'Best of 3';
+    po.games = bouwPpGames([a, b], 'Best of 3', po.eersteBreak);
   }
   if (po.forfait && po.winnaar) return { status: 'beslist', winnaar: po.winnaar, a, b, playoff: po };
   const w = ppWins({ groep: [a, b], games: po.games }), doel = Math.floor(po.games.length / 2) + 1;
@@ -2432,7 +2476,7 @@ function zetDerdeUitslag(T, key, i, gameNr, w) {
   T.gewijzigd = new Date().toISOString();
   // Alleen de afgeleide kwalificatie doorrekenen wanneer de bronpoules
   // afgerond zijn; bij oudere snapshots blijft de opgeslagen uitslag leidend.
-  const rd = T.rondes[key], pa = rd && rd.poules[2 * i], pb = rd && rd.poules[2 * i + 1];
+  const [pa,pb] = derdeBronPoules(T, key, i);
   if (pa && pb && reguliereKlaar(pa) && reguliereKlaar(pb)) verwerkDerden(T, key);
   // Ook bij historische snapshots met status 'wacht' de daadwerkelijk
   // ingelote placeholder rechtstreeks vervangen na de beslissing.
@@ -2558,7 +2602,7 @@ function kwalificatie(T, key) {
   if (pr.derden > 0) {
     for (let i = 0; i < Math.floor(r.poules.length / 2); i++) {
       const st = derdeStatus(T, key, i);
-      if (st.status === 'beslist') { res.ids.push(st.winnaar); res.bron[st.winnaar] = { poule: (st.winnaar === st.a ? r.poules[2 * i] : r.poules[2 * i + 1]).nr, rang: 3 }; }
+      if (st.status === 'beslist') { res.ids.push(st.winnaar); res.bron[st.winnaar] = { poule: (st.winnaar === st.a ? derdeBronPoules(T, key, i)[0] : derdeBronPoules(T, key, i)[1]).nr, rang: 3 }; }
       else if (st.status === 'playoff' || st.status === 'wacht') { res.ids.push(registreerPh(T, 'phx:' + key + ':d' + i, { key, soort: 'derde', i })); res.plaatshouders++; res.wacht.push(i); }
     }
   }
@@ -2588,8 +2632,8 @@ function spelerRondeStatus(T, key, id) {
   }
   if (rang <= DOORGAAN) return { s: 'door', rang, poule: p.nr };
   if (rang === 3 && pr && pr.derden > 0) {
-    const i = Math.floor((p.nr - 1) / 2);
-    if (i < Math.floor(r.poules.length / 2)) {
+    const i = derdePaarIndexVoorPoule(T, key, p.nr);
+    if (i >= 0 && i < Math.floor(r.poules.length / 2)) {
       const st = derdeStatus(T, key, i);
       if (st.status === 'beslist') return { s: st.winnaar === id ? 'door' : 'uit', rang, poule: p.nr, derde: true };
       if (st.status === 'playoff' || st.status === 'wacht') return { s: 'playoff', rang, poule: p.nr, derde: true };
@@ -2605,9 +2649,49 @@ function positieVan(T, key, id) {
   return null;
 }
 function bouwOpnieuw(T, poule) { poule.schema = maakSchema(poule.spelers); poule.pp = null; poule.fin = null; }
-/* Een volledige uitgestelde beslissingsketen voor beste nr. 3 blijft
-   als een enkele placeholder wisselbaar in de halvefinaleloting.
-   De bron-playoffs en hun oorspronkelijke deelnemers blijven ongewijzigd. */
+/* Alleen de echte play-off om beste nummer 3 mag als onbekende plek
+   in de halve finale van zaterdag naar zondag (of omgekeerd) verhuizen.
+   Een nog onbesliste, eventueel uitgestelde play-off om plek 3 BINNEN
+   een oorspronkelijke poule is geen wisselbare beste-derde-plek. */
+/* Wissel de kandidaten uit TWEE beste-derde-play-offs, niet de complete
+   halvefinale-plaatshouder. Zo kan een uitgestelde interne plaats-3-play-off
+   de eigen bronpoule behouden en krijgt zijn winnaar de juiste latere tegenstander. */
+function wisselDerdeKandidaten(T, volgende, bronNrA, bronNrB) {
+  const key = vorigeKey(T, volgende), fase = planRonde(T, volgende);
+  const pr = key && planRonde(T, key), vr = key && T.rondes[key], nr = T.rondes[volgende];
+  if (!key || !pr || !pr.derden || !vr || !vr.geloot || !nr || !nr.geloot ||
+      !fase || fase.sizes.length !== 2 || vr.poules.length !== 4)
+    return {ok:false,tekst:'Alleen beschikbaar voor de twee beste-nr.-3-play-offs vóór de halve finale.'};
+  if (nr.poules.some(heeftScores))
+    return {ok:false,tekst:'De halve finale heeft al uitslagen; wijzigen is geblokkeerd.'};
+  const livePlaatsen = nr.poules.flatMap(p=>p.spelers).filter(id=>isPh(id));
+  if (![0,1].every(i=>livePlaatsen.includes('phx:'+key+':d'+i)))
+    return {ok:false,tekst:'Beide beste-derde-plaatshouders moeten nog open zijn.'};
+  for (let i=0;i<2;i++) {
+    const po=T.derden && T.derden[key] && T.derden[key][i];
+    if (po && (po.winnaar || po.forfait || (po.games||[]).some(g=>g.w)))
+      return {ok:false,tekst:'Er is al een beste-derde-play-off gespeeld of beslist.'};
+    if (T.derdenOvergeslagen && T.derdenOvergeslagen[key] && T.derdenOvergeslagen[key][i])
+      return {ok:false,tekst:'Herstel eerst de eerder geannuleerde beste-derde-play-off.'};
+  }
+  const groepen=[derdeBronPoules(T,key,0).map(p=>p.nr), derdeBronPoules(T,key,1).map(p=>p.nr)];
+  const ia=groepen.findIndex(g=>g.includes(bronNrA)), ib=groepen.findIndex(g=>g.includes(bronNrB));
+  if (ia<0 || ib<0 || ia===ib)
+    return {ok:false,tekst:'Kies één kandidaat uit iedere beste-derde-play-off.'};
+  const a=groepen[ia].indexOf(bronNrA), b=groepen[ib].indexOf(bronNrB);
+  groepen[ia][a]=bronNrB; groepen[ib][b]=bronNrA;
+  T.derdePaarIndeling=T.derdePaarIndeling||{};
+  T.derdePaarIndeling[key]=groepen;
+  // Publieke projectie: de beheerapp is de enige bron voor deze koppeling.
+  T.publiekeDerdePaarIndeling=T.publiekeDerdePaarIndeling||{};
+  T.publiekeDerdePaarIndeling[key]=groepen.map(g=>g.slice());
+  // Onbespeelde, eerder aangemaakte duels horen nog bij de oude tegenstanders.
+  if (T.derden && T.derden[key]) { delete T.derden[key][0]; delete T.derden[key][1]; }
+  verwerkDerden(T,key);
+  log(T,'Beste nummer 3: kandidaat uit poule '+bronNrA+' en kandidaat uit poule '+bronNrB+' van halvefinale-speeldag gewisseld');
+  return {ok:true};
+}
+
 function wisselbareDerdePlaatshouder(T, key, id) {
   if (!isPh(id)) return false;
   const fase = planRonde(T, key);
@@ -2615,9 +2699,11 @@ function wisselbareDerdePlaatshouder(T, key, id) {
   const h = T.ph && T.ph[id];
   if (!h || h.soort !== 'derde' || h.key !== vorigeKey(T, key)) return false;
   const st = derdeStatus(T, h.key, h.i);
-  // Ook status 'wacht' door een uitgestelde poule-playoff om plek 3
-  // is een geldige, complete kwalificatieketen voor de beste derde.
-  return st.status === 'playoff' || st.status === 'wacht';
+  // Beide oorspronkelijke nummers drie moeten bekend zijn. Ook een
+  // uitgestelde beste-derde-play-off is toegestaan; een uitgestelde
+  // poule-play-off om de eigen derde plaats expliciet niet.
+  return !!(st && st.a && st.b &&
+    (st.status === 'playoff' || (st.status === 'wacht' && st.overgeslagen === true)));
 }
 function wissel(T, key, idA, idB) {
   if (idA === idB) return { ok: false, tekst: 'Kies twee verschillende spelers.' };
@@ -2626,9 +2712,9 @@ function wissel(T, key, idA, idB) {
   if (isPh(idA) || isPh(idB)) {
     if ((isPh(idA) && !wisselbareDerdePlaatshouder(T, key, idA)) ||
         (isPh(idB) && !wisselbareDerdePlaatshouder(T, key, idB)))
-      return { ok: false, tekst: 'Alleen een plaatshouder voor de beste nummer 3 (ook met uitgestelde play-off om pouleplaats 3) kan in de halve finale worden gewisseld. De oorspronkelijke play-offs blijven intact.' };
+      return { ok: false, tekst: 'Alleen een plaatshouder voor de play-off beste nr. 3 kan in de halve finale worden gewisseld. Een (uitgestelde) play-off om de oorspronkelijke derde plaats binnen een poule blijft op zijn plek.' };
     if (!pa || !pb)
-      return { ok: false, tekst: 'Een play-offplaatshouder kan alleen met een ingelote deelnemer of andere wisselbare plaatshouder worden gewisseld, niet worden vervangen.' };
+      return { ok: false, tekst: 'Een beste-derde-plaatshouder kan alleen met een ingelote deelnemer of andere wisselbare plaatshouder worden gewisseld, niet worden vervangen.' };
   }
   if (pa && pb) {
     // Binnen dezelfde poule is dit een positie-/breakvolgordewissel.
@@ -2814,7 +2900,7 @@ const API = {
   standPoule, pouleKansen, reguliereKlaar, grensGroep, ppFormaten, ppStandaardFormaat, ppWins, ppDoel, ppGameNodig, ppStapKlaar, ppTieNodig,
   synchroniseerPoule, eindvolgorde, pouleAfgerond, rondeAfgerond, rondeGespeeldAantal, zoekPoule,
   zetUitslag, herstelDerdeVorige, maakPlayoffOngedaan, zetPpUitslag, zetPpWalkover, resetPpWalkover, lootBreaksPp, lootBreaksDerde, telBreaks, zetPpFormaat, zetPpEersteBreak, resetPp, herstelVorige, eersteOpenGame, wisPouleUitslagen, laatsteGame,
-  derdeZeker, isFinale, finaleTussenstand, herstelReferenties, vergrendeld, zetOntgrendeld, derdeVergrendeld, derdeStatus, zetDerdeUitslag, zetDerdeWalkover, resetDerdeWalkover, zetDerdeFormaat, wisselDerdeStartteam, verwerkDerden, kwalificatie, spelerRondeStatus,
+  derdeZeker, isFinale, finaleTussenstand, herstelReferenties, vergrendeld, zetOntgrendeld, derdeVergrendeld, derdeVan, derdeBronPoules, derdePaarIndexVoorPoule, wisselDerdeKandidaten, derdeStatus, zetDerdeUitslag, zetDerdeWalkover, resetDerdeWalkover, zetDerdeFormaat, wisselDerdeStartteam, verwerkDerden, kwalificatie, spelerRondeStatus,
   wissel, wisselbareDerdePlaatshouder, vervangKandidaten, markeerVervangen, positieVan, bouwOpnieuw, log,
   bouwUitslagenVoorPatroon, vulPouleMetPatroon, speelPouleWillekeurig, speelPlayoffsWillekeurig, speelDerdenWillekeurig,
   valideer, samenvatting, DOORGAAN, phLabel, reguliereKlaarRonde, herbouwSchemaBehoudUitslag, migreerSchemas, schemaMigratieNodig
@@ -3112,6 +3198,13 @@ function planOnlineSynchronisatie() {
 
 function commit(opties) {
   opties = opties || {};
+  if(T.derdePaarIndeling){
+    T.publiekeDerdePaarIndeling=T.publiekeDerdePaarIndeling||{};
+    Object.keys(T.derdePaarIndeling).forEach(k=>{
+      const pairs=T.derdePaarIndeling[k];
+      if(Array.isArray(pairs))T.publiekeDerdePaarIndeling[k]=pairs.map(g=>Array.isArray(g)?g.slice():g);
+    });
+  }
   T.gewijzigd = new Date().toISOString();
   if (Date.now() - laatsteHerstelpunt > 6 * 3600 * 1000 && P.spelerById) maakHerstelpunt('Automatisch');
   planBewaren();
@@ -3335,7 +3428,7 @@ function playoffsVoorDag(d) {
   Object.keys(src.derde).forEach(i => {
     const st = P.derdeStatus(T,src.vk,Number(i));
     if (st.status === 'playoff') result.push({key:src.vk,i:Number(i),label:'Play-off beste nummer 3',namen:[st.a,st.b].map(spelerNaam).join(' / ')});
-     else if(st.status==='wacht' && st.kandidaten?.length) result.push({key:src.vk,i:Number(i),label:'Eerst play-off om plaats 3',namen:st.kandidaten.map(spelerNaam).join(' / ')});
+     else if(st.status==='wacht' && st.kandidaten?.length) result.push({key:src.vk,i:Number(i),label:'Eerst play-off om plaats 3, daarna eventueel beste nr. 3',namen:st.kandidaten.map(spelerNaam).join(' / ')});
   });
   return result;
 }
@@ -3824,11 +3917,12 @@ function viewLoting() {
   }
   const rd = T.rondes[key], gescoord = rd.poules.some(P.heeftScores), opm = rd.opmerkingen || [];
   const anim = UI.anim && UI.anim.key === key;
-   const modusTekst = UI.modus === 'wissel' ? (UI.sel ? 'Kies de tweede deelnemer of plaatshouder, binnen of tussen poules. De volledige uitgestelde play-offketen voor beste nr. 3 kan meewisselen; de oorspronkelijke play-offs blijven intact.' : 'Kies de eerste deelnemer of een plaatshouder voor beste nr. 3, ook wanneer de oorspronkelijke play-off om pouleplaats 3 is uitgesteld.') : (UI.modus === 'vervang' ? 'Kies de speler die uitvalt; daarna kies je de vervanger.' : '');
+  const modusTekst = UI.modus === 'wissel' ? (UI.sel ? 'Kies de tweede deelnemer, binnen of tussen poules. In de halve finale mag een plaatshouder voor de play-off beste nr. 3 meewisselen; een openstaande poule-play-off om plaats 3 niet.' : 'Kies de eerste deelnemer of een plaatshouder voor beste nr. 3. Een uitgestelde play-off om plaats 3 binnen een poule blijft geblokkeerd.') : (UI.modus === 'vervang' ? 'Kies de speler die uitvalt; daarna kies je de vervanger.' : '');
   const reserves = P.reserves(T);
   const toonReserves = P.rondeIndex(T, key) === 0;
   return '<div class="stack-l">' + lotingTabs(key) + walkoverHerstelHtml() + '<div class="row between noprint"><div class="row"><span class="chip ' + (P.rondeAfgerond(T, key) ? 'ok' : 'info') + '">' + (rd.volgorde ? 'Ingedeeld in lijstvolgorde' : (rd.handmatig ? 'Handmatig geloot' : 'Geloot')) + (rd.geloot_op ? ' · ' + esc(tijdTekst(rd.geloot_op)) : '') + '</span></div><div class="row">' +
     (anim ? '<button class="btn sec" data-act="anim-skip">Loting overslaan</button>' : '') +
+    (P.vorigeKey(T,key) && rd.poules.length===2 && P.planRonde(T,P.vorigeKey(T,key))?.derden && T.rondes[P.vorigeKey(T,key)]?.poules?.length===4 ? '<button class="btn sec" data-act="derde-kandidaten" data-key="'+key+'">Beste nr. 3-play-offs indelen</button>' : '') +
     '<button class="btn sec' + (UI.modus === 'wissel' ? ' act' : '') + '" data-act="modus" data-m="wissel">Wissel spelers</button><button class="btn sec' + (UI.modus === 'vervang' ? ' act' : '') + '" data-act="modus" data-m="vervang">Speler vervangen</button><button class="btn sec" data-act="print">Afdrukken</button><button class="btn" data-act="flyer-open" data-key="' + key + '">🎱 Flyer maken</button>' +
     '<button class="btn danger" data-act="loot-reset" data-key="' + key + '"' + (gescoord ? ' disabled title="Er zijn al uitslagen ingevoerd"' : '') + '>Opnieuw loten</button></div></div>' +
     (modusTekst ? '<div class="note"><b>' + (UI.modus === 'wissel' ? 'Wisselen' : 'Vervangen') + ':</b> ' + modusTekst + ' <button class="btn sec sm" data-act="modus" data-m="">Stoppen</button></div>' : '') +
@@ -3995,7 +4089,7 @@ function pouleSamenvatting(key, p) {
     if (gg) return '<div class="note good"><b>Gelijke stand, geen play-off nodig.</b> ' + gg.ids.map(spelerNaam).map(esc).join(', ') + ' gaan allemaal door: ze hebben meer punten dan de nummer 3 van de andere poule van dit weekend, dus ook de nummer 3 van deze poule is beste nummer 3.</div>';
   }
   const top2 = e.slice(0, P.DOORGAAN).map(spelerNaam).map(esc).join(' en ');
-  const pi = Math.floor((p.nr - 1) / 2), heeftPaar = pr.derden && pi < Math.floor(T.rondes[key].poules.length / 2);
+  const pi = P.derdePaarIndexVoorPoule(T, key, p.nr), heeftPaar = pr.derden && pi >= 0;
   if (!heeftPaar) return '<div class="note good"><b>Doorgegaan:</b> ' + top2 + '.</div>';
   const st = P.derdeStatus(T, key, pi), derde = e[2], naamD = derde ? esc(spelerNaam(derde)) : '';
   if (st.status === 'beslist') {
@@ -4220,7 +4314,31 @@ function bronnenPh(key, p) {
   });
   return { vk, pool, derde };
 }
+/* Vooruitblik op een gekoppelde beste-derde-play-off: de eerste
+   (uitgestelde) poule-play-off wordt eerst gespeeld. Deze kaart is
+   bewust alleen-lezen totdat de echte winnaar bekend is. */
+function komendeDerdeBlokHtml(key, i) {
+  const bronnen=P.derdeBronPoules(T,key,i);
+  if(bronnen.length!==2)return '';
+  const open=bronnen.filter(q=>q.pp && !q.pp.voltooid && q.pp.k===3 && q.pp.start===3);
+  if(open.length!==1)return '';
+  const bron=open[0], ander=bronnen.find(q=>q!==bron);
+  if(!ander || !P.pouleAfgerond(T,ander))return '';
+  const kandidaten=bron.pp.stappen[0].groep;
+  const tegen=P.derdeVan(T,ander);
+  if(!tegen || kandidaten.length<2)return '';
+  const naam=kandidaten.map(spelerNaam).join(' / ');
+  const label='('+naam+') / '+spelerNaam(tegen);
+  const opgeslagen=T.derden && T.derden[key] && T.derden[key][i];
+  if(opgeslagen && opgeslagen.winnaar)return '';
+  return '<div class="sect playoff-block public-match-card"><header><h3>Play-off 2 · Beste nummer 3</h3><span class="chip warn">Na play-off 1</span></header><div class="body stack">'+
+    '<div class="small muted">Wacht op winnaar play-off 1 · Tegen '+esc(spelerNaam(tegen))+'</div>'+
+    '<div class="small muted">Standaard: Best of 3 · maximaal 3 wedstrijden</div>'+
+    '<div class="admin-second-playoff-list"><div class="admin-second-playoff-head"><span>Breekt</span><span></span><span>Tegenstander</span></div>'+Array.from({length:3},(_,idx)=>'<div class="admin-second-playoff-row"><div class="admin-second-playoff-name">'+esc(idx%2===0?naam:spelerNaam(tegen))+'</div><span class="admin-second-playoff-vs">vs</span><div class="admin-second-playoff-name">'+esc(idx%2===0?spelerNaam(tegen):naam)+'</div></div>').join('')+'</div>'+
+    '<div class="small muted">Mogelijke deelnemers: '+esc(label)+'</div></div></div>';
+}
 function vorigePlayoffsHtml(key, p) {
+  try {
   // Mobiel beheer: zoek eerst via de oorspronkelijke placeholder, daarna via
   // de feitelijke deelnemers van nog openstaande play-offs in de vorige ronde.
   const vk = P.vorigeKey(T, key);
@@ -4246,9 +4364,19 @@ function vorigePlayoffsHtml(key, p) {
       else if (opgeslagen && opgeslagen.games) add('d'+i, derdeBlokOpgeslagenHtml(vk,i,opgeslagen));
     }
   }
+  // Koppel de vooruitblik aan de actuele beste-derde-plaats in deze halvefinalepoule.
+  // Niet aan de oorspronkelijke zaterdag/zondag-volgorde: die kan gewisseld zijn.
+  for (let i=0; i<Math.floor((vorige.poules || []).length/2); i++) {
+    if (!bron.derde[i]) continue;
+    const preview=komendeDerdeBlokHtml(vk,i);
+    add('preview'+i,preview);
+  }
   return gevonden.length ? '<div class="admin-pre-playoff-content">'+gevonden.join('')+'</div>' : '';
+  } catch (err) {
+    console.error('POOL: preview uitgestelde play-offs niet beschikbaar', err);
+    return '<div class="note warn small">De uitgestelde play-offs konden niet worden getoond. De reguliere wedstrijden blijven beschikbaar.</div>';
+  }
 }
-
 function derdeBlokOpgeslagenHtml(key,i,po) {
   // Dezelfde instellingen en dezelfde bron-play-off als op het oorspronkelijke weekend.
   // Deze fallback wordt gebruikt wanneer de afgeleide status tijdelijk 'wacht' is.
@@ -4263,11 +4391,12 @@ function derdeBlokOpgeslagenHtml(key,i,po) {
 
 function derdeBlokkenVoorPoule(key, p) {
   const pr = P.planRonde(T, key); if (!pr || !pr.derden) return '';
-  // De play-off voor de beste nummer 3 hoort één keer onder de laatste
-  // speeldag van het weekend: poule 2, 4, 6, enzovoort.
-  if (p.nr % 2 !== 0) return '';
-  const i = Math.floor((p.nr - 1) / 2); if (i >= Math.floor(T.rondes[key].poules.length / 2)) return '';
-  return derdeBlokHtml(key, i);
+  const i=P.derdePaarIndexVoorPoule(T,key,p.nr);
+  if(i<0)return '';
+  // Elk paar precies één keer tonen, ook bij handmatig gekruiste bronpoules.
+  const bron=P.derdeBronPoules(T,key,i);
+  if(bron.length!==2 || p.nr!==Math.max(...bron.map(x=>x.nr)))return '';
+  return derdeBlokHtml(key,i);
 }
 
 /* ---------- testhulp ---------- */
@@ -4338,7 +4467,9 @@ function dagDetailHtml(key, nr) {
   const volgendeOpenbaar = volgende && (!UI.viewer || P.rondeGeloot(T, volgende.ronde));
   const vorigeOpen = vorige && P.rondeGeloot(T, vorige.ronde) && dagStatus(vorige.ronde, vorige.poule).code !== 'klaar';
   const wachtPh = p.spelers.some(P.isPh);
-  const actief = actieveActie(key, p);
+  let actief = null;
+  try { actief = actieveActie(key, p); }
+  catch(err) { console.error('POOL: actieve play-off kon niet worden bepaald', err); }
   const vorigeRondeKey = P.vorigeKey(T, key);
   const eerdereDerden = vorigeRondeKey ? (T.derden?.[vorigeRondeKey] || []) : [];
   const herstelbareDerde = Object.keys(eerdereDerden).map(Number).find(i => { const po = eerdereDerden[i]; return po && Array.isArray(po.games) && po.games.some(g => g.w); }) ?? -1;
@@ -4356,7 +4487,9 @@ function dagDetailHtml(key, nr) {
     (wachtPh && !mobielWeergave() ? '<div class="note warn">Eén van de spelers is nog niet bekend: de play-off voor deze plek moet eerst worden gespeeld.</div>' : '');
   const uitleg = UI.viewer || mobielWeergave() ? '' : '<div class="row between noprint" style="margin-bottom:8px"><span class="muted small">Tik op de winnaar van elke wedstrijd. De speler links heeft de break. Sneltoetsen: <kbd>1</kbd> of ← links wint, <kbd>2</kbd> of → rechts wint, <kbd>Backspace</kbd> herstelt de vorige.</span><button class="btn sec sm" data-act="herstel" data-key="' + key + '" data-nr="' + nr + '"' + (kanHerstel ? '' : ' disabled') + '>Herstel vorige wedstrijd</button></div>';
   const links = '<div>' + uitleg + gamesHtml(key, p) + '</div>';
-  const derdePp = derdeBlokkenVoorPoule(key, p);
+  let derdePp = '';
+  try { derdePp = derdeBlokkenVoorPoule(key, p); }
+  catch(err) { console.error('POOL: beste-derde-kaart kon niet worden opgebouwd', err); }
   const rechts = '<div class="stack"><div class="sect"><header><h3>Stand</h3><span class="muted small">' + p.schema.filter(g => g.w).length + ' van ' + p.schema.length + ' gespeeld</span></header><div class="body stack">' + standHtml(key, p, UI.viewer ? false : (mobielWeergave() ? true : false)) + pouleSamenvatting(key, p) + (actief && actief.soort === 'reg' ? '<div class="small muted">Nu aan tafel: <b>' + esc(spelerNaam(actief.g.a)) + '</b> (break) tegen <b>' + esc(spelerNaam(actief.g.b)) + '</b></div>' : '') + '</div></div>' + brPaneel(key,nr) + testHulpHtml(key, p) + '</div>';
   const playoffs = ppBlokHtml(key, p) + derdePp;
   const verslagen = verslagBlokHtml('poule', key, nr) + verslagBlokHtml('weekend', key, nr);
@@ -4863,7 +4996,7 @@ async function kiesSpeler(id) {
   if (UI.modus === 'wissel') {
     if (!UI.sel) {
       if (P.isPh(id) && !P.wisselbareDerdePlaatshouder(T, key, id)) {
-        toast('Alleen een plaatshouder voor beste nr. 3 is wisselbaar, ook als de play-off om de oorspronkelijke derde plaats is uitgesteld.', true);
+        toast('Alleen een plaatshouder voor de play-off beste nr. 3 is wisselbaar. Een uitgestelde poule-play-off om plaats 3 niet.', true);
         return;
       }
       UI.sel = id; render(); return;
@@ -4897,7 +5030,7 @@ async function kiesSpeler(id) {
 /* ---------- acties ---------- */
 
 /* Beheercentrum en wizard. Toernooien worden per id apart bewaard. */
-const ADMIN_FAQ = [{"title": "Nieuw toernooi en beheer", "items": [["Hoe maak ik een nieuw toernooi?", "Open ☰ → Nieuw toernooi. Doorloop de zes stappen: basisgegevens, deelnemers, speelopzet, planning, uiterlijk en controleren. Klik op Toernooi aanmaken. Daarna vul je eventueel ontbrekende namen aan en voer je de loting uit."], ["Hoe start ik het toernooi?", "Na het aanmaken is er geen aparte startknop nodig. Vul minstens vier deelnemers in, open Loting en kies een lotingsmethode. Daarna kun je via Speeldagen de uitslagen registreren."], ["Kan ik een tweede toernooi voorbereiden?", "Ja. Gebruik ☰ → Nieuw toernooi. Het vorige toernooi wordt afzonderlijk bewaard. Met ☰ → Alle toernooien wissel je tussen toernooien of maak je een kopie."], ["Hoe wissel ik tussen toernooien?", "Open ☰ → Alle toernooien en kies Openen bij het gewenste toernooi. Controleer bovenaan de toernooinaam voordat je uitslagen invoert."], ["Hoe dupliceer ik een toernooi?", "Open ☰ → Alle toernooien en klik Dupliceren. De kopie krijgt een eigen toernooi-ID en staat aanvankelijk op besloten."], ["Kan ik een andere starttijd instellen?", "In de wizard kun je een gewenste starttijd vastleggen. Let op: de publieke aftelklok gebruikt in deze versie nog 14:00 voor reguliere wedstrijden en 13:00 voor play-offs."]]}, {"title": "Deelnemers en reserves", "items": [["Hoe voeg ik spelers of koppels toe?", "Ga naar Spelers, typ een naam en kies Toevoegen. Voor koppels voer je de volledige teamnaam als één deelnemer in."], ["Hoe voer ik veel namen tegelijk in?", "Ga naar Spelers → Namen plakken. Gebruik één naam per regel. Optioneel kun je na een puntkomma of tab een voorkeursdag en verhinderdatum invullen."], ["Hoe maak ik iemand reserve?", "Vink vóór de eerste loting Reserve aan bij de deelnemer. Na de eerste loting worden nieuw toegevoegde deelnemers automatisch reserve."], ["Hoe breng ik een reserve in?", "Open Loting, kies de gelote ronde en klik Speler vervangen. Klik vervolgens op de uitvallende deelnemer in de poulekaart. Kies de reserve in de keuzelijst en bevestig Vervangen. Dit kan alleen zolang in die poule nog geen uitslag is ingevoerd."], ["Hoe wissel ik spelers uit twee poules?", "Ga naar Loting en kies de juiste ronde. Klik Wissel spelers, selecteer een deelnemer in de eerste poule en daarna een deelnemer in de tweede poule. Je kunt ook twee posities binnen dezelfde poule omwisselen. In de halve finale kan de volledige plaatshouder voor beste nummer 3 worden gewisseld, ook als eerst een uitgestelde poule-play-off om plaats 3 nodig is. De oorspronkelijke play-offs blijven intact. De wedstrijdschema’s worden opnieuw opgebouwd; er mogen nog geen uitslagen in de betrokken poules staan."], ["Hoe laat ik een uitgeschakelde speler uit ronde 1 opnieuw instromen in ronde 2?", "Open Loting → Speler vervangen en selecteer de uitvaller. De app toont een voorstel uit hetzelfde oorspronkelijke weekend en alternatieven, waaronder beschikbare nummers 3 of deelnemers uit de oorspronkelijke poule. Vervangen kan niet als de betreffende poule al scores heeft."], ["Kan ik een naam na de loting corrigeren?", "Ja. Pas de naam aan op het tabblad Spelers. De bestaande deelnemer-ID blijft behouden."], ["Waarom kan ik een speler niet wisselen?", "Wisselen wordt geblokkeerd zodra een betrokken poule een score heeft. In de halve finale kun je een plaatshouder van de play-off om beste nummer 3 binnen of tussen poules wisselen. Ook een volledige uitgestelde play-offketen om de beste derde is wisselbaar. De koppeling met de beste-derde-play-off blijft behouden. Een plaatshouder vervangen door een reserve kan niet."]]}, {"title": "Loting en indeling", "items": [["Hoe doe ik een automatische loting?", "Open Loting, selecteer de ronde en klik Start de loting. De app houdt zo veel mogelijk rekening met dagvoorkeuren en verhinderdatums."], ["Hoe loot ik handmatig?", "Kies Loting → Handmatig loten. Selecteer per positie een speler. Met Rest willekeurig aanvullen kun je open plekken automatisch vullen. Klik daarna Bevestig loting."], ["Hoe deel ik in lijstvolgorde in?", "Kies Loting → Indelen in lijstvolgorde. Poule 1 krijgt de eerste namen uit de deelnemerslijst, poule 2 de volgende, enzovoort. Ook bij Namen plakken kun je deze optie kiezen."], ["Kan ik opnieuw loten?", "Ja, zolang er in de ronde nog geen uitslagen zijn. Kies Loting → Opnieuw loten en bevestig. Let op: ook al gelote latere rondes worden dan teruggezet."], ["Wat als dagvoorkeuren niet haalbaar zijn?", "De app meldt welke dag te veel voorkeuren heeft. Je kunt voorkeuren aanpassen of via Toch loten doorgaan; niet alle voorkeuren worden dan gevolgd."], ["Kan ik een volgende ronde loten voordat alle play-offs klaar zijn?", "Ja, zodra alle reguliere poulewedstrijden van de vorige ronde zijn ingevuld. Openstaande play-offplaatsen worden als tijdelijke A / B-plaats ingeloot. De winnaar neemt die plek later automatisch over."], ["Hoe druk ik de loting af?", "Open de gelote ronde op Loting en klik Afdrukken. Je kunt in de browser afdrukken of opslaan als PDF."], ["Hoe wijzig ik de grote tekst op de flyer?", "Open Instellingen → Toernooi en wijzig Tekst op flyers (grote titel). Bijvoorbeeld SINGLE TOERNOOI of DOUBLE TOERNOOI. De tekst geldt voor alle flyers van het gekozen toernooi."]]}, {"title": "Speeldagen en uitslagen", "items": [["Hoe voer ik een uitslag in?", "Open Speeldagen en kies de poule. Tik op de naam van de winnaar. De stand wordt direct bijgewerkt. De speler links breekt."], ["Hoe wis ik een foutieve uitslag?", "Tik bij een nog open speeldag opnieuw op de geselecteerde winnaar om die uitslag te wissen. Of gebruik Herstel vorige wedstrijd. Op een toetsenbord werken ook 1 / pijl links, 2 / pijl rechts en Backspace."], ["Waarom kan ik een afgeronde dag niet wijzigen?", "Een afgeronde speeldag wordt automatisch vergrendeld. Klik Ontgrendelen om een correctie mogelijk te maken. Vergrendel daarna opnieuw."], ["Waarom kan ik een latere speeldag niet invoeren?", "Standaard moeten eerdere speeldagen eerst afgerond zijn. Bij Instellingen → Toernooi kun je Speeldagen op volgorde afwerken uitschakelen, bijvoorbeeld als een dag uitvalt."], ["Kan ik een speeldag verplaatsen?", "Ga naar Planning en wijzig de datum van de betreffende speeldag. Zodra in die poule uitslagen zijn ingevoerd, is het datumveld vergrendeld."], ["Hoe wijzig ik de pauze?", "Ga naar Instellingen → Toernooi → Pauze in de speeldag. Kies halverwege, geen pauze of na een bepaald wedstrijdnummer."], ["Hoe toon ik een scorebord op tv?", "Open een speeldag en klik Scorebord in eigen venster. Dat venster kan op een tweede scherm of tv worden getoond."], ["Hoe maak ik een verslag van een speeldag?", "Na de reguliere wedstrijden verschijnt het automatisch samengestelde verslag onder de speeldag. Kies Andere invalshoek voor een andere variant, pas tekst aan en klik Kopieer verslag."]]}, {"title": "Standen, play-offs en doorgaan", "items": [["Hoe worden punten geteld?", "Een gewonnen wedstrijd levert één punt op. Er is geen remise. Iedereen speelt in de reguliere poule twee keer tegen iedere tegenstander; de break wisselt bij de return."], ["Wie gaat door naar de volgende ronde?", "Normaal de beste twee van elke poule. Afhankelijk van de ingestelde opzet gaat ook de beste nummer 3 per weekend door."], ["Wat gebeurt er bij een gelijke stand?", "Als een gelijke stand de doorgangsgrens raakt, maakt de app een play-off aan. Bij twee spelers kun je Best of 1, 3 of 5 kiezen; bij meer spelers een competitievariant. Bij opnieuw gelijk volgt zo nodig een extra play-off."], ["Hoe wordt de beste nummer 3 bepaald?", "De nummers 3 van twee poules in hetzelfde weekend worden op winstpercentage vergeleken. Bij gelijk volgt een onderlinge play-off, standaard Best of 3."], ["Hoe bepaal ik wie breekt in een play-off?", "Gebruik de knop 🎲 Loot wie breekt in het play-offblok voordat uitslagen zijn ingevoerd. De app verdeelt de breaks zo eerlijk mogelijk."], ["Wat als een speler niet kan deelnemen aan een play-off?", "Gebruik Winst wegens verhindering in de play-off. Daarmee krijgt de tegenstander een walk-over. Een foutieve walk-over kun je op Loting bij Geregistreerde walk-overs ongedaan maken."], ["Hoe wijzig ik een play-offvorm?", "Selecteer in het play-offblok bij Formaat de gewenste variant, vóórdat er uitslagen zijn ingevoerd. Als er al scores staan, moet de play-off eerst opnieuw worden opgezet."], ["Hoe wordt de kampioen bepaald?", "In de finale bepaalt de eindvolgorde de kampioen en de plaatsen 2 en 3. Gelijke standen die deze plaatsen raken, worden via play-offs beslist."]]}, {"title": "Break & Run en statistieken", "items": [["Hoe zet ik Break & Run aan?", "Ga naar Instellingen → Toernooi en vink Break & Run bijhouden aan."], ["Hoe registreer ik een Break & Run?", "Open de speeldag en klap 🎱 Break & Run registreren uit. Selecteer de wedstrijd en gebruik + of − bij de juiste deelnemer. De ranking wordt toernooibreed bijgehouden."], ["Hoe corrigeer ik een Break & Run?", "Selecteer dezelfde wedstrijd in het uitklapblok en gebruik de minknop om de registratie te verminderen of te verwijderen."], ["Waar zien toeschouwers de Break & Runs?", "Als de optie is ingeschakeld, verschijnt een samenvatting als voetnoot bij de speeldag. In het beheerdersblok staat de individuele ranking."]]}, {"title": "Toeschouwers en online", "items": [["Hoe maak ik het toernooi openbaar?", "Ga naar ☰ → Instellingen → Opslag en back-up → Online versie. Meld je aan en kies bij Toegang van dit toernooi Openbaar – iedereen mag bekijken."], ["Hoe deel ik de toeschouwerslink?", "Iedere editie heeft een eigen POOL LIVE-link met de unieke toernooi-ID. Je vindt de standaardlink en eventueel een eigen TinyURL via Instellingen → Toernooi. Bij Online versie kun je voor openbare toernooien de kijklink kopiëren en delen."], ["Moeten toeschouwers inloggen?", "Nee. Een openbaar toernooi is via de publieke kijklink zonder beheerdersaccount te bekijken."], ["Hoe ververs ik de stand voor toeschouwers?", "De publieke versie synchroniseert online en heeft daarnaast een knop ↻ Vernieuwen. Controleer bij problemen of het juiste toernooi openbaar staat en online is opgeslagen."], ["Kunnen twee beheerders tegelijk werken?", "Met online synchronisatie kunnen bevoegde beheerders hetzelfde toernooi openen. Voorkom dat twee beheerders tegelijkertijd dezelfde uitslag aanpassen."]]}, {"title": "Opslag, herstel en problemen", "items": [["Waar wordt de voortgang bewaard?", "De app bewaart automatisch in de huidige browser en kan online synchroniseren. Maak daarnaast geregeld een back-up via Bewaar als bestand."], ["Hoe maak ik een back-up?", "Ga naar Overzicht → Voortgang veilig stellen → Bewaar als bestand, of naar Instellingen → Opslag en back-up."], ["Hoe herstel ik een eerdere versie?", "Ga naar Instellingen → Opslag en back-up → Herstelpunten. Kies het gewenste herstelpunt en klik Terugzetten. Controleer vooraf wat je daarmee overschrijft."], ["Kan ik automatisch in een lokaal bestand bewaren?", "Ja, op ondersteunde versies van Chrome en Edge via Instellingen → Opslag en back-up → Koppel een bestand. Na heropenen kan opnieuw toestemming nodig zijn."], ["Hoe laad ik een opgeslagen bestand?", "Gebruik Open bestand… bij Overzicht of Opslag en back-up en selecteer het eerder opgeslagen JSON-bestand."], ["Wat als de verkeerde loting is uitgevoerd?", "Als er nog geen uitslagen zijn, gebruik Opnieuw loten. Zijn er al uitslagen, controleer dan eerst de beschikbare herstelpunten; voorkom verlies van gespeelde resultaten."], ["Waarom verschijnt een uitslag niet online?", "Controleer de online aanmelding, Automatisch online synchroniseren en de actieve toernooinaam. Gebruik zo nodig Nu online bewaren en ververs de publieke pagina."], ["Hoe test ik het toernooi zonder echte uitslagen?", "Schakel bij Instellingen → Toernooi de Testmodus in. Bij speeldagen verschijnen testhulpen voor willekeurige uitslagen en gelijke standen. Gebruik dit niet tijdens een echt toernooi."], ["Waar vind ik recente wijzigingen in de app?", "Open ☰ → Changelog."]]}];
+const ADMIN_FAQ = [{"title": "Nieuw toernooi en beheer", "items": [["Hoe maak ik een nieuw toernooi?", "Open ☰ → Nieuw toernooi. Doorloop de zes stappen: basisgegevens, deelnemers, speelopzet, planning, uiterlijk en controleren. Klik op Toernooi aanmaken. Daarna vul je eventueel ontbrekende namen aan en voer je de loting uit."], ["Hoe start ik het toernooi?", "Na het aanmaken is er geen aparte startknop nodig. Vul minstens vier deelnemers in, open Loting en kies een lotingsmethode. Daarna kun je via Speeldagen de uitslagen registreren."], ["Kan ik een tweede toernooi voorbereiden?", "Ja. Gebruik ☰ → Nieuw toernooi. Het vorige toernooi wordt afzonderlijk bewaard. Met ☰ → Alle toernooien wissel je tussen toernooien of maak je een kopie."], ["Hoe wissel ik tussen toernooien?", "Open ☰ → Alle toernooien en kies Openen bij het gewenste toernooi. Controleer bovenaan de toernooinaam voordat je uitslagen invoert."], ["Hoe dupliceer ik een toernooi?", "Open ☰ → Alle toernooien en klik Dupliceren. De kopie krijgt een eigen toernooi-ID en staat aanvankelijk op besloten."], ["Kan ik een andere starttijd instellen?", "In de wizard kun je een gewenste starttijd vastleggen. Let op: de publieke aftelklok gebruikt in deze versie nog 14:00 voor reguliere wedstrijden en 13:00 voor play-offs."]]}, {"title": "Deelnemers en reserves", "items": [["Hoe voeg ik spelers of koppels toe?", "Ga naar Spelers, typ een naam en kies Toevoegen. Voor koppels voer je de volledige teamnaam als één deelnemer in."], ["Hoe voer ik veel namen tegelijk in?", "Ga naar Spelers → Namen plakken. Gebruik één naam per regel. Optioneel kun je na een puntkomma of tab een voorkeursdag en verhinderdatum invullen."], ["Hoe maak ik iemand reserve?", "Vink vóór de eerste loting Reserve aan bij de deelnemer. Na de eerste loting worden nieuw toegevoegde deelnemers automatisch reserve."], ["Hoe breng ik een reserve in?", "Open Loting, kies de gelote ronde en klik Speler vervangen. Klik vervolgens op de uitvallende deelnemer in de poulekaart. Kies de reserve in de keuzelijst en bevestig Vervangen. Dit kan alleen zolang in die poule nog geen uitslag is ingevoerd."], ["Hoe wissel ik spelers uit twee poules?", "Ga naar Loting en kies de juiste ronde. Klik Wissel spelers, selecteer een deelnemer in de eerste poule en daarna een deelnemer in de tweede poule. Je kunt ook twee posities binnen dezelfde poule omwisselen. In de halve finale mag alleen de plaatshouder van een echte play-off om beste nummer 3 worden gewisseld. Een uitgestelde play-off om derde te worden binnen een oorspronkelijke poule is niet wisselbaar. De wedstrijdschema’s worden opnieuw opgebouwd; er mogen nog geen uitslagen in de betrokken poules staan."], ["Hoe laat ik een uitgeschakelde speler uit ronde 1 opnieuw instromen in ronde 2?", "Open Loting → Speler vervangen en selecteer de uitvaller. De app toont een voorstel uit hetzelfde oorspronkelijke weekend en alternatieven, waaronder beschikbare nummers 3 of deelnemers uit de oorspronkelijke poule. Vervangen kan niet als de betreffende poule al scores heeft."], ["Kan ik een naam na de loting corrigeren?", "Ja. Pas de naam aan op het tabblad Spelers. De bestaande deelnemer-ID blijft behouden."], ["Waarom kan ik een speler niet wisselen?", "Wisselen wordt geblokkeerd zodra een betrokken poule een score heeft. In de halve finale kun je een plaatshouder van de play-off om beste nummer 3 binnen of tussen poules wisselen. Een plaatshouder voor een later te spelen play-off om derde te worden binnen een oorspronkelijke poule blijft geblokkeerd. De koppeling met de beste-derde-play-off blijft behouden. Een plaatshouder vervangen door een reserve kan niet."]]}, {"title": "Loting en indeling", "items": [["Hoe doe ik een automatische loting?", "Open Loting, selecteer de ronde en klik Start de loting. De app houdt zo veel mogelijk rekening met dagvoorkeuren en verhinderdatums."], ["Hoe loot ik handmatig?", "Kies Loting → Handmatig loten. Selecteer per positie een speler. Met Rest willekeurig aanvullen kun je open plekken automatisch vullen. Klik daarna Bevestig loting."], ["Hoe deel ik in lijstvolgorde in?", "Kies Loting → Indelen in lijstvolgorde. Poule 1 krijgt de eerste namen uit de deelnemerslijst, poule 2 de volgende, enzovoort. Ook bij Namen plakken kun je deze optie kiezen."], ["Kan ik opnieuw loten?", "Ja, zolang er in de ronde nog geen uitslagen zijn. Kies Loting → Opnieuw loten en bevestig. Let op: ook al gelote latere rondes worden dan teruggezet."], ["Wat als dagvoorkeuren niet haalbaar zijn?", "De app meldt welke dag te veel voorkeuren heeft. Je kunt voorkeuren aanpassen of via Toch loten doorgaan; niet alle voorkeuren worden dan gevolgd."], ["Kan ik een volgende ronde loten voordat alle play-offs klaar zijn?", "Ja, zodra alle reguliere poulewedstrijden van de vorige ronde zijn ingevuld. Openstaande play-offplaatsen worden als tijdelijke A / B-plaats ingeloot. De winnaar neemt die plek later automatisch over."], ["Hoe druk ik de loting af?", "Open de gelote ronde op Loting en klik Afdrukken. Je kunt in de browser afdrukken of opslaan als PDF."], ["Hoe wijzig ik de grote tekst op de flyer?", "Open Instellingen → Toernooi en wijzig Tekst op flyers (grote titel). Bijvoorbeeld SINGLE TOERNOOI of DOUBLE TOERNOOI. De tekst geldt voor alle flyers van het gekozen toernooi."]]}, {"title": "Speeldagen en uitslagen", "items": [["Hoe voer ik een uitslag in?", "Open Speeldagen en kies de poule. Tik op de naam van de winnaar. De stand wordt direct bijgewerkt. De speler links breekt."], ["Hoe wis ik een foutieve uitslag?", "Tik bij een nog open speeldag opnieuw op de geselecteerde winnaar om die uitslag te wissen. Of gebruik Herstel vorige wedstrijd. Op een toetsenbord werken ook 1 / pijl links, 2 / pijl rechts en Backspace."], ["Waarom kan ik een afgeronde dag niet wijzigen?", "Een afgeronde speeldag wordt automatisch vergrendeld. Klik Ontgrendelen om een correctie mogelijk te maken. Vergrendel daarna opnieuw."], ["Waarom kan ik een latere speeldag niet invoeren?", "Standaard moeten eerdere speeldagen eerst afgerond zijn. Bij Instellingen → Toernooi kun je Speeldagen op volgorde afwerken uitschakelen, bijvoorbeeld als een dag uitvalt."], ["Kan ik een speeldag verplaatsen?", "Ga naar Planning en wijzig de datum van de betreffende speeldag. Zodra in die poule uitslagen zijn ingevoerd, is het datumveld vergrendeld."], ["Hoe wijzig ik de pauze?", "Ga naar Instellingen → Toernooi → Pauze in de speeldag. Kies halverwege, geen pauze of na een bepaald wedstrijdnummer."], ["Hoe toon ik een scorebord op tv?", "Open een speeldag en klik Scorebord in eigen venster. Dat venster kan op een tweede scherm of tv worden getoond."], ["Hoe maak ik een verslag van een speeldag?", "Na de reguliere wedstrijden verschijnt het automatisch samengestelde verslag onder de speeldag. Kies Andere invalshoek voor een andere variant, pas tekst aan en klik Kopieer verslag."]]}, {"title": "Standen, play-offs en doorgaan", "items": [["Hoe worden punten geteld?", "Een gewonnen wedstrijd levert één punt op. Er is geen remise. Iedereen speelt in de reguliere poule twee keer tegen iedere tegenstander; de break wisselt bij de return."], ["Wie gaat door naar de volgende ronde?", "Normaal de beste twee van elke poule. Afhankelijk van de ingestelde opzet gaat ook de beste nummer 3 per weekend door."], ["Wat gebeurt er bij een gelijke stand?", "Als een gelijke stand de doorgangsgrens raakt, maakt de app een play-off aan. Bij twee spelers kun je Best of 1, 3 of 5 kiezen; bij meer spelers een competitievariant. Bij opnieuw gelijk volgt zo nodig een extra play-off."], ["Hoe wordt de beste nummer 3 bepaald?", "De nummers 3 van twee poules in hetzelfde weekend worden op winstpercentage vergeleken. Bij gelijk volgt een onderlinge play-off, standaard Best of 3."], ["Hoe bepaal ik wie breekt in een play-off?", "Gebruik de knop 🎲 Loot wie breekt in het play-offblok voordat uitslagen zijn ingevoerd. De app verdeelt de breaks zo eerlijk mogelijk."], ["Wat als een speler niet kan deelnemen aan een play-off?", "Gebruik Winst wegens verhindering in de play-off. Daarmee krijgt de tegenstander een walk-over. Een foutieve walk-over kun je op Loting bij Geregistreerde walk-overs ongedaan maken."], ["Hoe wijzig ik een play-offvorm?", "Selecteer in het play-offblok bij Formaat de gewenste variant, vóórdat er uitslagen zijn ingevoerd. Als er al scores staan, moet de play-off eerst opnieuw worden opgezet."], ["Hoe wordt de kampioen bepaald?", "In de finale bepaalt de eindvolgorde de kampioen en de plaatsen 2 en 3. Gelijke standen die deze plaatsen raken, worden via play-offs beslist."]]}, {"title": "Break & Run en statistieken", "items": [["Hoe zet ik Break & Run aan?", "Ga naar Instellingen → Toernooi en vink Break & Run bijhouden aan."], ["Hoe registreer ik een Break & Run?", "Open de speeldag en klap 🎱 Break & Run registreren uit. Selecteer de wedstrijd en gebruik + of − bij de juiste deelnemer. De ranking wordt toernooibreed bijgehouden."], ["Hoe corrigeer ik een Break & Run?", "Selecteer dezelfde wedstrijd in het uitklapblok en gebruik de minknop om de registratie te verminderen of te verwijderen."], ["Waar zien toeschouwers de Break & Runs?", "Als de optie is ingeschakeld, verschijnt een samenvatting als voetnoot bij de speeldag. In het beheerdersblok staat de individuele ranking."]]}, {"title": "Toeschouwers en online", "items": [["Hoe maak ik het toernooi openbaar?", "Ga naar ☰ → Instellingen → Opslag en back-up → Online versie. Meld je aan en kies bij Toegang van dit toernooi Openbaar – iedereen mag bekijken."], ["Hoe deel ik de toeschouwerslink?", "Iedere editie heeft een eigen POOL LIVE-link met de unieke toernooi-ID. Je vindt de standaardlink en eventueel een eigen TinyURL via Instellingen → Toernooi. Bij Online versie kun je voor openbare toernooien de kijklink kopiëren en delen."], ["Moeten toeschouwers inloggen?", "Nee. Een openbaar toernooi is via de publieke kijklink zonder beheerdersaccount te bekijken."], ["Hoe ververs ik de stand voor toeschouwers?", "De publieke versie synchroniseert online en heeft daarnaast een knop ↻ Vernieuwen. Controleer bij problemen of het juiste toernooi openbaar staat en online is opgeslagen."], ["Kunnen twee beheerders tegelijk werken?", "Met online synchronisatie kunnen bevoegde beheerders hetzelfde toernooi openen. Voorkom dat twee beheerders tegelijkertijd dezelfde uitslag aanpassen."]]}, {"title": "Opslag, herstel en problemen", "items": [["Waar wordt de voortgang bewaard?", "De app bewaart automatisch in de huidige browser en kan online synchroniseren. Maak daarnaast geregeld een back-up via Bewaar als bestand."], ["Hoe maak ik een back-up?", "Ga naar Overzicht → Voortgang veilig stellen → Bewaar als bestand, of naar Instellingen → Opslag en back-up."], ["Hoe herstel ik een eerdere versie?", "Ga naar Instellingen → Opslag en back-up → Herstelpunten. Kies het gewenste herstelpunt en klik Terugzetten. Controleer vooraf wat je daarmee overschrijft."], ["Kan ik automatisch in een lokaal bestand bewaren?", "Ja, op ondersteunde versies van Chrome en Edge via Instellingen → Opslag en back-up → Koppel een bestand. Na heropenen kan opnieuw toestemming nodig zijn."], ["Hoe laad ik een opgeslagen bestand?", "Gebruik Open bestand… bij Overzicht of Opslag en back-up en selecteer het eerder opgeslagen JSON-bestand."], ["Wat als de verkeerde loting is uitgevoerd?", "Als er nog geen uitslagen zijn, gebruik Opnieuw loten. Zijn er al uitslagen, controleer dan eerst de beschikbare herstelpunten; voorkom verlies van gespeelde resultaten."], ["Waarom verschijnt een uitslag niet online?", "Controleer de online aanmelding, Automatisch online synchroniseren en de actieve toernooinaam. Gebruik zo nodig Nu online bewaren en ververs de publieke pagina."], ["Hoe test ik het toernooi zonder echte uitslagen?", "Schakel bij Instellingen → Toernooi de Testmodus in. Bij speeldagen verschijnen testhulpen voor willekeurige uitslagen en gelijke standen. Gebruik dit niet tijdens een echt toernooi."], ["Waar vind ik recente wijzigingen in de app?", "Open ☰ → Changelog."]]}];
 function adminFaq(){
  adminCloseMenu();
  const overlay=document.createElement('div');overlay.className='overlay admin-faq-overlay';overlay.setAttribute('role','dialog');overlay.setAttribute('aria-modal','true');overlay.setAttribute('aria-label','Hulp en FAQ');
@@ -4917,7 +5050,7 @@ function adminFaq(){
  }input.addEventListener('input',draw);overlay.querySelector('#faq-close').onclick=()=>overlay.remove();overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});const onKey=e=>{if(e.key==='Escape'){overlay.remove();document.removeEventListener('keydown',onKey)}};document.addEventListener('keydown',onKey);overlay.querySelector('#faq-close').addEventListener('click',()=>document.removeEventListener('keydown',onKey));draw();input.focus();
 }
 const ADMIN_CATALOG_KEY='pooltoernooi.admin.catalog.v1';
-const ADMIN_CHANGELOG=[['2026-11-25','Alleen plaatshouders voor de play-off beste nr. 3 zijn in de halve finale wisselbaar (ook zaterdag/zondag); uitgestelde poule-play-offs om oorspronkelijke plaats 3 blijven geblokkeerd. Maximaal een open play-offplek per speeldag.'],['2026-11-25','Wisselen bij loting: ook posities binnen een poule verwisselen; in de halve finale mogen open play-offplaatshouders meewisselen zonder de bronkoppeling te verliezen. Alleen zolang nog geen uitslagen zijn ingevoerd.'],['2026-11-24','Toernooien veilig verwijderen: hoofdbeheerder kan ook online toernooien wissen na intypen van de exacte naam; Firestore en lokaal worden opgeschoond.'],['2026-11-24','POOL LIVE-kijklinks per editie: unieke directe URL, optionele eigen korte link bij Toernooi-instellingen en correcte links bij Alle toernooien en Online versie.'],['2026-11-24','Vrij instelbare flyerhoofdtekst per toernooi via Instellingen → Toernooi; bij spelers standaard single, bij koppels double.'],['2026-11-08','Karroesel-thema opnieuw toegevoegd aan de themakeuze, inclusief beheer en toeschouwersweergave.'],['2026-11-08','Uitgebreide doorzoekbare Hulp & FAQ voor beheerders toegevoegd.'],['2026-11-07','Beheermenu, toernooiwizard, themawissel en toernooioverzicht toegevoegd.'],['2026-11-07','Mobiele wedstrijdnamen en desktopindeling verbeterd.'],['2026-11-07','LIVE-indicator en mobiele standen verbeterd.'],['2026-11-03','Break & Run registratie en toernooiranglijst toegevoegd.']];
+const ADMIN_CHANGELOG=[['2026-11-25','Beste-nr.-3-play-offs afzonderlijk herindelen: kandidaten van zaterdag en zondag mogen van tegenstander wisselen, zonder de uitgestelde interne poule-play-off te verplaatsen.'],['2026-11-25','Alleen plaatshouders voor de play-off beste nr. 3 zijn in de halve finale wisselbaar (ook zaterdag/zondag); uitgestelde poule-play-offs om oorspronkelijke plaats 3 blijven geblokkeerd. Maximaal een open play-offplek per speeldag.'],['2026-11-25','Wisselen bij loting: ook posities binnen een poule verwisselen; in de halve finale mogen open play-offplaatshouders meewisselen zonder de bronkoppeling te verliezen. Alleen zolang nog geen uitslagen zijn ingevoerd.'],['2026-11-24','Toernooien veilig verwijderen: hoofdbeheerder kan ook online toernooien wissen na intypen van de exacte naam; Firestore en lokaal worden opgeschoond.'],['2026-11-24','POOL LIVE-kijklinks per editie: unieke directe URL, optionele eigen korte link bij Toernooi-instellingen en correcte links bij Alle toernooien en Online versie.'],['2026-11-24','Vrij instelbare flyerhoofdtekst per toernooi via Instellingen → Toernooi; bij spelers standaard single, bij koppels double.'],['2026-11-08','Karroesel-thema opnieuw toegevoegd aan de themakeuze, inclusief beheer en toeschouwersweergave.'],['2026-11-08','Uitgebreide doorzoekbare Hulp & FAQ voor beheerders toegevoegd.'],['2026-11-07','Beheermenu, toernooiwizard, themawissel en toernooioverzicht toegevoegd.'],['2026-11-07','Mobiele wedstrijdnamen en desktopindeling verbeterd.'],['2026-11-07','LIVE-indicator en mobiele standen verbeterd.'],['2026-11-03','Break & Run registratie en toernooiranglijst toegevoegd.']];
 function adminCatalog(){try{return JSON.parse(localStorage.getItem(ADMIN_CATALOG_KEY)||'{}')}catch(e){return {}}}
 function adminRemember(){if(!T||!T.id||UI.viewer)return;const all=adminCatalog();all[T.id]={id:T.id,naam:T.naam,datum:T.instellingen.startdatum,gewijzigd:T.gewijzigd,locatie:locatieVoorWeergave().naam};try{localStorage.setItem(ADMIN_CATALOG_KEY,JSON.stringify(all));localStorage.setItem('pooltoernooi.admin.data.'+T.id,JSON.stringify(T))}catch(e){}}
 function adminCloseMenu(){UI.adminMenu=false}
@@ -5046,6 +5179,30 @@ async function adminLoad(id,duplicate){let item=null;try{item=JSON.parse(localSt
 function adminTheme(){adminCloseMenu();const loc=locatieVoorWeergave();dialoog({titel:'Thema huidig toernooi',html:'<p>Wijzig het uiterlijk zonder loting of uitslagen te veranderen.</p><label class="f">Thema<select id="admin-theme">'+Object.keys(THEMAS).map(k=>'<option value="'+k+'"'+(loc.thema===k?' selected':'')+'>'+esc(THEMAS[k].naam)+'</option>').join('')+'</select></label>',knoppen:[{label:'Annuleren',val:null,cls:'sec'},{label:'Thema toepassen',val:'apply'}],lees:ov=>$('#admin-theme',ov).value}).then(v=>{if(!v)return;loc.thema=v;commit();toast('Thema aangepast');});}
 function adminChangelog(){adminCloseMenu();melding('Changelog',ADMIN_CHANGELOG.map(([d,t])=>'<p><b>'+esc(d)+'</b> · '+esc(t)+'</p>').join('')+'<p class="small muted">Alleen wijzigingen die betrouwbaar zijn vastgelegd worden getoond.</p>');}
 const ACT = {
+  async 'derde-kandidaten'(b) {
+    const next=b.dataset.key, key=P.vorigeKey(T,next);
+    if(!key)return;
+    const groepen=[P.derdeBronPoules(T,key,0),P.derdeBronPoules(T,key,1)];
+    if(groepen.some(g=>g.length!==2))return toast('Er zijn niet twee volledige beste-derde-play-offs.',true);
+    const fmt=p=>{
+      if(p.pp && !p.pp.voltooid && p.pp.stappen?.length) return 'Winnaar '+p.pp.stappen[0].groep.map(spelerNaam).join(' / ');
+      if(P.pouleAfgerond(T,p)) return spelerNaam(P.eindvolgorde(T,p)[2]);
+      return 'Nr. 3 uit poule '+p.nr;
+    };
+    const label=(i)=>{
+      const token='phx:'+key+':d'+i, pos=P.positieVan(T,next,token);
+      const dag=pos&&P.planDag(T,next,pos.poule.nr);
+      return dag ? dagLabelLang(dag.dag)+' '+P.datumKort(dag.datum) : 'Play-off '+(i+1);
+    };
+    const sel=(i)=>'<label class="f"><span>'+esc(label(i))+'</span><select id="d3-bron-'+i+'">'+groepen[i].map(p=>'<option value="'+p.nr+'">'+esc(fmt(p))+' · bronpoule '+p.nr+'</option>').join('')+'</select></label>';
+    const html='<p>Wissel één kandidaat uit de zaterdagse en één uit de zondagse beste-nr.-3-play-off. De nog uitgestelde play-off <b>binnen de oorspronkelijke poule</b> blijft op zijn oorspronkelijke plek.</p>'+sel(0)+sel(1)+'<p class="small muted">De spelers worden opnieuw aan een tegenstander gekoppeld. De open halvefinale-plaatshouders blijven staan, maar hun kandidaatnamen worden bijgewerkt.</p>';
+    const keuze=await dialoog({titel:'Beste nr. 3 – tegenstanders wisselen',html,ok:'Kandidaten wisselen',lees:ov=>({a:Number($('#d3-bron-0',ov).value),b:Number($('#d3-bron-1',ov).value)})});
+    if(!keuze)return;
+    maakHerstelpunt('Voor herindelen beste nr. 3');
+    const res=P.wisselDerdeKandidaten(T,next,keuze.a,keuze.b);
+    if(!res.ok)return toast(res.tekst||'Wisselen niet mogelijk',true);
+    commit();toast('De twee beste-nr.-3-play-offs zijn opnieuw ingedeeld.');
+  },
   'flyer-open'(b) { flyerOpen(b.dataset.key || lotingKey()); },
   'flyer-poule'(b) { flyerOpen(b.dataset.key || lotingKey(),Number(b.dataset.nr)); },
   'admin-menu'(){UI.adminMenu=!UI.adminMenu;render()},
