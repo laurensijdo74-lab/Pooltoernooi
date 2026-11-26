@@ -1892,11 +1892,13 @@ function hoogstMogelijkeDerde(poule) { return derdeBereik(poule).max; }
 function pouleKansen(T, key, poule) {
   const sc = eindscoreScenario(poule), ids = sc.ids, n = ids.length;
   const pr = planRonde(T, key), rd = T.rondes[key];
-  const ix = rd && rd.poules ? rd.poules.indexOf(poule) : -1;
-  const besteDerde = !!(pr && pr.derden && ix >= 0 && Math.floor(ix / 2) < Math.floor(rd.poules.length / 2));
-  const partner = besteDerde ? rd.poules[ix % 2 === 0 ? ix + 1 : ix - 1] : null;
+  // Bij een kandidaatwissel kan de nummer 3 van een poule tegen een andere
+  // speeldag zijn ingedeeld. Ook de kansberekening volgt die actuele indeling.
+  const pi = rd && rd.poules ? derdePaarIndexVoorPoule(T, key, poule.nr) : -1;
+  const besteDerde = !!(pr && pr.derden && pi >= 0 && pi < pr.derden);
+  const partner = besteDerde ? derdeBronPoules(T, key, pi).find(p => p.nr !== poule.nr) : null;
   const partnerSc = partner ? eindscoreScenario(partner) : null;
-  const signatuur = key + ':' + !!besteDerde + ':' + (partnerSc ? partnerSc.vingerafdruk : '') + ':' + sc.vingerafdruk;
+  const signatuur = key + ':' + pi + ':' + !!besteDerde + ':' + (partnerSc ? partnerSc.vingerafdruk : '') + ':' + sc.vingerafdruk;
   if (sc.statusKey === signatuur && sc.status) return sc.status;
   const drempelDerde = partner ? laagstMogelijkeDerde(partner) : Infinity;
   const maxDerde = partner ? hoogstMogelijkeDerde(partner) : Infinity;
@@ -2412,9 +2414,14 @@ function derdePunten(T, poule, id) {
 function derdeBronPoules(T, key, i) {
   const r = T.rondes[key];
   if (!r || !Array.isArray(r.poules)) return [];
-  const aangepast = T.derdePaarIndeling && T.derdePaarIndeling[key];
-  const nummers = aangepast && Array.isArray(aangepast[i]) ? aangepast[i] : [2 * i + 1, 2 * i + 2];
-  return nummers.map(n => r.poules.find(p => p.nr === n)).filter(Boolean);
+  const beheer = T.derdePaarIndeling && T.derdePaarIndeling[key];
+  const publiek = T.publiekeDerdePaarIndeling && T.publiekeDerdePaarIndeling[key];
+  // Een gepubliceerde indeling is een fallback voor oudere snapshots.
+  // Het actuele beheerobject blijft altijd de eerste bron.
+  const aangepast = Array.isArray(beheer) ? beheer : (Array.isArray(publiek) ? publiek : null);
+  const nummers = aangepast && Array.isArray(aangepast[i]) && aangepast[i].length === 2
+    ? aangepast[i] : [2 * i + 1, 2 * i + 2];
+  return nummers.map(n => r.poules.find(p => p.nr === Number(n))).filter(Boolean);
 }
 function derdePaarIndexVoorPoule(T, key, nr) {
   const r = T.rondes[key];
@@ -3116,7 +3123,7 @@ function pasThemaToe(loc) {
 /* ---------- opslag ---------- */
 const LS_KEY = 'pooltoernooi.v1.actief', LS_HP = 'pooltoernooi.v1.herstelpunten';
 let saveTimer = null, fileTimer = null, laatsteHerstelpunt = 0;
-let onlineSaveTimer = null, onlineUnsub = null, onlineApplying = false;
+let onlineSaveTimer = null, onlineUnsub = null, onlineApplying = false, onlineSaving = false;
 let publiekeVerversingTimer = null, publiekeVerversingBezig = false, publiekeFirestoreUnsub = null;
 function laadOpgeslagen() {
   try {
@@ -3167,11 +3174,10 @@ function startOnlineSynchronisatie() {
     const remoteTime = Date.parse(remote.gewijzigd || '') || 0;
     const localTime = Date.parse(T.gewijzigd || '') || 0;
     // Never discard local edits that are still waiting to be uploaded.
-    if (onlineSaveTimer) return;
+    if (onlineSaveTimer || onlineSaving) return;
     // Equal timestamps can occur with imported snapshots. Avoid a pointless rerender.
     if (remoteTime < localTime) return;
-    if (remoteTime === localTime && JSON.stringify(remote.rondes) === JSON.stringify(T.rondes) &&
-        JSON.stringify(remote.derden) === JSON.stringify(T.derden)) return;
+    if (remoteTime === localTime && JSON.stringify(remote) === JSON.stringify(T)) return;
     onlineApplying = true;
     try {
       const tab = UI.tab, dag = UI.dag && { key: UI.dag.key, nr: UI.dag.nr };
@@ -3191,7 +3197,8 @@ function startOnlineSynchronisatie() {
 
 async function synchroniseerOnlineNu() {
   const o = window.POOL_ONLINE;
-  if (!onlineActief()) return false;
+  if (!onlineActief() || onlineSaving) return false;
+  onlineSaving = true;
   try {
     // Publicatie is een projectie van de actuele beheerindeling, niet van
     // oude standaardparen. Ook bij 'Nu online bewaren' zonder andere mutatie.
@@ -3208,7 +3215,11 @@ async function synchroniseerOnlineNu() {
     bewaarNu();
     startOnlineSynchronisatie();
     return true;
-  } catch (e) { return false; }
+  } catch (e) {
+    console.error('POOL: online bewaren mislukt', e);
+    toast('Online synchroniseren mislukt. De wijziging staat nog lokaal; controleer de verbinding en gebruik Nu online bewaren.', true);
+    return false;
+  } finally { onlineSaving = false; }
 }
 
 function planOnlineSynchronisatie() {
@@ -5125,7 +5136,7 @@ function adminAll(){
  const groepen=new Map();
  rows.forEach(x=>{const naam=x.locatie||x.locatieNaam||adminTournamentData(x.id)?.locaties?.[0]?.naam||'Locatie onbekend';if(!groepen.has(naam))groepen.set(naam,[]);groepen.get(naam).push(x)});
  const html=[...groepen.entries()].sort((a,b)=>a[0].localeCompare(b[0],'nl')).map(([loc,items])=>'<section class="admin-tourney-group"><h4>📍 '+esc(loc)+' <span class="muted small">('+items.length+')</span></h4>'+items.map(x=>{
- const data=adminTournamentData(x.id),status=data?adminTournamentStatus(data):x.concept===true?'concept':x.concept===false?'actief':'onbekend';
+ const data=adminTournamentData(x.id),status=x.online&&typeof x.concept==='boolean'?(x.concept?'concept':'actief'):(data?adminTournamentStatus(data):x.concept===true?'concept':x.concept===false?'actief':'onbekend');
  const isHoofdbeheerder=window.POOL_ONLINE?.state?.profile?.globalRole==='superadmin';
  // De online delete controleert de rol en het live Firebase-document opnieuw.
  const magWeg=!!x.id&&x.id!==T.id&&(x.online?isHoofdbeheerder:!!data&&status==='concept');
@@ -5196,7 +5207,56 @@ async function adminDelete(id){
  toast(lokaalOpgeruimd?'Toernooi definitief verwijderd.':'Toernooi online verwijderd, maar lokale gegevens konden niet helemaal worden opgeschoond. Controleer de browseropslag.',!lokaalOpgeruimd);
  adminAll();
 }
-async function adminLoad(id,duplicate){let item=null;try{item=JSON.parse(localStorage.getItem('pooltoernooi.admin.data.'+id)||'null')}catch(e){}if(!item&&window.POOL_ONLINE?.loadTournament){try{item=await window.POOL_ONLINE.loadTournament(id)}catch(e){}}if(!item){toast('Toernooi niet beschikbaar. Meld je aan voor online toernooien.',true);return}if(!duplicate&&!(await bevestig('Open '+esc(item.naam)+'? De huidige stand wordt apart bewaard.',{titel:'Toernooi wisselen',ja:'Openen'})))return;adminRemember();stopOnlineSynchronisatie();if(duplicate){item=JSON.parse(JSON.stringify(item));item.id=P.uid('t');item.naam+=' (kopie)';item.instellingen=item.instellingen||{};item.instellingen.kijklinkEigen='';item.online={toegang:'besloten',synchroniseren:true,gepubliceerd:false};item.gewijzigd=new Date().toISOString()}T=item;migreerNaLaden();UI.tab='overzicht';UI.dag=null;UI.lotingKey=null;commit();adminRemember();startOnlineSynchronisatie();toast(duplicate?'Kopie gemaakt':'Toernooi geopend');}
+async function adminLoad(id, duplicate) {
+  id = String(id || '').trim();
+  if (!id) return;
+  let local = null, remote = null;
+  try { local = JSON.parse(localStorage.getItem('pooltoernooi.admin.data.' + id) || 'null'); } catch (e) {}
+  const online = window.POOL_ONLINE;
+  const verbonden = !!(online?.state?.user && online?.loadTournament);
+  if (verbonden) {
+    try {
+      remote = await online.loadTournament(id);
+    } catch (e) {
+      // An online access problem must not cause an outdated locally cached
+      // tournament to be uploaded under the same ID later.
+      toast('Online toernooi niet bereikbaar: ' + String(e?.message || e) + '. Probeer opnieuw.', true);
+      return;
+    }
+  }
+  const item = remote || local;
+  if (!item) {
+    toast('Toernooi niet beschikbaar. Meld je aan voor online toernooien.', true);
+    return;
+  }
+  if (!duplicate && !(await bevestig('Open ' + esc(item.naam) + '? De huidige stand wordt apart bewaard.',
+    {titel:'Toernooi wisselen', ja:'Openen'}))) return;
+  adminRemember();
+  stopOnlineSynchronisatie();
+  if (duplicate) {
+    const kopie = JSON.parse(JSON.stringify(item));
+    kopie.id = P.uid('t');
+    kopie.naam += ' (kopie)';
+    kopie.instellingen = kopie.instellingen || {};
+    kopie.instellingen.kijklinkEigen = '';
+    kopie.online = {toegang:'besloten', synchroniseren:true, gepubliceerd:false};
+    kopie.gewijzigd = new Date().toISOString();
+    T = kopie;
+  } else {
+    T = item;
+  }
+  migreerNaLaden();
+  UI.tab = 'overzicht'; UI.dag = null; UI.lotingKey = null; UI.stand = null;
+  if (duplicate) {
+    commit();
+  } else {
+    // Geen commit(): dat verhoogde onterecht de tijdstempel en publiceerde
+    // bij alleen openen soms een verouderde lokale versie naar Firebase.
+    bewaarNu(); adminRemember(); render();
+  }
+  startOnlineSynchronisatie();
+  toast(duplicate ? 'Kopie gemaakt' : 'Toernooi geopend' + (remote ? ' (online versie)' : ' (lokaal)'));
+}
 function adminTheme(){adminCloseMenu();const loc=locatieVoorWeergave();dialoog({titel:'Thema huidig toernooi',html:'<p>Wijzig het uiterlijk zonder loting of uitslagen te veranderen.</p><label class="f">Thema<select id="admin-theme">'+Object.keys(THEMAS).map(k=>'<option value="'+k+'"'+(loc.thema===k?' selected':'')+'>'+esc(THEMAS[k].naam)+'</option>').join('')+'</select></label>',knoppen:[{label:'Annuleren',val:null,cls:'sec'},{label:'Thema toepassen',val:'apply'}],lees:ov=>$('#admin-theme',ov).value}).then(v=>{if(!v)return;loc.thema=v;commit();toast('Thema aangepast');});}
 function adminChangelog(){adminCloseMenu();melding('Changelog',ADMIN_CHANGELOG.map(([d,t])=>'<p><b>'+esc(d)+'</b> · '+esc(t)+'</p>').join('')+'<p class="small muted">Alleen wijzigingen die betrouwbaar zijn vastgelegd worden getoond.</p>');}
 const ACT = {
@@ -5371,7 +5431,9 @@ const ACT = {
       const remote = await o.loadTournament(T.id);
       if (!remote) { toast('Er is nog geen online versie van dit toernooi.', true); return; }
       if (!(await bevestig('De online versie vervangt de huidige lokale stand. De huidige stand wordt eerst als herstelpunt bewaard.', { titel: 'Online versie laden?', ja: 'Online versie laden' }))) return;
-      maakHerstelpunt('Voor online laden'); T = remote; migreerNaLaden(); stopAnimatie(); UI.dag = null; UI.lotingKey = null; UI.tab = 'overzicht'; commit(); toast('Online versie geladen');
+      maakHerstelpunt('Voor online laden'); stopOnlineSynchronisatie();
+      T = remote; migreerNaLaden(); stopAnimatie(); UI.dag = null; UI.lotingKey = null; UI.tab = 'overzicht';
+      bewaarNu(); adminRemember(); render(); startOnlineSynchronisatie(); toast('Online versie geladen');
     } catch (e) { toast((e && e.message) || 'Online laden mislukt', true); render(); }
   },
   async 'copy-standard-public-link'() {
@@ -5669,7 +5731,7 @@ async function start() {
       let selected=null;
       try{selected=JSON.parse(localStorage.getItem('pooltoernooi.admin.data.'+targetId)||'null')}catch(e){}
       if(window.POOL_ONLINE?.state?.user && window.POOL_ONLINE.loadTournament){
-        try{const remote=await window.POOL_ONLINE.loadTournament(targetId);if(remote)selected=remote}catch(e){}
+        try{const remote=await window.POOL_ONLINE.loadTournament(targetId);if(remote)selected=remote;else selected=null}catch(e){toast('Online toernooi kon niet worden geladen: '+String(e?.message||e),true);return;}
       }
       if(!selected){toast('Toernooi niet beschikbaar. Meld je aan met een bevoegd beheeraccount.',true);return;}
       stopOnlineSynchronisatie();T=selected;migreerNaLaden();UI.tab='overzicht';UI.dag=null;UI.lotingKey=null;
@@ -5685,9 +5747,8 @@ async function start() {
       const id = T.id;
       try {
         const remote = await o.loadTournament(id);
-        if (remote && T && T.id === id && !onlineSaveTimer &&
-            (Date.parse(remote.gewijzigd || '') || 0) >= (Date.parse(T.gewijzigd || '') || 0) &&
-            JSON.stringify(remote.rondes) !== JSON.stringify(T.rondes)) {
+        if (remote && T && T.id === id && !onlineSaveTimer && !onlineSaving &&
+            JSON.stringify(remote) !== JSON.stringify(T)) {
           const tab = UI.tab, dag = UI.dag && { ...UI.dag }, dagLijst = UI.dagLijst;
           maakHerstelpunt('Voor eerste online verversing');
           onlineApplying = true;
