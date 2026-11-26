@@ -4757,6 +4757,7 @@ function onlineHtml() {
       '<label class="f"><span>Toegang van dit toernooi</span><select data-chg="online-toegang"><option value="besloten"' + (toegang === 'besloten' ? ' selected' : '') + '>Besloten – alleen bevoegde gebruikers</option><option value="openbaar"' + (toegang === 'openbaar' ? ' selected' : '') + '>Openbaar – iedereen mag bekijken</option></select></label>' +
       '<label class="row small"><input type="checkbox" data-chg="online-synchroniseren"' + (sync ? ' checked' : '') + '> Automatisch online synchroniseren</label>' +
       '<div class="row"><button class="btn" data-act="online-upload">Nu online bewaren</button><button class="btn sec" data-act="online-laden">Online laden</button><button class="btn sec" data-act="online-logout">Afmelden</button></div>' +
+      '<div class="note small"><b>Verschillende play-offtegenstanders op je apparaten?</b><p>Herstel alleen de wisselindeling uit een juiste JSON-back-up, zonder andere online uitslagen, spelers of toernooi-instellingen te vervangen.</p><button class="btn sec sm" data-act="online-herstel-derden">Herstel play-offwissel uit JSON</button></div>' +
       '<p class="small muted">Laatste online versie: ' + esc(tijdTekst(T.laatsteOnline)) + '.</p>' + publicBlock + (s.error ? '<div class="note bad small">' + esc(s.error) + '</div>' : '') + '</div></div>';
   }
   return '<div class="sect"><header><h3>Online versie</h3><span class="chip ' + (s.status === 'fout' ? 'bad' : '') + '">' + esc(s.status === 'initialiseren' ? 'Initialiseren…' : 'Niet aangemeld') + '</span></header><div class="body stack"><p class="small">Meld aan om dit toernooi centraal te bewaren en vanaf een andere computer te openen.</p><label class="f"><span>E-mailadres</span><input id="onlineEmail" type="email" autocomplete="username" placeholder="naam@voorbeeld.nl"></label><label class="f"><span>Wachtwoord</span><input id="onlinePassword" type="password" autocomplete="current-password"></label><button class="btn" data-act="online-login">Aanmelden</button>' + (s.error ? '<div class="note bad small">' + esc(s.error) + '</div>' : '') + '</div></div>';
@@ -5082,7 +5083,7 @@ function adminFaq(){
  }input.addEventListener('input',draw);overlay.querySelector('#faq-close').onclick=()=>overlay.remove();overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove()});const onKey=e=>{if(e.key==='Escape'){overlay.remove();document.removeEventListener('keydown',onKey)}};document.addEventListener('keydown',onKey);overlay.querySelector('#faq-close').addEventListener('click',()=>document.removeEventListener('keydown',onKey));draw();input.focus();
 }
 const ADMIN_CATALOG_KEY='pooltoernooi.admin.catalog.v1';
-const ADMIN_CHANGELOG=[['2026-11-25','Beste-nr.-3-play-offs afzonderlijk herindelen: kandidaten van zaterdag en zondag mogen van tegenstander wisselen, zonder de uitgestelde interne poule-play-off te verplaatsen.'],['2026-11-25','Alleen plaatshouders voor de play-off beste nr. 3 zijn in de halve finale wisselbaar (ook zaterdag/zondag); uitgestelde poule-play-offs om oorspronkelijke plaats 3 blijven geblokkeerd. Maximaal een open play-offplek per speeldag.'],['2026-11-25','Wisselen bij loting: ook posities binnen een poule verwisselen; in de halve finale mogen open play-offplaatshouders meewisselen zonder de bronkoppeling te verliezen. Alleen zolang nog geen uitslagen zijn ingevoerd.'],['2026-11-24','Toernooien veilig verwijderen: hoofdbeheerder kan ook online toernooien wissen na intypen van de exacte naam; Firestore en lokaal worden opgeschoond.'],['2026-11-24','POOL LIVE-kijklinks per editie: unieke directe URL, optionele eigen korte link bij Toernooi-instellingen en correcte links bij Alle toernooien en Online versie.'],['2026-11-24','Vrij instelbare flyerhoofdtekst per toernooi via Instellingen → Toernooi; bij spelers standaard single, bij koppels double.'],['2026-11-08','Karroesel-thema opnieuw toegevoegd aan de themakeuze, inclusief beheer en toeschouwersweergave.'],['2026-11-08','Uitgebreide doorzoekbare Hulp & FAQ voor beheerders toegevoegd.'],['2026-11-07','Beheermenu, toernooiwizard, themawissel en toernooioverzicht toegevoegd.'],['2026-11-07','Mobiele wedstrijdnamen en desktopindeling verbeterd.'],['2026-11-07','LIVE-indicator en mobiele standen verbeterd.'],['2026-11-03','Break & Run registratie en toernooiranglijst toegevoegd.']];
+const ADMIN_CHANGELOG=[['2026-11-26','POOL LIVE: beste-nr.-3-wissel uit een JSON-back-up gericht online herstellen zonder overige toernooigegevens te overschrijven. Bij nieuwere Firebase-versie wordt ouder lokaal bewaren geblokkeerd.'],['2026-11-25','Beste-nr.-3-play-offs afzonderlijk herindelen: kandidaten van zaterdag en zondag mogen van tegenstander wisselen, zonder de uitgestelde interne poule-play-off te verplaatsen.'],['2026-11-25','Alleen plaatshouders voor de play-off beste nr. 3 zijn in de halve finale wisselbaar (ook zaterdag/zondag); uitgestelde poule-play-offs om oorspronkelijke plaats 3 blijven geblokkeerd. Maximaal een open play-offplek per speeldag.'],['2026-11-25','Wisselen bij loting: ook posities binnen een poule verwisselen; in de halve finale mogen open play-offplaatshouders meewisselen zonder de bronkoppeling te verliezen. Alleen zolang nog geen uitslagen zijn ingevoerd.'],['2026-11-24','Toernooien veilig verwijderen: hoofdbeheerder kan ook online toernooien wissen na intypen van de exacte naam; Firestore en lokaal worden opgeschoond.'],['2026-11-24','POOL LIVE-kijklinks per editie: unieke directe URL, optionele eigen korte link bij Toernooi-instellingen en correcte links bij Alle toernooien en Online versie.'],['2026-11-24','Vrij instelbare flyerhoofdtekst per toernooi via Instellingen → Toernooi; bij spelers standaard single, bij koppels double.'],['2026-11-08','Karroesel-thema opnieuw toegevoegd aan de themakeuze, inclusief beheer en toeschouwersweergave.'],['2026-11-08','Uitgebreide doorzoekbare Hulp & FAQ voor beheerders toegevoegd.'],['2026-11-07','Beheermenu, toernooiwizard, themawissel en toernooioverzicht toegevoegd.'],['2026-11-07','Mobiele wedstrijdnamen en desktopindeling verbeterd.'],['2026-11-07','LIVE-indicator en mobiele standen verbeterd.'],['2026-11-03','Break & Run registratie en toernooiranglijst toegevoegd.']];
 function adminCatalog(){try{return JSON.parse(localStorage.getItem(ADMIN_CATALOG_KEY)||'{}')}catch(e){return {}}}
 function adminRemember(){if(!T||!T.id||UI.viewer)return;const all=adminCatalog();all[T.id]={id:T.id,naam:T.naam,datum:T.instellingen.startdatum,gewijzigd:T.gewijzigd,locatie:locatieVoorWeergave().naam};try{localStorage.setItem(ADMIN_CATALOG_KEY,JSON.stringify(all));localStorage.setItem('pooltoernooi.admin.data.'+T.id,JSON.stringify(T))}catch(e){}}
 function adminCloseMenu(){UI.adminMenu=false}
@@ -5259,7 +5260,109 @@ async function adminLoad(id, duplicate) {
 }
 function adminTheme(){adminCloseMenu();const loc=locatieVoorWeergave();dialoog({titel:'Thema huidig toernooi',html:'<p>Wijzig het uiterlijk zonder loting of uitslagen te veranderen.</p><label class="f">Thema<select id="admin-theme">'+Object.keys(THEMAS).map(k=>'<option value="'+k+'"'+(loc.thema===k?' selected':'')+'>'+esc(THEMAS[k].naam)+'</option>').join('')+'</select></label>',knoppen:[{label:'Annuleren',val:null,cls:'sec'},{label:'Thema toepassen',val:'apply'}],lees:ov=>$('#admin-theme',ov).value}).then(v=>{if(!v)return;loc.thema=v;commit();toast('Thema aangepast');});}
 function adminChangelog(){adminCloseMenu();melding('Changelog',ADMIN_CHANGELOG.map(([d,t])=>'<p><b>'+esc(d)+'</b> · '+esc(t)+'</p>').join('')+'<p class="small muted">Alleen wijzigingen die betrouwbaar zijn vastgelegd worden getoond.</p>');}
+/* Een lokale JSON-back-up is een betrouwbare bron voor een eerder vastgelegde
+   wissel, maar nooit voor het overschrijven van de hele actuele cloudstand.
+   Valideer uitsluitend de indeling van de beste nummers 3. */
+function valideerDerdePaarBackup(backup, huidigId) {
+  if (!backup || !backup.id || backup.id !== huidigId) throw new Error('Deze back-up hoort niet bij het geopende toernooi.');
+  const bron = backup.derdePaarIndeling || {};
+  const resultaat = {};
+  for (const [key, pairs] of Object.entries(bron)) {
+    const poules = backup.rondes && backup.rondes[key] && backup.rondes[key].poules;
+    const plan = backup.plan && backup.plan.rondes && backup.plan.rondes.find(r => r.key === key);
+    if (!Array.isArray(poules) || !plan || !plan.derden || !Array.isArray(pairs)) continue;
+    const n = poules.length;
+    if (!n || n % 2 || pairs.length !== n/2) throw new Error('Ongeldige indeling voor ' + key + '.');
+    const geldig = new Set(poules.map(p => Number(p.nr)));
+    const gezien = new Set();
+    for (const pair of pairs) {
+      if (!Array.isArray(pair) || pair.length !== 2) throw new Error('Ongeldig beste-derde-paar in ' + key + '.');
+      for (const nummer of pair) {
+        const nr = Number(nummer);
+        if (!Number.isInteger(nr) || !geldig.has(nr) || gezien.has(nr)) throw new Error('Dubbele of onbekende bronpoule in ' + key + '.');
+        gezien.add(nr);
+      }
+    }
+    if (gezien.size !== n) throw new Error('Niet alle bronpoules komen voor in ' + key + '.');
+    resultaat[key] = pairs.map(pair => pair.map(Number));
+  }
+  if (!Object.keys(resultaat).length) throw new Error('Deze back-up bevat geen handmatige indeling van beste-nr.-3-play-offs.');
+  return resultaat;
+}
+function beschrijfDerdePaarBackup(backup, indeling) {
+  let regels = [];
+  Object.entries(indeling).forEach(([key, pairs]) => {
+    const na = P.volgendeKey(backup,key);
+    const volgende = na && backup.rondes[na];
+    pairs.forEach((nums,i) => {
+      const token = 'phx:'+key+':d'+i;
+      const doel = volgende && volgende.poules && volgende.poules.find(p => p.spelers.includes(token));
+      const dag = doel && P.planDag(backup,na,doel.nr);
+      const datum = dag ? P.datumKort(dag.datum) : 'Play-off '+(i+1);
+      const poules = nums.map(n => backup.rondes[key].poules.find(p => Number(p.nr)===n));
+      const deelnemers = poules.map(p => {
+        if (!p) return 'Poule '+i;
+        if (p.pp && !p.pp.voltooid && p.pp.k===3 && p.pp.stappen && p.pp.stappen[0])
+          return p.pp.stappen[0].groep.map(x=>P.naamVan(backup,x)).join(' / ');
+        return P.naamVan(backup,P.derdeVan(backup,p)) || ('Nr. 3 poule '+p.nr);
+      });
+      regels.push('<tr><td>'+esc(datum)+'</td><td>'+esc(deelnemers.join(' tegen '))+'</td></tr>');
+    });
+  });
+  return '<table class="t"><thead><tr><th>Speeldag</th><th>Play-offkandidaten</th></tr></thead><tbody>'+regels.join('')+'</tbody></table>';
+}
+async function herstelDerdePaarUitBestand(file) {
+  const online = window.POOL_ONLINE;
+  if (!online || !online.state?.user || !online.patchThirdPairings) throw new Error('Log eerst in bij Online versie.');
+  if (onlineSaveTimer || onlineSaving) throw new Error('Er is nog een online opslag bezig. Probeer het daarna opnieuw.');
+  const r = leesImport(await file.text());
+  if (r.fout) throw new Error(r.fout);
+  const backup = r.T;
+  const indeling = valideerDerdePaarBackup(backup, T.id);
+  const remote = await online.loadTournament(T.id);
+  if (!remote) throw new Error('Dit toernooi bestaat niet (meer) in Firebase.');
+  const gewijzigd = Object.entries(indeling).filter(([key,pairs]) =>
+    JSON.stringify((remote.derdePaarIndeling||{})[key] || null) !== JSON.stringify(pairs));
+  if (!gewijzigd.length) {
+    toast('De online wisselindeling is al gelijk aan de back-up.');
+    return;
+  }
+  const kiezen = await bevestig(
+    '<b>Deze indeling uit de back-up publiceren:</b>'+beschrijfDerdePaarBackup(backup,Object.fromEntries(gewijzigd))+
+    '<p>Alleen de koppeling tussen de beste nummers 3 wordt gewijzigd. De huidige online poules, uitslagen, standen en andere instellingen blijven behouden. Firebase controleert vooraf of er inmiddels wedstrijden zijn gespeeld.</p>',
+    {titel:'Play-offwissel gericht herstellen',ja:'Wissel online herstellen'});
+  if (!kiezen) return;
+  maakHerstelpunt('Voor online herstel play-offwissel');
+  stopOnlineSynchronisatie();
+  try {
+    const result = await online.patchThirdPairings(T.id, Object.fromEntries(gewijzigd));
+    if (!result || !result.changed) {toast('De online indeling was inmiddels al bijgewerkt.');return;}
+    const nieuwe = await online.loadTournament(T.id);
+    if (!nieuwe) throw new Error('De online correctie is bewaard, maar kon niet opnieuw worden ingeladen.');
+    onlineApplying=true;
+    try {
+      const vorigeTab=UI.tab;
+      T=nieuwe; migreerNaLaden(); UI.tab=vorigeTab; UI.dag=null; UI.lotingKey=null;
+      bewaarNu(); adminRemember(); render();
+    } finally {onlineApplying=false;}
+    toast('Play-offwissel online hersteld. POOL LIVE neemt deze nu over.');
+  } finally {
+    startOnlineSynchronisatie();
+  }
+}
+function kiesDerdePaarBackup() {
+  const picker=document.createElement('input');
+  picker.type='file'; picker.accept='.json,application/json'; picker.style.display='none';
+  document.body.appendChild(picker);
+  picker.addEventListener('change',async()=>{
+    const file=picker.files && picker.files[0];picker.remove();if(!file)return;
+    try{await herstelDerdePaarUitBestand(file);}catch(e){toast(e?.message||'Play-offwissel kon niet worden hersteld.',true);console.error(e);}
+  },{once:true});
+  picker.click();
+}
+
 const ACT = {
+  'online-herstel-derden'(){ kiesDerdePaarBackup(); },
   async 'derde-kandidaten'(b) {
     const next=b.dataset.key, key=P.vorigeKey(T,next);
     if(!key)return;
@@ -5803,7 +5906,7 @@ import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut
 } from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-auth.js';
 import {
-  getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp, collection, getDocs, query, where, runTransaction
+  getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp, deleteField, collection, getDocs, query, where, runTransaction
 } from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js';
 
 const cfg = window.POOL_ONLINE_CONFIG || {};
@@ -5919,6 +6022,9 @@ async function saveTournament(T, extra) {
     if (existing) {
       if (existing.locatieId !== locationId) throw new Error('Locatie van bestaand toernooi mag niet wijzigen');
       if (existing.state?.locatieId && existing.state.locatieId !== locationId) throw new Error('Locatiekoppeling komt niet overeen');
+      const cloudTime=Date.parse(existing.state?.gewijzigd || existing.gewijzigd || '') || 0;
+      const localTime=Date.parse(T.gewijzigd || '') || 0;
+      if(cloudTime>localTime+1000) throw new Error('Er is een nieuwere online versie. Je lokale versie wordt niet over de online gegevens heen geschreven. Laad eerst de online versie of herstel alleen de wissel vanuit JSON.');
     }
     const payload = {
       id,
@@ -5990,6 +6096,66 @@ async function deleteTournament(id,expectedName,expectedVersion){
     if(e?.code==='permission-denied')throw new Error('Firebase weigert verwijderen. Controleer of de Firestore-regels verwijderen toestaan voor superadmin.');
     throw e;
   }
+}
+
+// Gericht herstel vanuit een JSON-back-up. Geen volledige setDoc(state):
+// een online uitslag die nieuwer is dan de back-up mag nooit verdwijnen.
+async function patchThirdPairings(id, indeling) {
+  await ready; assertOnline();
+  id=String(id||'').trim();
+  if(!id || !indeling || !Object.keys(indeling).length) throw new Error('Geen geldige play-offindeling opgegeven.');
+  const ref=doc(db,'tournaments',id);
+  let changed=false;
+  await runTransaction(db,async tx=>{
+    const snap=await tx.get(ref);
+    if(!snap.exists()) throw new Error('Het online toernooi is niet gevonden.');
+    const data=snap.data()||{},online=data.state||{};
+    assertTournamentAccess(String(data.locatieId||online.locatieId||''));
+    if(String(online.id||data.id)!==id) throw new Error('De toernooi-ID komt niet overeen.');
+    const update={};
+    for(const [key,paren] of Object.entries(indeling)){
+      const rond=online.rondes && online.rondes[key];
+      const plan=online.plan && online.plan.rondes && online.plan.rondes.find(r=>r.key===key);
+      if(!rond?.geloot || !plan?.derden || !Array.isArray(rond.poules)) throw new Error('De play-offronde '+key+' bestaat niet online.');
+      const geldig=new Set(rond.poules.map(p=>Number(p.nr)));
+      const gezien=new Set();
+      if(rond.poules.length%2 || !Array.isArray(paren) || paren.length!==rond.poules.length/2) throw new Error('Het aantal bronpoules van '+key+' klopt niet.');
+      for(const paar of paren){
+        if(!Array.isArray(paar)||paar.length!==2) throw new Error('Ongeldig paar in '+key+'.');
+        for(const n of paar){const nr=Number(n);if(!Number.isInteger(nr)||!geldig.has(nr)||gezien.has(nr))throw new Error('Ongeldige of dubbele poule in '+key+'.');gezien.add(nr);}
+      }
+      const huidige=online.derdePaarIndeling?.[key]||null;
+      if(JSON.stringify(huidige)===JSON.stringify(paren))continue;
+      const rondeIdx=online.plan.rondes.findIndex(r=>r.key===key);
+      const volgende=online.plan.rondes[rondeIdx+1]?.key;
+      const next=volgende&&online.rondes?.[volgende];
+      // Ook uitslagen in volgende ronde voorkomen een stille herindeling.
+      if(next?.poules?.some(p=>(p.schema||[]).some(g=>g.w) ||
+          p.pp?.stappen?.some(s=>(s.games||[]).some(g=>g.w)) ||
+          p.fin?.plaatsen?.some(pl=>pl.pp?.stappen?.some(s=>(s.games||[]).some(g=>g.w)))))
+        throw new Error('De volgende ronde heeft al uitslagen; automatisch herstellen is niet veilig.');
+      for(let i=0;i<paren.length;i++){
+        const po=online.derden?.[key]?.[i];
+        if(po && (po.winnaar || po.forfait || (po.games||[]).some(g=>g.w)))
+          throw new Error('Een beste-nr.-3-play-off in '+key+' is al begonnen of beslist. Herstel geblokkeerd.');
+        if(online.derdenOvergeslagen?.[key]?.[i])
+          throw new Error('Er is een handmatig overgeslagen play-off in '+key+'. Controleer eerst de loting.');
+        // Eventuele oude, nog ongespeelde duels horen niet bij de nieuwe kandidaten.
+        if(po)update['state.derden.'+key+'.'+i]=deleteField();
+      }
+      update['state.derdePaarIndeling.'+key]=paren;
+      update['state.publiekeDerdePaarIndeling.'+key]=paren;
+      changed=true;
+    }
+    if(!Object.keys(update).length)return;
+    const timestamp=new Date().toISOString();
+    update['state.gewijzigd']=timestamp;
+    update.gewijzigd=timestamp;
+    update.updatedAt=serverTimestamp();
+    tx.update(ref,update);
+  });
+  if(changed){state.status='online';state.lastRemoteWrite=Date.now();notify();}
+  return {changed};
 }
 
 async function saveLocation(location, extra) {
@@ -6115,6 +6281,7 @@ const api = {
   login,
   logout,
   saveTournament,
+  patchThirdPairings,
   prepareDeleteTournament,
   deleteTournament,
   saveLocation,
