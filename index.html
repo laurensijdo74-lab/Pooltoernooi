@@ -5322,7 +5322,8 @@ async function herstelDerdePaarUitBestand(file) {
   const remote = await online.loadTournament(T.id);
   if (!remote) throw new Error('Dit toernooi bestaat niet (meer) in Firebase.');
   const gewijzigd = Object.entries(indeling).filter(([key,pairs]) =>
-    JSON.stringify((remote.derdePaarIndeling||{})[key] || null) !== JSON.stringify(pairs));
+    JSON.stringify((remote.derdePaarIndeling||{})[key] || null) !== JSON.stringify(pairs) ||
+    JSON.stringify((remote.publiekeDerdePaarIndeling||{})[key] || null) !== JSON.stringify(pairs));
   if (!gewijzigd.length) {
     toast('De online wisselindeling is al gelijk aan de back-up.');
     return;
@@ -5909,6 +5910,55 @@ import {
   getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp, deleteField, collection, getDocs, query, where, runTransaction
 } from 'https://www.gstatic.com/firebasejs/13.1.0/firebase-firestore.js';
 
+/* Firebase slaat geen arrays direct binnen arrays op. Handmatige
+   beste-derde-koppelingen worden daarom op de cloudgrens gecodeerd als
+   { p0: [3,2], p1: [1,4] }. De toernooien en JSON-back-ups blijven werken
+   met het bestaande formaat [[3,2],[1,4]]. */
+function firestoreLeesPaarIndeling(waarde) {
+  if (Array.isArray(waarde)) {
+    if (waarde.every(paar => Array.isArray(paar) && paar.length === 2))
+      return waarde.map(paar => paar.map(Number));
+    if (waarde.every(paar => paar && Array.isArray(paar.poules) && paar.poules.length === 2))
+      return waarde.map(paar => paar.poules.map(Number));
+    return null;
+  }
+  if (!waarde || typeof waarde !== 'object') return null;
+  const sleutels = Object.keys(waarde).filter(k => /^p\d+$/.test(k))
+    .sort((a,b) => Number(a.slice(1)) - Number(b.slice(1)));
+  if (!sleutels.length || !sleutels.every((k,i) => k === 'p'+i &&
+      Array.isArray(waarde[k]) && waarde[k].length === 2)) return null;
+  return sleutels.map(k => waarde[k].map(Number));
+}
+function firestoreSchrijfPaarIndeling(waarde) {
+  const paren = firestoreLeesPaarIndeling(waarde);
+  if (!paren || !paren.every(p => p.every(Number.isInteger)))
+    throw new Error('De opgeslagen beste-nr.-3-indeling is ongeldig. Geen gegevens gewijzigd.');
+  return Object.fromEntries(paren.map((paar,i) => ['p'+i, paar]));
+}
+function firestoreMaakToernooiVeilig(T) {
+  if (!T || typeof T !== 'object') return T;
+  const uit = {...T};
+  for (const veld of ['derdePaarIndeling', 'publiekeDerdePaarIndeling']) {
+    if (!T[veld] || typeof T[veld] !== 'object') continue;
+    uit[veld] = Object.fromEntries(Object.entries(T[veld]).map(([key,paren]) =>
+      [key, firestoreSchrijfPaarIndeling(paren)]));
+  }
+  return uit;
+}
+function firestoreHerstelToernooi(T) {
+  if (!T || typeof T !== 'object') return T;
+  const uit = {...T};
+  for (const veld of ['derdePaarIndeling', 'publiekeDerdePaarIndeling']) {
+    if (!T[veld] || typeof T[veld] !== 'object') continue;
+    uit[veld] = {...T[veld]};
+    for (const [key,waarde] of Object.entries(T[veld])) {
+      const paren = firestoreLeesPaarIndeling(waarde);
+      if (paren) uit[veld][key] = paren;
+    }
+  }
+  return uit;
+}
+
 const cfg = window.POOL_ONLINE_CONFIG || {};
 const firebaseConfig = cfg.firebase || {};
 const required = ['apiKey', 'authDomain', 'projectId', 'appId'];
@@ -6035,7 +6085,7 @@ async function saveTournament(T, extra) {
       toegang: extra && extra.toegang || 'besloten',
       access: extra && extra.toegang || 'besloten',
       eigenaarUid: existing ? existing.eigenaarUid : currentUser.uid,
-      state: T,
+      state: firestoreMaakToernooiVeilig(T),
       updatedAt: serverTimestamp()
     };
     await setDoc(doc(db, 'tournaments', id), payload, { merge: true });
@@ -6124,27 +6174,33 @@ async function patchThirdPairings(id, indeling) {
         if(!Array.isArray(paar)||paar.length!==2) throw new Error('Ongeldig paar in '+key+'.');
         for(const n of paar){const nr=Number(n);if(!Number.isInteger(nr)||!geldig.has(nr)||gezien.has(nr))throw new Error('Ongeldige of dubbele poule in '+key+'.');gezien.add(nr);}
       }
-      const huidige=online.derdePaarIndeling?.[key]||null;
-      if(JSON.stringify(huidige)===JSON.stringify(paren))continue;
-      const rondeIdx=online.plan.rondes.findIndex(r=>r.key===key);
-      const volgende=online.plan.rondes[rondeIdx+1]?.key;
-      const next=volgende&&online.rondes?.[volgende];
-      // Ook uitslagen in volgende ronde voorkomen een stille herindeling.
-      if(next?.poules?.some(p=>(p.schema||[]).some(g=>g.w) ||
-          p.pp?.stappen?.some(s=>(s.games||[]).some(g=>g.w)) ||
-          p.fin?.plaatsen?.some(pl=>pl.pp?.stappen?.some(s=>(s.games||[]).some(g=>g.w)))))
-        throw new Error('De volgende ronde heeft al uitslagen; automatisch herstellen is niet veilig.');
-      for(let i=0;i<paren.length;i++){
-        const po=online.derden?.[key]?.[i];
-        if(po && (po.winnaar || po.forfait || (po.games||[]).some(g=>g.w)))
-          throw new Error('Een beste-nr.-3-play-off in '+key+' is al begonnen of beslist. Herstel geblokkeerd.');
-        if(online.derdenOvergeslagen?.[key]?.[i])
-          throw new Error('Er is een handmatig overgeslagen play-off in '+key+'. Controleer eerst de loting.');
-        // Eventuele oude, nog ongespeelde duels horen niet bij de nieuwe kandidaten.
-        if(po)update['state.derden.'+key+'.'+i]=deleteField();
+      const huidige=firestoreLeesPaarIndeling(online.derdePaarIndeling?.[key])||null;
+      const publiek=firestoreLeesPaarIndeling(online.publiekeDerdePaarIndeling?.[key])||null;
+      const beheerKlopt=JSON.stringify(huidige)===JSON.stringify(paren);
+      const publiekKlopt=JSON.stringify(publiek)===JSON.stringify(paren);
+      if(beheerKlopt && publiekKlopt)continue;
+      if(!beheerKlopt){
+        const rondeIdx=online.plan.rondes.findIndex(r=>r.key===key);
+        const volgende=online.plan.rondes[rondeIdx+1]?.key;
+        const next=volgende&&online.rondes?.[volgende];
+        // Echte herindeling nooit uitvoeren nadat afhankelijke uitslagen bestaan.
+        if(next?.poules?.some(p=>(p.schema||[]).some(g=>g.w) ||
+            p.pp?.stappen?.some(s=>(s.games||[]).some(g=>g.w)) ||
+            p.fin?.plaatsen?.some(pl=>pl.pp?.stappen?.some(s=>(s.games||[]).some(g=>g.w)))))
+          throw new Error('De volgende ronde heeft al uitslagen; automatisch herstellen is niet veilig.');
+        for(let i=0;i<paren.length;i++){
+          const po=online.derden?.[key]?.[i];
+          if(po && (po.winnaar || po.forfait || (po.games||[]).some(g=>g.w)))
+            throw new Error('Een beste-nr.-3-play-off in '+key+' is al begonnen of beslist. Herstel geblokkeerd.');
+          if(online.derdenOvergeslagen?.[key]?.[i])
+            throw new Error('Er is een handmatig overgeslagen play-off in '+key+'. Controleer eerst de loting.');
+          if(po)update['state.derden.'+key+'.'+i]=deleteField();
+        }
+        update['state.derdePaarIndeling.'+key]=firestoreSchrijfPaarIndeling(paren);
       }
-      update['state.derdePaarIndeling.'+key]=paren;
-      update['state.publiekeDerdePaarIndeling.'+key]=paren;
+      // Wanneer beheer al correct is, maar de openbare kopie ontbreekt,
+      // mag de projectie veilig bijgewerkt worden zonder uitslagen te wissen.
+      if(!publiekKlopt)update['state.publiekeDerdePaarIndeling.'+key]=firestoreSchrijfPaarIndeling(paren);
       changed=true;
     }
     if(!Object.keys(update).length)return;
@@ -6199,7 +6255,7 @@ async function loadTournament(id, options) {
     state.remoteId = String(id);
     state.lastRemoteRead = Date.now();
     notify();
-    return snap.data().state || null;
+    return firestoreHerstelToernooi(snap.data().state || null);
   } catch (e) { return fail('Online laden mislukt', e); }
 }
 
@@ -6245,7 +6301,7 @@ function subscribeTournament(id, onRemote) {
     state.remoteId = String(id);
     state.lastRemoteRead = Date.now();
     notify();
-    if (typeof onRemote === 'function' && snap.data().state) onRemote(snap.data().state);
+    if (typeof onRemote === 'function' && snap.data().state) onRemote(firestoreHerstelToernooi(snap.data().state));
   }, e => {
     state.status = 'fout'; state.error = 'Online synchroniseren mislukt: ' + (e.message || e); notify();
   });
@@ -6264,7 +6320,7 @@ function subscribePublicTournament(id, onRemote) {
     if (data.toegang !== 'openbaar' || !data.state) return;
     state.remoteId = String(id);
     state.lastRemoteRead = Date.now();
-    if (typeof onRemote === 'function') onRemote(data.state);
+    if (typeof onRemote === 'function') onRemote(firestoreHerstelToernooi(data.state));
   }, () => {
     // Stil falen: de periodieke publieke refresh blijft beschikbaar.
   });
