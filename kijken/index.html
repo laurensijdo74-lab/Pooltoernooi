@@ -12,6 +12,137 @@
 <link rel="apple-touch-icon" sizes="180x180" href="./pool-live-red-apple-180.png">
 <meta name="apple-mobile-web-app-title" content="POOL LIVE">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<script id="pool-live-install-script">
+/* POOL LIVE: vrijblijvende installatie-uitnodiging bij eerste mobiele bezoek.
+   Het echte Android-installatievenster mag alleen vanuit een gebruikersklik
+   worden geopend, nadat de browser beforeinstallprompt heeft aangeboden. */
+(function () {
+  'use strict';
+  var ua = navigator.userAgent || '';
+  var ios = /iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var mobile = ios || /Android|Mobile|webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+  if (!mobile) return;
+
+  var KEY = 'pool-live-install-invite-v1';
+  var DAY = 86400000;
+  var pendingInstall = null;
+  var card = null;
+  var timer = null;
+  var installed = false;
+
+  function standalone() {
+    try { return window.matchMedia('(display-mode: standalone)').matches ||
+      window.matchMedia('(display-mode: fullscreen)').matches ||
+      navigator.standalone === true; }
+    catch (_) { return navigator.standalone === true; }
+  }
+  function loadChoice() {
+    try { return JSON.parse(localStorage.getItem(KEY) || 'null') || {}; }
+    catch (_) { return {}; }
+  }
+  function saveChoice(choice) {
+    try { localStorage.setItem(KEY, JSON.stringify(choice)); }
+    catch (_) { /* Privemodus: het bezoek blijft gewoon mogelijk. */ }
+  }
+  function shouldShow() {
+    var choice = loadChoice();
+    return !installed && !standalone() && !choice.installed && !(Number(choice.until) > Date.now());
+  }
+  function hideCard() {
+    if (card && card.parentNode) card.parentNode.removeChild(card);
+    card = null;
+    if (timer) { clearTimeout(timer); timer = null; }
+  }
+  function snooze(days) {
+    saveChoice({until: Date.now() + days * DAY});
+    hideCard();
+  }
+  function showHelp() {
+    if (!card) return;
+    var p = card.querySelector('.pool-live-install-description');
+    var btn = card.querySelector('.pool-live-install-primary');
+    var title = card.querySelector('.pool-live-install-title');
+    if (!p || !btn || !title) return;
+    title.textContent = 'Zet POOL LIVE op je beginscherm';
+    if (ios) {
+      p.textContent = 'Open deze pagina in Safari. Tik op Deel (vierkant met pijl omhoog) en kies Zet op beginscherm.';
+    } else if (/Android/i.test(ua)) {
+      p.textContent = 'Open het menu van Chrome of Samsung Internet (drie puntjes of streepjes) en kies App installeren of Toevoegen aan startscherm.';
+    } else {
+      p.textContent = 'Open het menu van je browser en kies Installeren of Toevoegen aan startscherm.';
+    }
+    btn.textContent = 'Begrepen';
+    btn.dataset.action = 'done';
+  }
+  async function installFromClick() {
+    if (!shouldShow()) { hideCard(); return; }
+    if (!pendingInstall) { showHelp(); return; }
+    var request = pendingInstall;
+    pendingInstall = null;
+    try {
+      // prompt() moet DIRECT op de gebruikersklik volgen, niet op een timer.
+      var result = await request.prompt();
+      if (result && result.outcome === 'accepted') {
+        saveChoice({installed: true});
+        hideCard();
+      } else {
+        snooze(30);
+      }
+    } catch (_) {
+      showHelp();
+    }
+  }
+  function showCard() {
+    timer = null;
+    if (!shouldShow() || card || !document.body) return;
+    if (document.visibilityState === 'hidden') {
+      document.addEventListener('visibilitychange', function onceVisible() {
+        if (document.visibilityState !== 'visible') return;
+        document.removeEventListener('visibilitychange', onceVisible);
+        if (shouldShow()) showCard();
+      });
+      return;
+    }
+    card = document.createElement('aside');
+    card.className = 'pool-live-install-card';
+    card.setAttribute('role', 'region');
+    card.setAttribute('aria-label', 'POOL LIVE installeren');
+    card.innerHTML = '<div class="pool-live-install-head">' +
+      '<img class="pool-live-install-icon" src="./pool-live-red-192.png" alt="" width="42" height="42">' +
+      '<div class="pool-live-install-heading"><strong class="pool-live-install-title">Installeer POOL LIVE</strong>' +
+      '<span>Toeschouwersapp</span></div>' +
+      '<button type="button" class="pool-live-install-close" aria-label="Installatievoorstel sluiten">&times;</button></div>' +
+      '<p class="pool-live-install-description">Bekijk alle pooltoernooien rechtstreeks vanaf je beginscherm.</p>' +
+      '<div class="pool-live-install-actions">' +
+      '<button type="button" class="pool-live-install-later">Niet nu</button>' +
+      '<button type="button" class="pool-live-install-primary" data-action="install">Installeren</button></div>';
+    card.querySelector('.pool-live-install-close').addEventListener('click', function () { snooze(30); });
+    card.querySelector('.pool-live-install-later').addEventListener('click', function () { snooze(30); });
+    card.querySelector('.pool-live-install-primary').addEventListener('click', function (event) {
+      if (event.currentTarget.dataset.action === 'done') { snooze(30); return; }
+      installFromClick();
+    });
+    document.body.appendChild(card);
+  }
+  window.addEventListener('beforeinstallprompt', function (event) {
+    if (!shouldShow()) return;
+    event.preventDefault();
+    pendingInstall = event;
+  });
+  window.addEventListener('appinstalled', function () {
+    installed = true;
+    pendingInstall = null;
+    saveChoice({installed: true});
+    hideCard();
+  });
+  function start() {
+    if (shouldShow()) timer = setTimeout(showCard, 3000);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, {once: true});
+  else start();
+}());
+</script>
+
 
 <style>
 :root {
@@ -1100,6 +1231,24 @@ label.btn:focus-within { outline: 3px solid var(--accent); outline-offset: 2px; 
 @media screen and (max-width:380px){
  .hero-public .hero-in>.karroesel-letterlogo{width:128px!important;height:62px!important}
 }
+
+/* POOL LIVE: installatie-uitnodiging, uitsluitend op telefoons zichtbaar. */
+.pool-live-install-card{position:fixed;z-index:52;left:50%;bottom:calc(13px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(420px,calc(100vw - 26px));padding:15px 16px 14px;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--ink);font-family:var(--font-body);box-shadow:0 10px 40px rgba(0,0,0,.32);line-height:1.35}
+.pool-live-install-head{display:flex;align-items:center;gap:11px;min-width:0}
+.pool-live-install-icon{border-radius:11px;flex:none;object-fit:contain;background:var(--surface2)}
+.pool-live-install-heading{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+.pool-live-install-heading strong{font-size:17px;font-weight:800}
+.pool-live-install-heading span{font-size:12px;color:var(--muted)}
+.pool-live-install-close{flex:none;display:grid;place-items:center;border:0;background:transparent;color:var(--muted);font-size:25px;line-height:1;width:32px;height:34px;cursor:pointer}
+.pool-live-install-description{margin:11px 0 13px;font-size:14px;line-height:1.4}
+.pool-live-install-actions{display:flex;justify-content:flex-end;gap:9px}
+.pool-live-install-actions button{border-radius:9px;min-height:41px;padding:8px 15px;font-size:14px;font-weight:750;cursor:pointer}
+.pool-live-install-later{border:1px solid var(--line);color:var(--ink);background:var(--surface2)}
+.pool-live-install-primary{border:1px solid var(--brand);color:var(--brand-ink);background:var(--brand)}
+.pool-live-install-card button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+@media(min-width:981px){.pool-live-install-card{display:none!important}}
+@media(max-width:360px){.pool-live-install-card{padding:12px}.pool-live-install-description{font-size:13px}}
+@media print{.pool-live-install-card{display:none!important}}
 </style>
 </head>
 <body>
